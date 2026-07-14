@@ -16,6 +16,13 @@ test("course catalog is reachable and has no fatal browser error", async ({ page
   expect(errors).toEqual([]);
 });
 
+test("public opportunities render records from Supabase", async ({ page }) => {
+  await page.goto("/oportunidades");
+  await expect(page.getByRole("heading", { name: "Produtor musical freelancer" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Collab com vocalista pop" })).toBeVisible();
+  await expect(page.getByText("Nenhuma oportunidade encontrada")).not.toBeVisible();
+});
+
 test("administrative routes require authentication", async ({ page }) => {
   await page.goto("/admin/observabilidade");
   await expect(page).toHaveURL(/\/login/);

@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import PublicLayout from "@/app/layouts/PublicLayout";
 import EmptyState from "@/shared/components/EmptyState";
+import ErrorState from "@/shared/components/ErrorState";
+import LoadingState from "@/shared/components/LoadingState";
 import FilterBar from "@/shared/components/FilterBar";
 import PaginationControls from "@/shared/components/PaginationControls";
 import SearchInput from "@/shared/components/SearchInput";
@@ -15,7 +17,7 @@ const TYPE_FILTERS = ['Todos', 'Freelance', 'Meio perÃ­odo', 'Pontual', 'Proje
 
 const PublicOpportunitiesPage = () => {
   const navigate = useNavigate();
-  const { data: open = [] } = useOpenOpportunities();
+  const { data: open = [], error, isError, isLoading, refetch } = useOpenOpportunities();
   const [search, setSearch] = useState('');
   const [type, setType] = useState('Todos');
 
@@ -51,7 +53,11 @@ const PublicOpportunitiesPage = () => {
         <FilterBar options={TYPE_FILTERS} value={type} onChange={setType} />
       </div>
 
-      {filtered.length === 0 ? (
+      {isLoading ? (
+        <LoadingState rows={3} className="h-40 rounded-xl" />
+      ) : isError ? (
+        <ErrorState description={error.message} onRetry={() => void refetch()} />
+      ) : filtered.length === 0 ? (
         <EmptyState title="Nenhuma oportunidade encontrada" description="Tente outra busca ou tipo de oportunidade." />
       ) : (
         <>

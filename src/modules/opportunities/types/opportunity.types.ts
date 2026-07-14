@@ -1,9 +1,9 @@
-export interface MockOpportunity {
+export interface Opportunity {
   id: string;
   title: string;
   company: string;
   location: string;
-  type: 'Freelance' | 'Meio período' | 'Pontual' | 'Projeto';
+  type: string;
   status: 'aberta' | 'encerrada';
   postedAt: string;
   description: string;

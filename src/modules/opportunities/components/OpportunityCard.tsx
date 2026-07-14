@@ -1,14 +1,14 @@
 import { Briefcase, CalendarDays, Heart, MapPin, Users } from "lucide-react";
 import StatusBadge from "@/shared/components/StatusBadge";
 import { Button } from "@/shared/components/ui/button";
-import type { MockOpportunity } from "@/modules/opportunities/types/opportunity.types";
+import type { Opportunity } from "@/modules/opportunities/types/opportunity.types";
 
 interface OpportunityCardProps {
-  opportunity: MockOpportunity;
+  opportunity: Opportunity;
   actionLabel: string;
-  onAction?: (opportunity: MockOpportunity) => void;
+  onAction?: (opportunity: Opportunity) => void;
   disabled?: boolean;
-  onFavorite?: (opportunity: MockOpportunity) => void;
+  onFavorite?: (opportunity: Opportunity) => void;
 }
 
 const OpportunityCard = ({

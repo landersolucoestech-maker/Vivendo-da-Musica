@@ -394,6 +394,123 @@ export type Database = {
           },
         ]
       }
+      opportunities: {
+        Row: {
+          id: string
+          owner_id: string | null
+          slug: string
+          kind: Database["public"]["Enums"]["opportunity_kind"]
+          title: string
+          organization_name: string
+          location: string
+          engagement_type: string
+          description: string
+          requirements: string[]
+          compensation: string | null
+          external_url: string | null
+          deadline_at: string | null
+          status: Database["public"]["Enums"]["opportunity_status"]
+          application_count: number
+          published_at: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          owner_id?: string | null
+          slug: string
+          kind: Database["public"]["Enums"]["opportunity_kind"]
+          title: string
+          organization_name: string
+          location?: string
+          engagement_type: string
+          description: string
+          requirements?: string[]
+          compensation?: string | null
+          external_url?: string | null
+          deadline_at?: string | null
+          status?: Database["public"]["Enums"]["opportunity_status"]
+          application_count?: number
+          published_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          owner_id?: string | null
+          slug?: string
+          kind?: Database["public"]["Enums"]["opportunity_kind"]
+          title?: string
+          organization_name?: string
+          location?: string
+          engagement_type?: string
+          description?: string
+          requirements?: string[]
+          compensation?: string | null
+          external_url?: string | null
+          deadline_at?: string | null
+          status?: Database["public"]["Enums"]["opportunity_status"]
+          application_count?: number
+          published_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      opportunity_applications: {
+        Row: {
+          id: string
+          opportunity_id: string
+          applicant_id: string
+          applicant_name_snapshot: string
+          cover_letter: string
+          portfolio_url: string | null
+          status: Database["public"]["Enums"]["opportunity_application_status"]
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          opportunity_id: string
+          applicant_id: string
+          applicant_name_snapshot?: string
+          cover_letter: string
+          portfolio_url?: string | null
+          status?: Database["public"]["Enums"]["opportunity_application_status"]
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          opportunity_id?: string
+          applicant_id?: string
+          applicant_name_snapshot?: string
+          cover_letter?: string
+          portfolio_url?: string | null
+          status?: Database["public"]["Enums"]["opportunity_application_status"]
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [{
+          foreignKeyName: "opportunity_applications_opportunity_id_fkey"
+          columns: ["opportunity_id"]
+          isOneToOne: false
+          referencedRelation: "opportunities"
+          referencedColumns: ["id"]
+        }]
+      }
+      opportunity_favorites: {
+        Row: { opportunity_id: string; user_id: string; created_at: string }
+        Insert: { opportunity_id: string; user_id: string; created_at?: string }
+        Update: { opportunity_id?: string; user_id?: string; created_at?: string }
+        Relationships: [{
+          foreignKeyName: "opportunity_favorites_opportunity_id_fkey"
+          columns: ["opportunity_id"]
+          isOneToOne: false
+          referencedRelation: "opportunities"
+          referencedColumns: ["id"]
+        }]
+      }
       user_profiles: {
         Row: {
           id: string
@@ -506,6 +623,9 @@ export type Database = {
       course_status: "draft" | "published" | "archived"
       enrollment_status: "active" | "revoked"
       enrollment_source: "manual" | "stripe"
+      opportunity_application_status: "submitted" | "reviewing" | "shortlisted" | "accepted" | "rejected" | "withdrawn"
+      opportunity_kind: "job" | "collab" | "sync" | "grant" | "contest"
+      opportunity_status: "draft" | "pending" | "open" | "closed" | "rejected"
       user_role: "student" | "instructor" | "producer" | "admin" | "super_admin"
     }
     CompositeTypes: {

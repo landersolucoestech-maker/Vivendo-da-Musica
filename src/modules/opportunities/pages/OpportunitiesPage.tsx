@@ -4,6 +4,8 @@ import StudentLayout from "@/app/layouts/StudentLayout";
 import PageHeader from "@/shared/components/PageHeader";
 import FilterBar from "@/shared/components/FilterBar";
 import EmptyState from "@/shared/components/EmptyState";
+import ErrorState from "@/shared/components/ErrorState";
+import LoadingState from "@/shared/components/LoadingState";
 import OpportunityCard from "@/modules/opportunities/components/OpportunityCard";
 import { Button } from "@/shared/components/ui/button";
 import { Textarea } from "@/shared/components/ui/textarea";
@@ -14,15 +16,15 @@ import {
 import { useToast } from "@/shared/hooks/use-toast";
 import { useOpportunities } from "@/modules/opportunities/hooks/useOpportunities";
 import { opportunitiesService } from "@/modules/opportunities/services/opportunities.service";
-import type { MockOpportunity } from "@/modules/opportunities/types/opportunity.types";
+import type { Opportunity } from "@/modules/opportunities/types/opportunity.types";
 
 const FILTERS = ['Todas', 'aberta', 'encerrada'];
 
 const OpportunitiesPage = () => {
   const { toast } = useToast();
-  const { data: opportunities, refetch } = useOpportunities();
+  const { data: opportunities, error, isError, isLoading, refetch } = useOpportunities();
   const [filter, setFilter] = useState('Todas');
-  const [applying, setApplying] = useState<MockOpportunity | null>(null);
+  const [applying, setApplying] = useState<Opportunity | null>(null);
   const [coverLetter, setCoverLetter] = useState("");
   const [portfolioUrl, setPortfolioUrl] = useState("");
   const [busy, setBusy] = useState(false);
@@ -41,7 +43,7 @@ const OpportunitiesPage = () => {
     finally{setBusy(false);}
   };
 
-  const toggleFavorite = async (opportunity: MockOpportunity) => { try { await opportunitiesService.toggleFavorite(opportunity.id,opportunity.isFavorite); await refetch(); } catch(error){ toast({title:"Favorito nao atualizado",description:error instanceof Error?error.message:"Tente novamente.",variant:"destructive"}); } };
+  const toggleFavorite = async (opportunity: Opportunity) => { try { await opportunitiesService.toggleFavorite(opportunity.id,opportunity.isFavorite); await refetch(); } catch(error){ toast({title:"Favorito nao atualizado",description:error instanceof Error?error.message:"Tente novamente.",variant:"destructive"}); } };
 
   return (
     <StudentLayout>
@@ -51,7 +53,11 @@ const OpportunitiesPage = () => {
         <FilterBar options={FILTERS} value={filter} onChange={setFilter} />
       </div>
 
-      {filtered.length === 0 ? (
+      {isLoading ? (
+        <LoadingState rows={3} className="h-40 rounded-xl" />
+      ) : isError ? (
+        <ErrorState description={error.message} onRetry={() => void refetch()} />
+      ) : filtered.length === 0 ? (
         <EmptyState icon={Briefcase} title="Nenhuma oportunidade encontrada" />
       ) : (
         <div className="grid sm:grid-cols-2 gap-4">
