@@ -1,0 +1,51 @@
+openapi: 3.1.0
+info:
+  title: Vivendo da Música API
+  version: 1.0.0
+servers:
+  - url: https://ehaehioqaqvyfgcetylh.supabase.co/functions/v1/api-v1/v1
+paths:
+  /health:
+    get:
+      responses:
+        "200": { description: API health }
+  /catalog/{resource}:
+    get:
+      parameters:
+        - { name: resource, in: path, required: true, schema: { type: string, enum: [courses, beats, events, opportunities] } }
+        - { name: page, in: query, schema: { type: integer, minimum: 1, default: 1 } }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
+        - { name: q, in: query, schema: { type: string, maxLength: 100 } }
+        - { name: sort, in: query, schema: { type: string } }
+        - { name: direction, in: query, schema: { type: string, enum: [asc, desc] } }
+      responses:
+        "200": { description: Paginated public catalog }
+        "400": { description: Invalid filters or pagination }
+        "429": { description: Rate limit exceeded }
+  /webhooks/{provider}:
+    post:
+      description: Signed and idempotent generic webhook ingress. Provider secret is stored as a Supabase secret.
+      parameters:
+        - { name: provider, in: path, required: true, schema: { type: string } }
+        - { name: x-webhook-id, in: header, required: true, schema: { type: string } }
+        - { name: x-webhook-event, in: header, required: true, schema: { type: string } }
+        - { name: x-webhook-signature, in: header, required: true, schema: { type: string } }
+      responses:
+        "202": { description: Webhook accepted }
+        "401": { description: Invalid HMAC SHA-256 signature }
+        "413": { description: Payload exceeds 1 MB }
+        "429": { description: Rate limit exceeded }
+components:
+  schemas:
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message, request_id]
+          properties:
+            code: { type: string }
+            message: { type: string }
+            request_id: { type: string, format: uuid }
+            details: {}
