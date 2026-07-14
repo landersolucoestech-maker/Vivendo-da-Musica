@@ -4,6 +4,14 @@ import type { LessonProgress } from '@/modules/lessons/hooks/useUserProgress';
 import type { RecentActivity } from '@/modules/dashboard/hooks/useRecentActivities';
 import type { UserProfile } from '@/modules/profile/hooks/useUserProfile';
 
+export const DEV_COURSE_ACCESS_META = {
+  title: 'Curso de desenvolvimento',
+  slug: 'curso-de-desenvolvimento',
+  description: 'Conteudo disponivel somente com o bypass local de desenvolvimento.',
+  priceCents: 0,
+  currency: 'BRL',
+} as const;
+
 /**
  * Fake content used only when VITE_DEV_BYPASS_AUTH is active, so the
  * dashboard/lesson UI has something to render without a real logged-in,

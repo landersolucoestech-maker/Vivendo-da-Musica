@@ -7,7 +7,6 @@ import { Label } from "@/shared/components/ui/label";
 import { Textarea } from "@/shared/components/ui/textarea";
 import { useToast } from "@/shared/hooks/use-toast";
 import { useCourses } from "@/modules/courses/hooks/useCourses";
-import { useCatalogCourseById } from "@/modules/courses/hooks/useCatalogCourseById";
 import { academyService } from "@/modules/courses/services/academy.service";
 import { ROUTES } from "@/shared/constants/routes";
 
@@ -17,7 +16,6 @@ const CourseEditorPage = () => {
   const { toast } = useToast();
   const { data: courses } = useCourses();
   const existingReal = id ? courses?.find((c) => c.id === id) : undefined;
-  const { data: existingMock } = useCatalogCourseById(existingReal ? undefined : id);
 
   const [title, setTitle] = useState('');
   const [slug, setSlug] = useState('');
@@ -31,26 +29,12 @@ const CourseEditorPage = () => {
       setSlug(existingReal.slug);
       setDescription(existingReal.description ?? '');
       setPriceCents(String(existingReal.price_cents));
-    } else if (existingMock) {
-      setTitle(existingMock.title);
-      setSlug(existingMock.slug);
-      setDescription(existingMock.shortDescription);
-      setPriceCents(String(existingMock.priceCents));
     }
-  }, [existingReal, existingMock]);
+  }, [existingReal]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
-
-    // Mock catalog entries aren't real rows — simulate the save instead of
-    // hitting Supabase with an id that doesn't exist there.
-    if (existingMock) {
-      setIsSubmitting(false);
-      toast({ title: "Curso atualizado (simulado)", description: "Este curso é do catálogo de demonstração — alterações não são persistidas até a migração para dados reais." });
-      navigate(ROUTES.adminCourses);
-      return;
-    }
 
     const payload = { title, slug, description, price_cents: Number(priceCents) || 0, currency: 'BRL' };
     const { error } = existingReal
@@ -68,17 +52,11 @@ const CourseEditorPage = () => {
     navigate(ROUTES.adminCourses);
   };
 
-  const existing = existingReal ?? existingMock;
+  const existing = existingReal;
 
   return (
     <AdminLayout>
       <h1 className="text-2xl font-bold mb-6">{existing ? 'Editar curso' : 'Novo curso'}</h1>
-      {existingMock && (
-        <p className="text-sm text-amber-400 mb-4">
-          Curso de demonstração — o salvamento aqui é simulado até este curso existir no banco real.
-        </p>
-      )}
-
       <form onSubmit={handleSubmit} className="max-w-lg space-y-4">
         <div>
           <Label htmlFor="title">Título</Label>

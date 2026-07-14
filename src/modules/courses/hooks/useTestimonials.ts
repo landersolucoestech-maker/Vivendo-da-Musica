@@ -3,7 +3,7 @@ import { academyService } from "@/modules/courses/services/academy.service";
 
 export const useTestimonials = () => {
   return useQuery({
-    queryKey: ['testimonials', 'mock'],
+    queryKey: ['testimonials'],
     queryFn: () => academyService.listTestimonials(),
   });
 };

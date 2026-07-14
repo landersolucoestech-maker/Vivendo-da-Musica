@@ -5,7 +5,7 @@ import { Textarea } from "@/shared/components/ui/textarea";
 import UserAvatar from "@/shared/components/UserAvatar";
 import LoadingState from "@/shared/components/LoadingState";
 import { useToast } from "@/shared/hooks/use-toast";
-import { useLessonComments } from "@/modules/lessons/hooks/useLessonComments";
+import { useCreateLessonComment, useLessonComments } from "@/modules/lessons/hooks/useLessonComments";
 
 interface LessonCommentsProps {
   lessonId: string;
@@ -15,11 +15,21 @@ const LessonComments = ({ lessonId }: LessonCommentsProps) => {
   const { toast } = useToast();
   const [draft, setDraft] = useState('');
   const { data: comments, isLoading } = useLessonComments(lessonId);
+  const createComment = useCreateLessonComment(lessonId);
 
-  const handlePublish = () => {
+  const handlePublish = async () => {
     if (!draft.trim()) return;
-    toast({ title: "Comentário publicado!" });
-    setDraft('');
+    try {
+      await createComment.mutateAsync(draft);
+      toast({ title: "Comentário publicado!" });
+      setDraft('');
+    } catch (error) {
+      toast({
+        title: "Não foi possível publicar o comentário",
+        description: error instanceof Error ? error.message : "Tente novamente.",
+        variant: "destructive",
+      });
+    }
   };
 
   return (
@@ -35,7 +45,7 @@ const LessonComments = ({ lessonId }: LessonCommentsProps) => {
         />
       </div>
       <div className="flex justify-end mb-6">
-        <Button size="sm" onClick={handlePublish}>
+        <Button size="sm" onClick={handlePublish} disabled={createComment.isPending || !draft.trim()}>
           <Send className="w-4 h-4 mr-2" />
           Comentar
         </Button>
@@ -46,7 +56,7 @@ const LessonComments = ({ lessonId }: LessonCommentsProps) => {
       ) : (
         <div className="space-y-4">
           {comments?.map((comment) => (
-            <div key={comment.author} className="flex gap-3">
+            <div key={comment.id} className="flex gap-3">
               <UserAvatar name={comment.author} size="sm" />
               <div>
                 <p className="text-sm">

@@ -4,7 +4,7 @@ import type { MockCourse } from "@/modules/courses/types/course.types";
 
 export const useCourseCatalogDetail = (slug: string | undefined) => {
   return useQuery({
-    queryKey: ['course-catalog-detail', 'mock', slug],
+    queryKey: ['course-catalog-detail', slug],
     queryFn: () => academyService.getCatalogCourseBySlug(slug!),
     enabled: !!slug,
   });
@@ -12,7 +12,7 @@ export const useCourseCatalogDetail = (slug: string | undefined) => {
 
 export const useRelatedCourses = (course: MockCourse | undefined) => {
   return useQuery({
-    queryKey: ['related-courses', 'mock', course?.slug],
+    queryKey: ['related-courses', course?.slug],
     queryFn: () => academyService.listRelatedCourses(course!),
     enabled: !!course,
   });

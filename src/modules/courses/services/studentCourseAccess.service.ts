@@ -1,7 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import { isDevAuthBypassEnabled } from "@/shared/utils/devAuthBypass";
-import { MOCK_MODULES } from "@/shared/utils/devMockData";
-import { MOCK_COURSES } from "@/mocks/courses.mock";
+import { DEV_COURSE_ACCESS_META, MOCK_MODULES } from "@/shared/utils/devMockData";
 import type { CourseModule } from "@/modules/modules-manager/types/courseModule";
 import type { LessonProgress } from "@/modules/lessons/hooks/useUserProgress";
 
@@ -33,17 +32,15 @@ const formatDuration = (minutes: number | null) => {
 export const studentCourseAccessService = {
   async getCourseAccess(courseId: string): Promise<StudentCourseAccess | null> {
     if (isDevAuthBypassEnabled) {
-      const mockCourse = MOCK_COURSES[0];
-
       return {
         course: {
           id: courseId,
-          title: mockCourse.title,
-          slug: mockCourse.slug,
-          description: mockCourse.description,
+          title: DEV_COURSE_ACCESS_META.title,
+          slug: DEV_COURSE_ACCESS_META.slug,
+          description: DEV_COURSE_ACCESS_META.description,
           thumbnail_url: null,
-          price_cents: mockCourse.priceCents,
-          currency: mockCourse.currency,
+          price_cents: DEV_COURSE_ACCESS_META.priceCents,
+          currency: DEV_COURSE_ACCESS_META.currency,
         },
         enrollment: {
           id: "mock-enrollment",

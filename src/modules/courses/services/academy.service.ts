@@ -1,10 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import { isDevAuthBypassEnabled } from "@/shared/utils/devAuthBypass";
 import { MOCK_MODULES } from "@/shared/utils/devMockData";
-import { MOCK_COURSES, MOCK_COURSE_CATEGORIES, getCourseBySlug, getRelatedCourses } from "@/mocks/courses.mock";
-import { MOCK_INSTRUCTORS } from "@/mocks/instructors.mock";
-import { MOCK_TESTIMONIALS } from "@/mocks/testimonials.mock";
-import { MOCK_COURSE_EXTRAS, DEFAULT_COURSE_EXTRAS } from "@/mocks/academy.mock";
 import { academyContentService } from "@/modules/courses/services/academyContent.service";
 import type { AcademyContent } from "@/modules/courses/types/academyContent.types";
 import type { CourseModule } from "@/modules/modules-manager/types/courseModule";
@@ -18,6 +14,7 @@ export interface Course {
   thumbnail_url: string | null;
   price_cents: number;
   currency: string;
+  instructor_id: string | null;
 }
 
 /**
@@ -32,8 +29,19 @@ export const academyService = {
   async listRealCourses(): Promise<Course[]> {
     const { data, error } = await supabase
       .from('courses')
-      .select('id, title, slug, description, thumbnail_url, price_cents, currency');
+      .select('id, title, slug, description, thumbnail_url, price_cents, currency, instructor_id')
+      .order('created_at', { ascending: false });
 
+    if (error) throw error;
+    return data ?? [];
+  },
+
+  async listPublishedCourses(): Promise<Course[]> {
+    const { data, error } = await supabase
+      .from('courses')
+      .select('id, title, slug, description, thumbnail_url, price_cents, currency, instructor_id')
+      .eq('status', 'published')
+      .order('created_at', { ascending: false });
     if (error) throw error;
     return data ?? [];
   },
@@ -86,15 +94,51 @@ export const academyService = {
   },
 
   async listCatalogCourses(): Promise<MockCourse[]> {
-    return MOCK_COURSES;
+    const courses = await this.listPublishedCourses();
+    return Promise.all(courses.map(async (course) => {
+      const { data, error } = await supabase
+        .from('course_modules')
+        .select('title, order_index, lessons(title, duration_minutes, order_index)')
+        .eq('course_id', course.id)
+        .order('order_index', { ascending: true });
+      if (error) throw error;
+      return {
+        id: course.id,
+        slug: course.slug,
+        title: course.title,
+        category: 'Produção Musical',
+        level: 'Iniciante' as const,
+        instructorId: course.instructor_id ?? '',
+        priceCents: course.price_cents,
+        currency: course.currency,
+        rating: 0,
+        reviewCount: 0,
+        studentsCount: 0,
+        durationHours: 0,
+        gradientFrom: '#7C3AED',
+        gradientTo: '#312E81',
+        shortDescription: course.description ?? '',
+        description: course.description ?? '',
+        modules: (data ?? []).map((module) => ({
+          title: module.title,
+          lessons: (module.lessons ?? [])
+            .slice()
+            .sort((a, b) => a.order_index - b.order_index)
+            .map((lesson) => ({ title: lesson.title, durationMinutes: lesson.duration_minutes ?? 0 })),
+        })),
+        faq: [],
+        reviews: [],
+        relatedSlugs: [],
+      };
+    }));
   },
 
   async getCatalogCourseBySlug(slug: string): Promise<MockCourse | undefined> {
-    return getCourseBySlug(slug);
+    return (await this.listCatalogCourses()).find((course) => course.slug === slug);
   },
 
   async getCatalogCourseById(id: string): Promise<MockCourse | undefined> {
-    return MOCK_COURSES.find((c) => c.id === id);
+    return (await this.listCatalogCourses()).find((course) => course.id === id);
   },
 
   async createCourse(payload: { title: string; slug: string; description: string; price_cents: number; currency: string }) {
@@ -106,27 +150,73 @@ export const academyService = {
   },
 
   async listRelatedCourses(course: MockCourse): Promise<MockCourse[]> {
-    return getRelatedCourses(course);
+    return (await this.listCatalogCourses()).filter((candidate) => candidate.id !== course.id).slice(0, 3);
   },
 
   async listCourseCategories(): Promise<readonly string[]> {
-    return MOCK_COURSE_CATEGORIES;
+    const courses = await this.listCatalogCourses();
+    const categories = courses.map((course: MockCourse) => course.category);
+    return [...new Set<string>(categories)].sort();
   },
 
   async listInstructors(): Promise<Instructor[]> {
-    return MOCK_INSTRUCTORS;
+    const { data: profiles, error } = await supabase
+      .from('user_profiles')
+      .select('user_id, full_name')
+      .eq('role', 'instructor')
+      .order('full_name', { ascending: true });
+    if (error) throw error;
+
+    return Promise.all((profiles ?? []).map(async (profile) => {
+      const { count, error: countError } = await supabase
+        .from('courses')
+        .select('id', { count: 'exact', head: true })
+        .eq('instructor_id', profile.user_id)
+        .eq('status', 'published');
+      if (countError) throw countError;
+
+      return {
+        id: profile.user_id,
+        name: profile.full_name ?? 'Instrutor',
+        specialty: 'Instrutor',
+        bio: '',
+        rating: 0,
+        studentsCount: 0,
+        coursesCount: count ?? 0,
+        gradientFrom: '#7C3AED',
+        gradientTo: '#312E81',
+      };
+    }));
   },
 
   async getInstructorById(id: string): Promise<Instructor | undefined> {
-    return MOCK_INSTRUCTORS.find((i) => i.id === id);
+    return (await this.listInstructors()).find((instructor) => instructor.id === id);
   },
 
   async listTestimonials(): Promise<Testimonial[]> {
-    return MOCK_TESTIMONIALS;
+    return [];
   },
 
   async getCourseExtras(slug: string): Promise<CourseDisplayExtras> {
-    return MOCK_COURSE_EXTRAS[slug] ?? DEFAULT_COURSE_EXTRAS;
+    const { data: course, error: courseError } = await supabase
+      .from('courses')
+      .select('instructor_id')
+      .eq('slug', slug)
+      .maybeSingle();
+    if (courseError) throw courseError;
+
+    let instructorName = 'Equipe Vivendo da Música';
+    if (course?.instructor_id) {
+      const { data: profile, error: profileError } = await supabase
+        .from('user_profiles')
+        .select('full_name')
+        .eq('user_id', course.instructor_id)
+        .maybeSingle();
+      if (profileError) throw profileError;
+      instructorName = profile?.full_name ?? instructorName;
+    }
+
+    return { instructorName, rating: 0, reviewCount: 0, level: 'Iniciante' };
   },
 
   /** Ready-to-render catalog cards: real courses (Supabase) merged with the
@@ -134,23 +224,17 @@ export const academyService = {
    * Real courses are best-effort — if Supabase is unreachable, the catalog
    * still renders fully from the mock list instead of blocking on it. */
   async listCourseCards(): Promise<CatalogCourse[]> {
-    const [realCourses, mockCourses] = await Promise.all([
-      this.listRealCourses().catch(() => [] as Course[]),
-      this.listCatalogCourses(),
-    ]);
-    const academyContents = await academyContentService.listPublished().catch(() => [] as AcademyContent[]);
+    const realCourses = await this.listPublishedCourses();
+    const academyContents = await academyContentService.listPublished();
 
     const real = await Promise.all(realCourses.map((course) => this.mapRealCourseToCard(course)));
-    const realSlugs = new Set(real.map((c) => c.slug));
-    const mock = mockCourses.filter((c) => !realSlugs.has(c.slug)).map((c) => this.mapMockCourseToCard(c));
     const contents = academyContents.map((content) => this.mapAcademyContentToCard(content));
 
-    return [...contents, ...real, ...mock];
+    return [...contents, ...real];
   },
 
   async listFeaturedCourseCards(): Promise<CatalogCourse[]> {
-    const featured = MOCK_COURSES.filter((c) => c.featured);
-    return featured.map((c) => this.mapMockCourseToCard(c));
+    return (await this.listCourseCards()).slice(0, 3);
   },
 
   async mapRealCourseToCard(course: Course): Promise<CatalogCourse> {
@@ -184,7 +268,7 @@ export const academyService = {
       description: course.shortDescription,
       category: course.category,
       level: course.level,
-      instructorName: MOCK_INSTRUCTORS.find((i) => i.id === course.instructorId)?.name ?? 'Equipe Vivendo da Música',
+      instructorName: 'Equipe Vivendo da Música',
       rating: course.rating,
       reviewCount: course.reviewCount,
       studentsCount: course.studentsCount,

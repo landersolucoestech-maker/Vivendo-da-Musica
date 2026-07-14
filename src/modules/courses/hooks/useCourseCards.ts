@@ -10,7 +10,7 @@ export const useCourseCards = () => {
 
 export const useFeaturedCourseCards = () => {
   return useQuery({
-    queryKey: ['featured-course-cards', 'mock'],
+    queryKey: ['featured-course-cards'],
     queryFn: () => academyService.listFeaturedCourseCards(),
   });
 };

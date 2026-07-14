@@ -15,6 +15,7 @@ coverage/
 .next/
 .vite/
 .cache/
+supabase/.temp/
 tmp/
 temp/
 *.local
