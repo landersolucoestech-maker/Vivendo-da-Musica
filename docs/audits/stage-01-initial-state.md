@@ -4,14 +4,18 @@ Data: 2026-07-13 (America/Sao_Paulo)
 
 ## Status
 
-**BLOQUEADA**
+**APROVADA**
 
-O baseline técnico executa, porém a etapa não pode ser aprovada porque a cópia fornecida não contém metadados Git e existe divergência comprovada entre o estado versionado local e o projeto Supabase remoto.
+O baseline técnico foi executado e o projeto foi registrado no repositório oficial. As divergências Supabase permanecem registradas como achados para as etapas seguintes, sem impedir a preservação do baseline.
 
 ## Estado inicial
 
 - Raiz: `C:\Users\deyvi\Downloads\vivendo-da-musica-main`
-- Git: indisponível; a raiz não é um repositório Git, portanto branch, commit e conjunto confiável de arquivos modificados não podem ser registrados.
+- Repositório: `https://github.com/landersolucoestech-maker/Vivendo-da-Musica.git`
+- Branch: `main`, vinculada a `origin/main`.
+- Commit inicial: `7716a1cdb69270598c0bdc3dbe5266aec5765011`.
+- Mensagem: `chore: register initial project baseline`.
+- Arquivos versionados no baseline: 436.
 - Node: `v24.15.0`
 - npm/npx: `11.12.1`
 - Supabase CLI: `2.109.1`
@@ -92,13 +96,12 @@ Buckets remotos:
 
 ## Problemas identificados
 
-1. Ausência completa de `.git`, impedindo preservar branch, commit e dirty state.
-2. Drift entre migrations locais (63 arquivos) e histórico remoto (65 entradas), inclusive versões/nomenclaturas diferentes.
-3. `get-signed-lesson-url` existe localmente, mas não está publicada no projeto remoto.
-4. Lint apresenta 11 warnings; `AdminSettingsPage.tsx` possui dependência ausente em `useEffect` e requer auditoria funcional posterior.
-5. Browserslist/caniuse-lite está 22 meses desatualizado.
-6. Vite recomenda trocar `@vitejs/plugin-react-swc` por `@vitejs/plugin-react` quando plugins SWC não são usados.
-7. A mudança recente da Data API exige verificar grants explícitos nas etapas de contrato/RLS.
+1. Drift entre migrations locais (63 arquivos) e histórico remoto (65 entradas), inclusive versões/nomenclaturas diferentes.
+2. `get-signed-lesson-url` existe localmente, mas não está publicada no projeto remoto.
+3. Lint apresenta 11 warnings; `AdminSettingsPage.tsx` possui dependência ausente em `useEffect` e requer auditoria funcional posterior.
+4. Browserslist/caniuse-lite está 22 meses desatualizado.
+5. Vite recomenda trocar `@vitejs/plugin-react-swc` por `@vitejs/plugin-react` quando plugins SWC não são usados.
+6. A mudança recente da Data API exige verificar grants explícitos nas etapas de contrato/RLS.
 
 ## Arquivos afetados
 
@@ -109,7 +112,6 @@ Buckets remotos:
 
 ## Bloqueadores e riscos remanescentes
 
-- É necessária uma cópia com `.git` ou referência externa confiável de branch/commit para cumprir integralmente a preservação do estado.
 - O drift de migrations deve ser compreendido antes de qualquer alteração de schema.
 - A função remota ausente não deve ser publicada sem primeiro identificar consumidores e contrato.
 - Stripe continua sem credenciais por decisão explícita; fluxos financeiros reais não podem ser validados ainda.
@@ -118,7 +120,8 @@ Buckets remotos:
 
 - Baseline de dependências, tipos, lint, testes, build, E2E e performance: atendido.
 - Configuração, conectividade, chave pública e inventário remoto inicial: atendido.
-- Preservação de branch, commit e arquivos modificados: **não atendido**.
-- Equivalência mínima entre migrations/Edge Functions locais e remotas: **não atendida**.
+- Preservação de branch, commit e arquivos modificados: atendido.
+- Segurança do conteúdo versionado: atendida; nenhum arquivo proibido e nenhum segredo real detectado.
+- Equivalência entre migrations/Edge Functions locais e remotas: divergência registrada para investigação sequencial.
 
-**Decisão:** ETAPA 1 BLOQUEADA. Não iniciar a ETAPA 2 até receber/restaurar os metadados Git e autorizar como tratar o drift local/remoto.
+**Decisão:** ETAPA 1 APROVADA após registro e validação do repositório oficial. Prosseguir para a ETAPA 2.

@@ -7,9 +7,16 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-node_modules
-dist
+node_modules/
+dist/
 dist-ssr
+build/
+coverage/
+.next/
+.vite/
+.cache/
+tmp/
+temp/
 *.local
 
 # Environment variables (contains real Supabase/Stripe keys)
@@ -18,10 +25,10 @@ dist-ssr
 !.env.example
 
 # Editor directories and files
-.vscode/*
-!.vscode/extensions.json
-.idea
+.vscode/
+.idea/
 .DS_Store
+Thumbs.db
 *.suo
 *.ntvs*
 *.njsproj
