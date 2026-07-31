@@ -1,13 +1,31 @@
 import {
-  LayoutDashboard, Users, GraduationCap, BookOpen, ShoppingBag, ClipboardList,
-  Ticket, FileText, CalendarDays, Award, BarChart3, Settings, CreditCard,
-  MessageSquare, Plug, Wallet, Megaphone, LifeBuoy, ScrollText, ShieldAlert, Activity,
-} from "lucide-react";
-import { ROUTES } from "@/shared/constants/routes";
-import SidebarNavList from "@/shared/components/SidebarNavList";
+  Activity,
+  Award,
+  BarChart3,
+  BookOpen,
+  ClipboardList,
+  CreditCard,
+  FileText,
+  GraduationCap,
+  LayoutDashboard,
+  LifeBuoy,
+  Megaphone,
+  MessageSquare,
+  Plug,
+  ScrollText,
+  Settings,
+  ShieldAlert,
+  ShoppingBag,
+  Ticket,
+  Users,
+  Wallet,
+} from 'lucide-react';
+
+import SidebarNavList from '@/shared/components/SidebarNavList';
+import { ROUTES } from '@/shared/constants/routes';
 
 export const ADMIN_NAV_ITEMS = [
-  { label: 'Dashboard', to: ROUTES.admin, icon: LayoutDashboard },
+  { label: 'Visão geral', to: ROUTES.admin, icon: LayoutDashboard },
   { label: 'Usuários', to: ROUTES.adminUsers, icon: Users },
   { label: 'Alunos', to: ROUTES.adminStudents, icon: GraduationCap },
   { label: 'Cursos', to: ROUTES.adminCourses, icon: BookOpen },
@@ -16,7 +34,6 @@ export const ADMIN_NAV_ITEMS = [
   { label: 'Assinaturas', to: ROUTES.adminSubscriptions, icon: CreditCard },
   { label: 'Cupons', to: ROUTES.adminCoupons, icon: Ticket },
   { label: 'Conteúdos', to: ROUTES.adminContent, icon: FileText },
-  { label: 'Eventos', to: ROUTES.adminEvents, icon: CalendarDays },
   { label: 'Certificados', to: ROUTES.adminCertificates, icon: Award },
   { label: 'Comunidade', to: ROUTES.adminCommunity, icon: MessageSquare },
   { label: 'Relatórios', to: ROUTES.adminReports, icon: BarChart3 },
@@ -30,15 +47,16 @@ export const ADMIN_NAV_ITEMS = [
   { label: 'Configurações', to: ROUTES.adminSettings, icon: Settings },
 ];
 
-const AdminSidebar = () => {
-  return (
-    <aside className="w-60 shrink-0 border-r border-border bg-background hidden md:block">
-      <div className="p-4 sticky top-16 max-h-[calc(100vh-4rem)] overflow-y-auto">
-        <p className="text-xs font-semibold text-muted-foreground uppercase px-3 mb-2">Admin</p>
-        <SidebarNavList items={ADMIN_NAV_ITEMS} exactPath={ROUTES.admin} />
+const AdminSidebar = () => (
+  <aside className="sticky top-16 hidden h-[calc(100vh-4rem)] w-64 shrink-0 border-r border-white/10 bg-[#0A0A0A]/95 md:block">
+    <div className="h-full overflow-y-auto px-3 py-6">
+      <div className="mb-5 px-3">
+        <p className="vdm-eyebrow">Gestão da plataforma</p>
+        <p className="mt-1 font-display text-sm font-semibold text-white">Administração</p>
       </div>
-    </aside>
-  );
-};
+      <SidebarNavList items={ADMIN_NAV_ITEMS} exactPath={ROUTES.admin} />
+    </div>
+  </aside>
+);
 
 export default AdminSidebar;
