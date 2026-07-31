@@ -1,58 +1,59 @@
-import { supabase } from "@/integrations/supabase/client";
-import { isDevAuthBypassEnabled } from "@/shared/utils/devAuthBypass";
-import { MOCK_MODULES } from "@/shared/utils/devMockData";
-import { academyContentService } from "@/modules/courses/services/academyContent.service";
-import type { AcademyContent } from "@/modules/courses/types/academyContent.types";
-import type { CourseModule } from "@/modules/modules-manager/types/courseModule";
-import type { MockCourse, Instructor, Testimonial, CourseDisplayExtras, CatalogCourse } from "@/modules/courses/types/course.types";
+import { supabase } from '@/integrations/supabase/client';
+import { academyContentService } from '@/modules/courses/services/academyContent.service';
+import type { AcademyContent } from '@/modules/courses/types/academyContent.types';
+import type { CatalogCourse, CourseDisplayExtras, Instructor, MockCourse, Testimonial } from '@/modules/courses/types/course.types';
+import type { CourseModule } from '@/modules/modules-manager/types/courseModule';
 
 export interface Course {
   id: string;
   title: string;
   slug: string;
+  short_description: string | null;
   description: string | null;
   thumbnail_url: string | null;
-  price_cents: number;
+  category: string | null;
+  original_price_cents: number;
+  discount_cents: number;
+  price_cents: number | null;
   currency: string;
   instructor_id: string | null;
 }
 
-/**
- * academy.service — single seam between Academia/course-detail/lesson-player
- * components and their data sources. Real courses/modules already come from
- * Supabase (RLS-gated); the catalog-volume pieces (mock courses, instructors,
- * testimonials, display extras) are mocked until a `category`/instructor
- * join exists on `courses`. Swapping any one of these for a real query later
- * only touches this file — hooks and components keep their current shape.
- */
+const COURSE_SELECT = 'id, title, slug, short_description, description, thumbnail_url, category, original_price_cents, discount_cents, price_cents, currency, instructor_id';
+
+const durationLabel = (minutes: number | null) => {
+  const safeMinutes = Math.max(0, minutes ?? 0);
+  const hours = Math.floor(safeMinutes / 60);
+  const remainingMinutes = safeMinutes % 60;
+  return hours > 0 ? `${hours}:${String(remainingMinutes).padStart(2, '0')}:00` : `${remainingMinutes}:00`;
+};
+
 export const academyService = {
   async listRealCourses(): Promise<Course[]> {
     const { data, error } = await supabase
       .from('courses')
-      .select('id, title, slug, description, thumbnail_url, price_cents, currency, instructor_id')
+      .select(COURSE_SELECT)
       .order('created_at', { ascending: false });
 
     if (error) throw error;
-    return data ?? [];
+    return (data ?? []) as Course[];
   },
 
   async listPublishedCourses(): Promise<Course[]> {
     const { data, error } = await supabase
       .from('courses')
-      .select('id, title, slug, description, thumbnail_url, price_cents, currency, instructor_id')
+      .select(COURSE_SELECT)
       .eq('status', 'published')
       .order('created_at', { ascending: false });
+
     if (error) throw error;
-    return data ?? [];
+    return (data ?? []) as Course[];
   },
 
-  async listCourseModules(): Promise<CourseModule[]> {
-    if (isDevAuthBypassEnabled) return MOCK_MODULES;
-
-    const { data, error } = await supabase
+  async listCourseModules(courseId?: string): Promise<CourseModule[]> {
+    let query = supabase
       .from('course_modules')
-      .select(
-        `
+      .select(`
         id,
         title,
         description,
@@ -66,26 +67,28 @@ export const academyService = {
           order_index,
           module_id
         )
-      `
-      )
+      `)
       .order('order_index', { ascending: true });
 
+    if (courseId) query = query.eq('course_id', courseId);
+
+    const { data, error } = await query;
     if (error) throw error;
 
     return (data ?? []).map((module) => ({
       id: module.id,
       title: module.title,
-      description: module.description || 'Descrição não disponível',
-      progress: 0, // calculated by useProgressCalculation
+      description: module.description ?? '',
+      progress: 0,
       lessons: (module.lessons ?? [])
         .slice()
-        .sort((a, b) => a.order_index - b.order_index)
+        .sort((first, second) => first.order_index - second.order_index)
         .map((lesson) => ({
           id: lesson.id,
           title: lesson.title,
-          description: lesson.description || 'Descrição não disponível',
-          videoUrl: lesson.video_url || '',
-          duration: lesson.duration_minutes ? `${lesson.duration_minutes}:00` : '15:30',
+          description: lesson.description ?? '',
+          videoUrl: lesson.video_url ?? '',
+          duration: durationLabel(lesson.duration_minutes),
           completed: false,
           order_index: lesson.order_index,
           module_id: lesson.module_id,
@@ -95,42 +98,59 @@ export const academyService = {
 
   async listCatalogCourses(): Promise<MockCourse[]> {
     const courses = await this.listPublishedCourses();
-    return Promise.all(courses.map(async (course) => {
-      const { data, error } = await supabase
+    const catalog: MockCourse[] = [];
+
+    for (const course of courses) {
+      const { data: modules, error } = await supabase
         .from('course_modules')
         .select('title, order_index, lessons(title, duration_minutes, order_index)')
         .eq('course_id', course.id)
         .order('order_index', { ascending: true });
+
       if (error) throw error;
-      return {
+
+      const normalizedModules = (modules ?? []).map((module) => ({
+        title: module.title,
+        lessons: (module.lessons ?? [])
+          .slice()
+          .sort((first, second) => first.order_index - second.order_index)
+          .map((lesson) => ({
+            title: lesson.title,
+            durationMinutes: lesson.duration_minutes ?? 0,
+          })),
+      }));
+
+      const durationMinutes = normalizedModules.reduce(
+        (courseTotal, module) => courseTotal + module.lessons.reduce((moduleTotal, lesson) => moduleTotal + lesson.durationMinutes, 0),
+        0,
+      );
+
+      catalog.push({
         id: course.id,
         slug: course.slug,
         title: course.title,
-        category: 'Produção Musical',
-        level: 'Iniciante' as const,
+        category: course.category ?? 'Produção Musical',
+        level: 'Iniciante',
         instructorId: course.instructor_id ?? '',
-        priceCents: course.price_cents,
+        priceCents: course.price_cents ?? Math.max(0, course.original_price_cents - course.discount_cents),
+        originalPriceCents: course.discount_cents > 0 ? course.original_price_cents : undefined,
         currency: course.currency,
         rating: 0,
         reviewCount: 0,
         studentsCount: 0,
-        durationHours: 0,
-        gradientFrom: '#7C3AED',
-        gradientTo: '#312E81',
-        shortDescription: course.description ?? '',
-        description: course.description ?? '',
-        modules: (data ?? []).map((module) => ({
-          title: module.title,
-          lessons: (module.lessons ?? [])
-            .slice()
-            .sort((a, b) => a.order_index - b.order_index)
-            .map((lesson) => ({ title: lesson.title, durationMinutes: lesson.duration_minutes ?? 0 })),
-        })),
+        durationHours: Math.round((durationMinutes / 60) * 10) / 10,
+        gradientFrom: '#8A2BE2',
+        gradientTo: '#6C3AED',
+        shortDescription: course.short_description ?? course.description ?? '',
+        description: course.description ?? course.short_description ?? '',
+        modules: normalizedModules,
         faq: [],
         reviews: [],
         relatedSlugs: [],
-      };
-    }));
+      });
+    }
+
+    return catalog;
   },
 
   async getCatalogCourseBySlug(slug: string): Promise<MockCourse | undefined> {
@@ -142,11 +162,20 @@ export const academyService = {
   },
 
   async createCourse(payload: { title: string; slug: string; description: string; price_cents: number; currency: string }) {
-    return supabase.from('courses').insert({ ...payload, status: 'draft' });
+    return supabase.from('courses').insert({
+      ...payload,
+      original_price_cents: payload.price_cents,
+      discount_cents: 0,
+      status: 'draft',
+    });
   },
 
   async updateCourse(id: string, payload: { title: string; slug: string; description: string; price_cents: number; currency: string }) {
-    return supabase.from('courses').update(payload).eq('id', id);
+    return supabase.from('courses').update({
+      ...payload,
+      original_price_cents: payload.price_cents,
+      discount_cents: 0,
+    }).eq('id', id);
   },
 
   async listRelatedCourses(course: MockCourse): Promise<MockCourse[]> {
@@ -155,8 +184,7 @@ export const academyService = {
 
   async listCourseCategories(): Promise<readonly string[]> {
     const courses = await this.listCatalogCourses();
-    const categories = courses.map((course: MockCourse) => course.category);
-    return [...new Set<string>(categories)].sort();
+    return [...new Set(courses.map((course) => course.category))].sort();
   },
 
   async listInstructors(): Promise<Instructor[]> {
@@ -165,17 +193,19 @@ export const academyService = {
       .select('user_id, full_name')
       .eq('role', 'instructor')
       .order('full_name', { ascending: true });
+
     if (error) throw error;
 
-    return Promise.all((profiles ?? []).map(async (profile) => {
+    const instructors: Instructor[] = [];
+    for (const profile of profiles ?? []) {
       const { count, error: countError } = await supabase
         .from('courses')
         .select('id', { count: 'exact', head: true })
         .eq('instructor_id', profile.user_id)
         .eq('status', 'published');
-      if (countError) throw countError;
 
-      return {
+      if (countError) throw countError;
+      instructors.push({
         id: profile.user_id,
         name: profile.full_name ?? 'Instrutor',
         specialty: 'Instrutor',
@@ -183,10 +213,12 @@ export const academyService = {
         rating: 0,
         studentsCount: 0,
         coursesCount: count ?? 0,
-        gradientFrom: '#7C3AED',
-        gradientTo: '#312E81',
-      };
-    }));
+        gradientFrom: '#8A2BE2',
+        gradientTo: '#6C3AED',
+      });
+    }
+
+    return instructors;
   },
 
   async getInstructorById(id: string): Promise<Instructor | undefined> {
@@ -203,6 +235,7 @@ export const academyService = {
       .select('instructor_id')
       .eq('slug', slug)
       .maybeSingle();
+
     if (courseError) throw courseError;
 
     let instructorName = 'Equipe Vivendo da Música';
@@ -212,6 +245,7 @@ export const academyService = {
         .select('full_name')
         .eq('user_id', course.instructor_id)
         .maybeSingle();
+
       if (profileError) throw profileError;
       instructorName = profile?.full_name ?? instructorName;
     }
@@ -219,17 +253,19 @@ export const academyService = {
     return { instructorName, rating: 0, reviewCount: 0, level: 'Iniciante' };
   },
 
-  /** Ready-to-render catalog cards: real courses (Supabase) merged with the
-   * mock catalog (deduped by slug), each enriched with instructor name.
-   * Real courses are best-effort — if Supabase is unreachable, the catalog
-   * still renders fully from the mock list instead of blocking on it. */
   async listCourseCards(): Promise<CatalogCourse[]> {
     const realCourses = await this.listPublishedCourses();
-    const academyContents = await academyContentService.listPublished();
+    let academyContents: AcademyContent[] = [];
 
-    const real = await Promise.all(realCourses.map((course) => this.mapRealCourseToCard(course)));
+    try {
+      academyContents = await academyContentService.listPublished();
+    } catch {
+      academyContents = [];
+    }
+
+    const real: CatalogCourse[] = [];
+    for (const course of realCourses) real.push(await this.mapRealCourseToCard(course));
     const contents = academyContents.map((content) => this.mapAcademyContentToCard(content));
-
     return [...contents, ...real];
   },
 
@@ -243,18 +279,18 @@ export const academyService = {
       id: course.id,
       slug: course.slug,
       title: course.title,
-      description: course.description,
-      category: 'Produção Musical',
+      description: course.short_description ?? course.description,
+      category: course.category ?? 'Produção Musical',
       level: extras.level,
       instructorName: extras.instructorName,
       rating: extras.rating,
       reviewCount: extras.reviewCount,
-      studentsCount: 8500,
-      priceCents: course.price_cents,
+      studentsCount: 0,
+      priceCents: course.price_cents ?? Math.max(0, course.original_price_cents - course.discount_cents),
       currency: course.currency,
       thumbnailUrl: course.thumbnail_url,
-      gradientFrom: '#7C3AED',
-      gradientTo: '#312E81',
+      gradientFrom: '#8A2BE2',
+      gradientTo: '#6C3AED',
       isReal: true,
       itemType: 'course',
     };
@@ -277,7 +313,7 @@ export const academyService = {
       thumbnailUrl: null,
       gradientFrom: course.gradientFrom,
       gradientTo: course.gradientTo,
-      isReal: false,
+      isReal: true,
       itemType: 'course',
     };
   },
@@ -289,16 +325,16 @@ export const academyService = {
       title: content.title,
       description: content.description ?? content.subtitle ?? null,
       category: content.category ?? 'Academia',
-      level: 'Conteudo',
-      instructorName: 'Equipe Vivendo da Musica',
+      level: 'Conteúdo',
+      instructorName: 'Equipe Vivendo da Música',
       rating: 0,
       reviewCount: 0,
       studentsCount: 0,
       priceCents: 0,
       currency: 'BRL',
       thumbnailUrl: content.thumbnailUrl ?? content.bannerUrl ?? null,
-      gradientFrom: '#7C3AED',
-      gradientTo: '#312E81',
+      gradientFrom: '#8A2BE2',
+      gradientTo: '#6C3AED',
       isReal: true,
       itemType: 'academy-content',
       hasVideo: !!content.videoUrl,
