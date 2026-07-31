@@ -1,8 +1,5 @@
-import { createClient } from '@supabase/supabase-js';
-
-import { env } from '@/app/config/env';
-
-const affiliateClient = createClient(env.supabaseUrl, env.supabasePublishableKey);
+import { supabase } from '@/integrations/supabase/client';
+import { isDevAuthBypassEnabled } from '@/shared/utils/devAuthBypass';
 
 export interface AffiliateProfile {
   id: string;
@@ -66,43 +63,53 @@ export interface AffiliatePortalData {
   materials: AffiliateMaterial[];
 }
 
-export async function getAffiliatePortalData(): Promise<AffiliatePortalData> {
-  const profileResult = await affiliateClient
+const getAffiliateProfile = async (): Promise<AffiliateProfile | null> => {
+  let query = supabase
     .from('affiliate_profiles')
-    .select('id, display_name, referral_code, status, commission_rate, balance_cents, lifetime_earnings_cents')
-    .order('is_demo', { ascending: false })
-    .limit(1)
-    .maybeSingle();
+    .select('id, display_name, referral_code, status, commission_rate, balance_cents, lifetime_earnings_cents');
 
-  if (profileResult.error) throw profileResult.error;
+  if (isDevAuthBypassEnabled) {
+    query = query.eq('is_demo', true);
+  } else {
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError) throw authError;
+    if (!user) throw new Error('Usuário não autenticado');
+    query = query.eq('user_id', user.id);
+  }
 
-  const affiliateId = profileResult.data?.id;
-  if (!affiliateId) {
+  const { data, error } = await query.limit(1).maybeSingle();
+  if (error) throw error;
+  return data as AffiliateProfile | null;
+};
+
+export async function getAffiliatePortalData(): Promise<AffiliatePortalData> {
+  const profile = await getAffiliateProfile();
+  if (!profile) {
     return { profile: null, links: [], conversions: [], commissions: [], withdrawals: [], materials: [] };
   }
 
   const [linksResult, conversionsResult, commissionsResult, withdrawalsResult, materialsResult] = await Promise.all([
-    affiliateClient
+    supabase
       .from('affiliate_links')
       .select('id, label, destination_url, slug, clicks_count, conversions_count, active')
-      .eq('affiliate_id', affiliateId)
+      .eq('affiliate_id', profile.id)
       .order('created_at', { ascending: false }),
-    affiliateClient
+    supabase
       .from('affiliate_conversions')
       .select('id, customer_reference, gross_amount_cents, commission_amount_cents, status, converted_at')
-      .eq('affiliate_id', affiliateId)
+      .eq('affiliate_id', profile.id)
       .order('converted_at', { ascending: false }),
-    affiliateClient
+    supabase
       .from('affiliate_commissions')
       .select('id, amount_cents, status, available_at, created_at')
-      .eq('affiliate_id', affiliateId)
+      .eq('affiliate_id', profile.id)
       .order('created_at', { ascending: false }),
-    affiliateClient
+    supabase
       .from('affiliate_withdrawals')
       .select('id, amount_cents, status, payment_method, requested_at')
-      .eq('affiliate_id', affiliateId)
+      .eq('affiliate_id', profile.id)
       .order('requested_at', { ascending: false }),
-    affiliateClient
+    supabase
       .from('affiliate_marketing_materials')
       .select('id, title, description, material_type, asset_url')
       .eq('active', true)
@@ -119,11 +126,32 @@ export async function getAffiliatePortalData(): Promise<AffiliatePortalData> {
   if (firstError) throw firstError;
 
   return {
-    profile: profileResult.data as AffiliateProfile,
+    profile,
     links: (linksResult.data ?? []) as AffiliateLink[],
     conversions: (conversionsResult.data ?? []) as AffiliateConversion[],
     commissions: (commissionsResult.data ?? []) as AffiliateCommission[],
     withdrawals: (withdrawalsResult.data ?? []) as AffiliateWithdrawal[],
     materials: (materialsResult.data ?? []) as AffiliateMaterial[],
   };
+}
+
+export async function requestAffiliateWithdrawal(amountCents: number, paymentMethod: 'pix' | 'bank_transfer'): Promise<void> {
+  if (!Number.isInteger(amountCents) || amountCents < 1000) {
+    throw new Error('O valor mínimo para saque é R$ 10,00.');
+  }
+
+  const profile = await getAffiliateProfile();
+  if (!profile) throw new Error('Perfil de afiliado não encontrado.');
+  if (profile.status !== 'active') throw new Error('O perfil de afiliado não está ativo.');
+  if (amountCents > profile.balance_cents) throw new Error('O valor solicitado excede o saldo disponível.');
+
+  const { error } = await supabase.from('affiliate_withdrawals').insert({
+    affiliate_id: profile.id,
+    amount_cents: amountCents,
+    status: 'requested',
+    payment_method: paymentMethod,
+    requested_at: new Date().toISOString(),
+  });
+
+  if (error) throw error;
 }
