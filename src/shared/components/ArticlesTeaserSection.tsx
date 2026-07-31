@@ -1,34 +1,57 @@
-import { Link } from "react-router-dom";
-import { Clock, Lock } from "lucide-react";
-import { useFeaturedArticles } from "@/modules/content-portal/hooks/useArticles";
-import { ROUTES } from "@/shared/constants/routes";
+import { ArrowUpRight, Clock, LockKeyhole } from 'lucide-react';
+import { Link } from 'react-router-dom';
+
+import { useFeaturedArticles } from '@/modules/content-portal/hooks/useArticles';
+import { ROUTES } from '@/shared/constants/routes';
 
 const ArticlesTeaserSection = () => {
   const { data: featured } = useFeaturedArticles(3);
 
   return (
-    <section className="bg-background pb-20">
-      <div className="container mx-auto px-4">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-bold">Artigos em destaque</h2>
-          <Link to={ROUTES.contentPortal} className="text-sm text-brand-medium hover:underline">Ver todos</Link>
+    <section className="bg-background py-20 sm:py-24">
+      <div className="vdm-container py-0">
+        <div className="mb-9 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <p className="vdm-eyebrow">Conteúdo editorial</p>
+            <h2 className="mt-2 font-display text-3xl font-bold text-white sm:text-4xl">
+              Conhecimento para além das aulas.
+            </h2>
+            <p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground sm:text-base">
+              Leituras objetivas sobre produção, carreira, direitos e mercado musical.
+            </p>
+          </div>
+          <Link to={ROUTES.contentPortal} className="link-vdm inline-flex items-center gap-2 text-sm">
+            Ver todos os conteúdos
+            <ArrowUpRight className="size-4" />
+          </Link>
         </div>
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
+
+        <div className="grid gap-5 lg:grid-cols-3">
           {(featured ?? []).map((article) => (
             <Link
               key={article.slug}
               to={ROUTES.contentArticle(article.slug)}
-              className="rounded-lg border border-border bg-card p-5 flex flex-col gap-3 hover:border-brand-medium/50 transition-colors"
+              className="vdm-surface-interactive group flex min-h-64 flex-col p-5 sm:p-6"
             >
-              <div className="flex items-center justify-between">
-                <span className="text-xs text-brand-medium font-medium">{article.category}</span>
-                {article.isPremium && <Lock className="w-4 h-4 text-amber-400" />}
+              <div className="flex items-center justify-between gap-4">
+                <span className="text-xs font-semibold uppercase tracking-[0.14em] text-primary">
+                  {article.category}
+                </span>
+                {article.isPremium && <LockKeyhole className="size-4 text-primary" aria-label="Conteúdo restrito" />}
               </div>
-              <p className="font-semibold leading-snug">{article.title}</p>
-              <p className="text-sm text-muted-foreground line-clamp-2">{article.excerpt}</p>
-              <span className="flex items-center gap-1 text-xs text-muted-foreground mt-auto pt-2">
-                <Clock className="w-3.5 h-3.5" />{article.readMinutes} min
-              </span>
+
+              <h3 className="mt-6 font-display text-xl font-semibold leading-snug text-white transition group-hover:text-[#caa7ff]">
+                {article.title}
+              </h3>
+              <p className="mt-3 line-clamp-3 text-sm leading-6 text-muted-foreground">{article.excerpt}</p>
+
+              <div className="mt-auto flex items-center justify-between border-t border-white/8 pt-5 text-xs text-muted-foreground">
+                <span className="flex items-center gap-1.5">
+                  <Clock className="size-3.5" />
+                  {article.readMinutes} min de leitura
+                </span>
+                <ArrowUpRight className="size-4 text-primary transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
+              </div>
             </Link>
           ))}
         </div>
