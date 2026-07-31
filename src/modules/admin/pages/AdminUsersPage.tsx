@@ -1,66 +1,68 @@
-import { useMemo, useState } from "react";
-import AdminLayout from "@/app/layouts/AdminLayout";
-import PageHeader from "@/shared/components/PageHeader";
-import StatCard from "@/shared/components/StatCard";
-import DataTable from "@/shared/components/DataTable";
-import StatusBadge from "@/shared/components/StatusBadge";
-import SearchInput from "@/shared/components/SearchInput";
-import FilterBar from "@/shared/components/FilterBar";
-import { useAdminUsers } from "@/modules/admin/hooks/useAdminUsers";
-import { useOrders } from "@/modules/checkout/hooks/useOrders";
+import { useMemo, useState } from 'react';
 
-const ROLE_FILTERS = ['Todos', 'student', 'instructor', 'producer', 'admin', 'super_admin'];
+import AdminLayout from '@/app/layouts/AdminLayout';
+import { useAdminUsers } from '@/modules/admin/hooks/useAdminUsers';
+import DataTable from '@/shared/components/DataTable';
+import FilterBar from '@/shared/components/FilterBar';
+import PageHeader from '@/shared/components/PageHeader';
+import SearchInput from '@/shared/components/SearchInput';
+import StatCard from '@/shared/components/StatCard';
+import { Badge } from '@/shared/components/ui/badge';
+
+const ROLE_FILTERS = ['Todos', 'student', 'instructor', 'producer', 'affiliate', 'admin', 'super_admin'];
+const roleLabel = (role: string) => ({
+  student: 'Aluno',
+  instructor: 'Instrutor',
+  producer: 'Produtor',
+  affiliate: 'Afiliado',
+  admin: 'Administrador',
+  super_admin: 'Superadministrador',
+}[role] ?? role);
 
 const AdminUsersPage = () => {
-  const { data: users } = useAdminUsers();
-  const { data: orders } = useOrders();
+  const { data: users = [], isLoading, isError } = useAdminUsers();
   const [search, setSearch] = useState('');
   const [role, setRole] = useState('Todos');
 
-  const ordersByCustomer = useMemo(() => {
-    const map = new Map<string, number>();
-    for (const order of orders ?? []) {
-      map.set(order.customer, (map.get(order.customer) ?? 0) + 1);
-    }
-    return map;
-  }, [orders]);
-
-  const filtered = useMemo(() => {
-    return (users ?? []).filter((user) => {
-      const matchesRole = role === 'Todos' || user.role === role;
-      const matchesQuery = !search.trim() || user.name.toLowerCase().includes(search.trim().toLowerCase());
-      return matchesRole && matchesQuery;
-    });
-  }, [users, search, role]);
+  const filtered = useMemo(() => users.filter((user) => {
+    const matchesRole = role === 'Todos' || user.role === role;
+    const query = search.trim().toLowerCase();
+    const matchesQuery = !query || user.name.toLowerCase().includes(query) || user.userId.toLowerCase().includes(query);
+    return matchesRole && matchesQuery;
+  }), [users, search, role]);
 
   return (
     <AdminLayout>
-      <PageHeader title="Usuários" subtitle="Alunos e equipe cadastrados na plataforma." />
+      <PageHeader title="Usuários" subtitle="Perfis persistidos no ambiente de desenvolvimento, sem e-mails ou planos artificiais." />
 
-      <div className="grid sm:grid-cols-3 gap-4 mb-6">
-        <StatCard label="Total de usuários" value={String(users?.length ?? 0)} />
-        <StatCard label="Assinantes Premium" value={String(users?.filter((u) => u.subscriptionPlan === 'Premium').length ?? 0)} />
-        <StatCard label="Instrutores" value={String(users?.filter((u) => u.role === 'instructor').length ?? 0)} />
+      <div className="mb-6 grid gap-4 sm:grid-cols-3">
+        <StatCard label="Total de perfis" value={String(users.length)} />
+        <StatCard label="Alunos" value={String(users.filter((user) => user.role === 'student').length)} />
+        <StatCard label="Equipe e parceiros" value={String(users.filter((user) => user.role !== 'student').length)} />
       </div>
 
-      <div className="flex flex-col sm:flex-row gap-4 mb-6">
-        <SearchInput value={search} onChange={setSearch} placeholder="Buscar usuários..." className="flex-1" />
+      <div className="mb-6 flex flex-col gap-4 sm:flex-row">
+        <SearchInput value={search} onChange={setSearch} placeholder="Buscar por nome ou identificador..." className="flex-1" />
         <FilterBar options={ROLE_FILTERS} value={role} onChange={setRole} />
       </div>
 
-      <DataTable
-        rows={filtered}
-        rowKey={(user) => user.email}
-        emptyLabel="Nenhum usuário encontrado."
-        columns={[
-          { header: 'Nome', cell: (user) => user.name },
-          { header: 'E-mail', cell: (user) => user.email },
-          { header: 'Papel', cell: (user) => user.role },
-          { header: 'Plano', cell: (user) => <StatusBadge status={user.subscriptionPlan === 'Premium' ? 'ativo' : 'neutral'} label={user.subscriptionPlan} /> },
-          { header: 'Pedidos', cell: (user) => ordersByCustomer.get(user.name) ?? 0 },
-          { header: 'Status', cell: (user) => <StatusBadge status={user.status} label={user.status} /> },
-        ]}
-      />
+      {isLoading && <p className="text-sm text-muted-foreground">Carregando perfis...</p>}
+      {isError && <p className="text-sm text-destructive">Não foi possível carregar os perfis.</p>}
+      {!isLoading && !isError && (
+        <DataTable
+          rows={filtered}
+          rowKey={(user) => user.userId}
+          emptyLabel="Nenhum usuário encontrado."
+          columns={[
+            { header: 'Nome', cell: (user) => user.name },
+            { header: 'Identificador', cell: (user) => <span className="font-mono text-xs text-muted-foreground">{user.userId}</span> },
+            { header: 'Papel', cell: (user) => <Badge variant="outline">{roleLabel(user.role)}</Badge> },
+            { header: 'Matrículas ativas', cell: (user) => String(user.activeEnrollments) },
+            { header: 'Progresso médio', cell: (user) => `${user.averageProgress}%` },
+            { header: 'Cadastro', cell: (user) => new Intl.DateTimeFormat('pt-BR').format(new Date(user.joinedAt)) },
+          ]}
+        />
+      )}
     </AdminLayout>
   );
 };
