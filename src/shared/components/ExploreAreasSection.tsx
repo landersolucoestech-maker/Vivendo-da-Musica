@@ -1,49 +1,58 @@
 import {
-  Music, SlidersHorizontal, Headphones, Grid3x3, Home,
-  Megaphone, ShieldCheck, Share2, Brain, Briefcase,
-} from "lucide-react";
-import { Link } from "react-router-dom";
-import { ROUTES } from "@/shared/constants/routes";
+  Brain,
+  Briefcase,
+  Grid3x3,
+  Headphones,
+  Home,
+  Megaphone,
+  Music,
+  Share2,
+  ShieldCheck,
+  SlidersHorizontal,
+} from 'lucide-react';
+import { Link } from 'react-router-dom';
+
+import { ROUTES } from '@/shared/constants/routes';
 
 const AREAS = [
-  { icon: Music, label: 'Produção Musical' },
-  { icon: SlidersHorizontal, label: 'Mixagem' },
-  { icon: Headphones, label: 'Masterização' },
-  { icon: Grid3x3, label: 'Beatmaking' },
-  { icon: Home, label: 'Home Studio' },
-  { icon: Megaphone, label: 'Marketing Musical' },
-  { icon: ShieldCheck, label: 'Direitos Autorais' },
-  { icon: Share2, label: 'Distribuição' },
-  { icon: Brain, label: 'IA para Música' },
-  { icon: Briefcase, label: 'Negócios da Música' },
+  { icon: Music, label: 'Produção Musical', description: 'Criação, arranjo e fluxo profissional.' },
+  { icon: SlidersHorizontal, label: 'Mixagem', description: 'Equilíbrio, dinâmica e identidade sonora.' },
+  { icon: Headphones, label: 'Masterização', description: 'Finalização pronta para lançamento.' },
+  { icon: Grid3x3, label: 'Beatmaking', description: 'Ritmo, timbres, samples e estrutura.' },
+  { icon: Home, label: 'Home Studio', description: 'Monte e organize seu ambiente de produção.' },
+  { icon: Megaphone, label: 'Marketing Musical', description: 'Posicionamento, conteúdo e audiência.' },
+  { icon: ShieldCheck, label: 'Direitos Autorais', description: 'Proteção de obras, fonogramas e contratos.' },
+  { icon: Share2, label: 'Distribuição', description: 'Estratégia para colocar sua música no mercado.' },
+  { icon: Brain, label: 'IA para Música', description: 'Ferramentas inteligentes aplicadas à produção.' },
+  { icon: Briefcase, label: 'Negócios da Música', description: 'Carreira, gestão e monetização.' },
 ];
 
-const ExploreAreasSection = () => {
-  return (
-    <section className="bg-background pb-20">
-      <div className="container mx-auto px-4">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-bold">Explore nossas áreas</h2>
-          <Link to={ROUTES.academy} className="text-sm text-brand-medium hover:underline">
-            Ver todas
-          </Link>
+const ExploreAreasSection = () => (
+  <section className="relative overflow-hidden border-y border-white/5 bg-[#0A0A0A] py-20">
+    <div className="absolute inset-0 vdm-pattern-dots opacity-20" />
+    <div className="vdm-container relative">
+      <div className="mb-8 flex flex-col justify-between gap-4 md:flex-row md:items-end">
+        <div>
+          <p className="vdm-eyebrow">Trilhas de conhecimento</p>
+          <h2 className="mt-2 max-w-2xl text-3xl font-bold md:text-4xl">Explore as principais áreas do mercado musical</h2>
+          <p className="vdm-page-description">Conteúdo organizado para quem quer aprender, produzir, lançar e transformar música em profissão.</p>
         </div>
-
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-          {AREAS.map(({ icon: Icon, label }) => (
-            <Link
-              key={label}
-              to={ROUTES.academy}
-              className="rounded-lg border border-border bg-card p-5 flex flex-col items-center gap-3 text-center hover:border-brand-medium/50 transition-colors"
-            >
-              <Icon className="w-6 h-6 text-brand-medium" />
-              <span className="text-sm font-medium">{label}</span>
-            </Link>
-          ))}
-        </div>
+        <Link to={ROUTES.academy} className="link-vdm shrink-0">Ver todos os cursos</Link>
       </div>
-    </section>
-  );
-};
+
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+        {AREAS.map(({ icon: Icon, label, description }) => (
+          <Link key={label} to={ROUTES.academy} className="vdm-surface-interactive group p-5">
+            <span className="vdm-icon-button mb-5 border-primary/25 bg-primary/10 text-primary group-hover:bg-primary group-hover:text-white">
+              <Icon className="size-5" />
+            </span>
+            <h3 className="text-base font-semibold text-white">{label}</h3>
+            <p className="mt-2 text-sm leading-6 text-muted-foreground">{description}</p>
+          </Link>
+        ))}
+      </div>
+    </div>
+  </section>
+);
 
 export default ExploreAreasSection;
