@@ -1,5 +1,13 @@
-import { useQuery } from "@tanstack/react-query";
-import { adminService } from "@/modules/admin/services/admin.service";
+import { useQuery } from '@tanstack/react-query';
 
-export const useAdminUsers = () => useQuery({ queryKey: ['admin-users'], queryFn: () => adminService.listUsers() });
-export const useAdminStudents = () => useQuery({ queryKey: ['admin-students'], queryFn: () => adminService.listStudents() });
+import { adminUsersService } from '@/modules/admin/services/adminUsers.service';
+
+export const useAdminUsers = () => useQuery({
+  queryKey: ['admin-users'],
+  queryFn: () => adminUsersService.listUsers(),
+});
+
+export const useAdminStudents = () => useQuery({
+  queryKey: ['admin-students'],
+  queryFn: () => adminUsersService.listStudents(),
+});
