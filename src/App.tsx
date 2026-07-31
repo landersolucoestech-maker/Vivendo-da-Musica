@@ -65,6 +65,7 @@ const ProducerBeatsDashboardPage = lazy(() => import('@/modules/marketplace/page
 const ProducerDashboardPage = lazy(() => import('@/modules/producer/pages/ProducerDashboardPage'));
 const ProducerProductsPage = lazy(() => import('@/modules/producer/pages/ProducerProductsPage'));
 const ProducerOrdersPage = lazy(() => import('@/modules/producer/pages/ProducerOrdersPage'));
+const AffiliatePortalPage = lazy(() => import('@/modules/affiliate/pages/AffiliatePortalPage'));
 const ProductDetailPage = lazy(() => import('@/modules/marketplace/pages/ProductDetailPage'));
 const CartPage = lazy(() => import('@/modules/checkout/pages/CartPage'));
 const CheckoutPage = lazy(() => import('@/modules/checkout/pages/CheckoutPage'));
@@ -116,6 +117,11 @@ const instructorRoute = (element: JSX.Element) => (
 const producerRoute = (element: JSX.Element) => (
   <ProtectedRoute>
     <RoleGuard allow={['producer', 'admin', 'super_admin']}>{element}</RoleGuard>
+  </ProtectedRoute>
+);
+const affiliateRoute = (element: JSX.Element) => (
+  <ProtectedRoute>
+    <RoleGuard allow={['affiliate', 'admin', 'super_admin']}>{element}</RoleGuard>
   </ProtectedRoute>
 );
 
@@ -195,6 +201,14 @@ const App = () => (
                 <Route path={ROUTES.producerBeats} element={producerRoute(<ProducerBeatsDashboardPage />)} />
                 <Route path={ROUTES.producerProducts} element={producerRoute(<ProducerProductsPage />)} />
                 <Route path={ROUTES.producerOrders} element={producerRoute(<ProducerOrdersPage />)} />
+
+                <Route path={ROUTES.affiliate} element={affiliateRoute(<AffiliatePortalPage />)} />
+                <Route path={ROUTES.affiliateLinks} element={affiliateRoute(<AffiliatePortalPage />)} />
+                <Route path={ROUTES.affiliateConversions} element={affiliateRoute(<AffiliatePortalPage />)} />
+                <Route path={ROUTES.affiliateCommissions} element={affiliateRoute(<AffiliatePortalPage />)} />
+                <Route path={ROUTES.affiliateWithdrawals} element={affiliateRoute(<AffiliatePortalPage />)} />
+                <Route path={ROUTES.affiliateMaterials} element={affiliateRoute(<AffiliatePortalPage />)} />
+                <Route path={ROUTES.affiliateProfile} element={affiliateRoute(<AffiliatePortalPage />)} />
 
                 <Route path={ROUTES.admin} element={adminRoute(<AdminDashboard />)} />
                 <Route path={ROUTES.adminUsers} element={adminRoute(<AdminUsersPage />)} />
