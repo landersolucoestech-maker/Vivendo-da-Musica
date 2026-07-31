@@ -1,37 +1,42 @@
-import { useState, useEffect } from 'react';
-import { Button } from "@/shared/components/ui/button";
-import { Menu, X, ShoppingCart } from "lucide-react";
-import { Link, useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
-import { ROUTES } from "@/shared/constants/routes";
-import { useCart } from "@/modules/checkout/store/CartContext";
+import { useEffect, useState } from 'react';
+import type { User } from '@supabase/supabase-js';
+import { Menu, ShoppingCart, X } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+
+import { supabase } from '@/integrations/supabase/client';
+import { useCart } from '@/modules/checkout/store/CartContext';
+import { VdmBrand } from '@/shared/components/brand/VdmBrand';
+import { Button } from '@/shared/components/ui/button';
+import { ROUTES } from '@/shared/constants/routes';
 
 const NAV_LINKS = [
   { label: 'Academia', to: ROUTES.academy },
   { label: 'Marketplace', to: ROUTES.marketplace },
-  { label: 'Comunidade', to: ROUTES.communityPublic },
-  { label: 'Área VIP', to: ROUTES.vipArea },
   { label: 'Conteúdos', to: ROUTES.contentPortal },
-  { label: 'Eventos', to: ROUTES.eventsPublic },
+  { label: 'Comunidade', to: ROUTES.communityPublic },
   { label: 'Oportunidades', to: ROUTES.opportunitiesPublic },
 ];
 
 const Navigation = () => {
   const [isOpen, setIsOpen] = useState(false);
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState<User | null>(null);
   const navigate = useNavigate();
   const { items } = useCart();
 
   useEffect(() => {
     const checkUser = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      setUser(session?.user || null);
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      setUser(session?.user ?? null);
     };
 
-    checkUser();
+    void checkUser();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      setUser(session?.user || null);
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
     });
 
     return () => subscription.unsubscribe();
@@ -43,47 +48,48 @@ const Navigation = () => {
   };
 
   return (
-    <nav className="fixed top-0 w-full bg-background/95 backdrop-blur-md border-b border-border z-50">
-      <div className="container mx-auto px-4">
-        <div className="flex items-center justify-between h-16">
-          <Link to={ROUTES.home} className="flex flex-col leading-tight shrink-0">
-            <span className="text-base font-extrabold tracking-tight">
-              <span className="text-brand-medium">VIVENDO</span>
-              <span className="text-foreground"> DA</span>
-            </span>
-            <span className="text-base font-extrabold tracking-tight text-foreground -mt-1">MÚSICA</span>
+    <nav className="fixed inset-x-0 top-0 z-50 border-b border-white/10 bg-[#0D0D0D]/94 backdrop-blur-xl">
+      <div className="mx-auto w-full max-w-[1920px] px-4 sm:px-6 lg:px-8">
+        <div className="flex h-16 items-center justify-between gap-5">
+          <Link to={ROUTES.home} className="shrink-0" aria-label="Vivendo da Música — início">
+            <VdmBrand compact className="scale-90 origin-left sm:scale-100" />
           </Link>
 
-          <div className="hidden lg:flex items-center gap-7">
+          <div className="hidden items-center gap-7 xl:flex">
             {NAV_LINKS.map((link) => (
               <Link
                 key={link.to}
                 to={link.to}
-                className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                className="relative py-2 text-sm font-medium text-muted-foreground transition hover:text-white after:absolute after:inset-x-0 after:bottom-0 after:h-px after:origin-left after:scale-x-0 after:bg-gradient-brand after:transition-transform hover:after:scale-x-100"
               >
                 {link.label}
               </Link>
             ))}
           </div>
 
-          <div className="hidden lg:flex items-center gap-3">
-            <Link to={ROUTES.cart} aria-label="Carrinho" className="relative p-2 text-foreground hover:text-brand-medium transition-colors">
-              <ShoppingCart className="w-5 h-5" />
+          <div className="hidden items-center gap-2 lg:flex">
+            <Link
+              to={ROUTES.cart}
+              aria-label="Carrinho"
+              className="vdm-icon-button relative"
+            >
+              <ShoppingCart className="size-5" />
               {items.length > 0 && (
-                <span className="absolute -top-0.5 -right-0.5 bg-brand-medium text-white text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
-                  {items.length}
+                <span className="absolute -right-1 -top-1 flex size-5 items-center justify-center rounded-full bg-gradient-brand text-[10px] font-bold text-white">
+                  {items.length > 9 ? '9+' : items.length}
                 </span>
               )}
             </Link>
+
             {user ? (
-              <Link to={ROUTES.dashboard}>
-                <Button size="sm">Dashboard</Button>
-              </Link>
+              <Button asChild size="sm">
+                <Link to={ROUTES.dashboard}>Meu portal</Link>
+              </Button>
             ) : (
               <>
-                <Link to={ROUTES.login}>
-                  <Button variant="ghost" size="sm">Entrar</Button>
-                </Link>
+                <Button asChild variant="ghost" size="sm">
+                  <Link to={ROUTES.login}>Entrar</Link>
+                </Button>
                 <Button size="sm" onClick={handleGetStarted}>
                   Criar conta
                 </Button>
@@ -92,41 +98,46 @@ const Navigation = () => {
           </div>
 
           <button
-            className="lg:hidden text-foreground"
-            onClick={() => setIsOpen(!isOpen)}
-            aria-label={isOpen ? "Fechar menu" : "Abrir menu"}
+            className="vdm-icon-button lg:hidden"
+            onClick={() => setIsOpen((open) => !open)}
+            aria-label={isOpen ? 'Fechar menu' : 'Abrir menu'}
             aria-expanded={isOpen}
           >
-            {isOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+            {isOpen ? <X className="size-5" /> : <Menu className="size-5" />}
           </button>
         </div>
 
         {isOpen && (
-          <div className="lg:hidden py-4 space-y-4 border-t border-border">
+          <div className="space-y-2 border-t border-white/10 py-4 lg:hidden">
             {NAV_LINKS.map((link) => (
               <Link
                 key={link.to}
                 to={link.to}
-                className="block text-muted-foreground hover:text-foreground transition-colors"
+                className="block rounded-lg px-3 py-2.5 text-sm font-medium text-muted-foreground transition hover:bg-primary/10 hover:text-white"
                 onClick={() => setIsOpen(false)}
               >
                 {link.label}
               </Link>
             ))}
-            {user ? (
-              <Link to={ROUTES.dashboard} onClick={() => setIsOpen(false)}>
-                <Button size="sm" className="w-full">Dashboard</Button>
-              </Link>
-            ) : (
-              <div className="space-y-2">
-                <Link to={ROUTES.login} onClick={() => setIsOpen(false)}>
-                  <Button variant="ghost" size="sm" className="w-full">Entrar</Button>
+
+            <div className="grid gap-2 border-t border-white/10 pt-4 sm:grid-cols-2">
+              <Button asChild variant="outline" size="sm" className="w-full">
+                <Link to={ROUTES.cart} onClick={() => setIsOpen(false)}>
+                  Carrinho ({items.length})
                 </Link>
+              </Button>
+              {user ? (
+                <Button asChild size="sm" className="w-full">
+                  <Link to={ROUTES.dashboard} onClick={() => setIsOpen(false)}>
+                    Meu portal
+                  </Link>
+                </Button>
+              ) : (
                 <Button size="sm" onClick={handleGetStarted} className="w-full">
                   Criar conta
                 </Button>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         )}
       </div>
