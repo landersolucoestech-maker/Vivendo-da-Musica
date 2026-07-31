@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Camera, Loader2, Mail, Save, User } from 'lucide-react';
 
 import StudentLayout from '@/app/layouts/StudentLayout';
+import { useAuthContext } from '@/app/providers/AuthProvider';
 import { useAvatarUpload } from '@/modules/profile/hooks/useAvatarUpload';
 import { useUpdateProfile, useUserProfile } from '@/modules/profile/hooks/useUserProfile';
 import { supabase } from '@/integrations/supabase/client';
@@ -14,6 +15,7 @@ import { useToast } from '@/shared/hooks/use-toast';
 
 const EditProfile = () => {
   const { toast } = useToast();
+  const { user } = useAuthContext();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { data: profile, isLoading: profileLoading } = useUserProfile();
   const updateProfile = useUpdateProfile();
@@ -21,12 +23,13 @@ const EditProfile = () => {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const canUploadAvatar = !!user;
 
   useEffect(() => {
     const loadIdentity = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      setName(profile?.full_name || user?.user_metadata?.full_name || user?.email?.split('@')[0] || '');
-      setEmail(user?.email || '');
+      const { data: { user: authenticatedUser } } = await supabase.auth.getUser();
+      setName(profile?.full_name || authenticatedUser?.user_metadata?.full_name || authenticatedUser?.email?.split('@')[0] || '');
+      setEmail(authenticatedUser?.email || 'Sessão de revisão sem autenticação');
     };
 
     void loadIdentity();
@@ -34,7 +37,7 @@ const EditProfile = () => {
 
   const handleAvatarChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (!file) return;
+    if (!file || !canUploadAvatar) return;
 
     try {
       const avatarUrl = await uploadAvatar(file);
@@ -103,11 +106,14 @@ const EditProfile = () => {
                 <AvatarImage src={profile?.avatar_url || ''} alt={name || 'Foto do perfil'} />
                 <AvatarFallback className="bg-primary/10 text-primary"><User className="size-9" /></AvatarFallback>
               </Avatar>
-              <Button type="button" variant="outline" className="mt-5" onClick={() => fileInputRef.current?.click()} disabled={isUploading}>
+              <Button type="button" variant="outline" className="mt-5" onClick={() => fileInputRef.current?.click()} disabled={isUploading || !canUploadAvatar}>
                 {isUploading ? <Loader2 className="size-4 animate-spin" /> : <Camera className="size-4" />}
                 {isUploading ? 'Enviando...' : 'Alterar foto'}
               </Button>
-              <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp" onChange={(event) => void handleAvatarChange(event)} className="hidden" />
+              {!canUploadAvatar && (
+                <p className="mt-3 text-xs leading-5 text-amber-300">O upload exige uma sessão autenticada porque o Storage valida o proprietário do arquivo.</p>
+              )}
+              <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp" onChange={(event) => void handleAvatarChange(event)} className="hidden" disabled={!canUploadAvatar} />
             </div>
           </CardContent>
         </Card>
@@ -128,7 +134,7 @@ const EditProfile = () => {
               <Label htmlFor="email">E-mail da conta</Label>
               <div className="relative">
                 <Mail className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-                <Input id="email" type="email" value={email} className="pl-9" disabled />
+                <Input id="email" type="text" value={email} className="pl-9" disabled />
               </div>
               <p className="text-xs leading-5 text-muted-foreground">A alteração de e-mail exige um fluxo de segurança específico e não é realizada neste formulário.</p>
             </div>
