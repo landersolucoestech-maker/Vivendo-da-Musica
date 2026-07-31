@@ -1,65 +1,46 @@
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
-import { isDevAuthBypassEnabled } from '@/shared/utils/devAuthBypass';
-import { MOCK_LESSON_FILE } from '@/shared/utils/devMockData';
 
-export interface LessonFile {
+import { supabase } from '@/integrations/supabase/client';
+
+export interface LessonMaterial {
   id: string;
   lesson_id: string;
-  samples_file_path: string | null;
-  project_file_path: string | null;
+  name: string;
+  description: string | null;
+  material_type: string;
+  file_url: string;
+  mime_type: string | null;
+  size_bytes: number | null;
+  order_index: number;
   created_at: string;
   updated_at: string;
 }
 
-export const useLessonFiles = (lessonId: string) => {
-  return useQuery({
-    queryKey: ['lesson-files', lessonId],
-    queryFn: async (): Promise<LessonFile | null> => {
-      if (isDevAuthBypassEnabled) return { ...MOCK_LESSON_FILE, lesson_id: lessonId };
+export const useLessonFiles = (lessonId: string) => useQuery({
+  queryKey: ['lesson-materials', lessonId],
+  queryFn: async (): Promise<LessonMaterial[]> => {
+    const { data, error } = await supabase
+      .from('lesson_materials')
+      .select('id, lesson_id, name, description, material_type, file_url, mime_type, size_bytes, order_index, created_at, updated_at')
+      .eq('lesson_id', lessonId)
+      .order('order_index', { ascending: true });
 
-      const { data, error } = await supabase
-        .from('lesson_files')
-        .select('*')
-        .eq('lesson_id', lessonId)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
+    if (error) throw new Error(`Erro ao buscar materiais da aula: ${error.message}`);
+    return (data ?? []) as LessonMaterial[];
+  },
+  enabled: !!lessonId,
+});
 
-      if (error) throw new Error(`Erro ao buscar arquivos: ${error.message}`);
-      return data;
-    },
-    enabled: !!lessonId,
-  });
-};
-
-/**
- * Lesson files live in private storage buckets. The anon/authenticated role
- * has no storage SELECT policy on them, so a signed URL must be minted
- * server-side by the get-signed-lesson-url Edge Function, which re-checks
- * enrollment via RLS before issuing it.
- */
-export const downloadLessonFile = async (
-  lessonId: string,
-  fileKind: 'samples' | 'project',
-  fileName: string
-) => {
-  if (isDevAuthBypassEnabled) {
-    // No real session to ask the Edge Function for a signed URL with.
-    // Simulate success so the UI flow (toasts, disabled states) can be tested.
-    return;
+export const downloadLessonMaterial = (material: LessonMaterial) => {
+  const url = new URL(material.file_url);
+  if (url.hostname.endsWith('.test')) {
+    throw new Error('Este material é sintético e ainda não possui um arquivo real armazenado.');
   }
 
-  const { data, error } = await supabase.functions.invoke('get-signed-lesson-url', {
-    body: { lessonId, fileKind },
-  });
-
-  if (error) throw new Error(`Erro ao gerar link de download: ${error.message}`);
-  if (!data?.url) throw new Error('Link de download não disponível');
-
   const link = document.createElement('a');
-  link.href = data.url;
-  link.download = fileName;
+  link.href = material.file_url;
+  link.download = material.name;
+  link.rel = 'noopener noreferrer';
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
