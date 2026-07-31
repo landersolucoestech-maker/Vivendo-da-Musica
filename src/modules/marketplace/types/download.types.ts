@@ -1,15 +1,5 @@
-export interface MockDownload {
-  id: string;
-  title: string;
-  category: string;
-  isPremium: boolean;
-  isFavorite: boolean;
-  purchasedAt: string;
-  sizeLabel: string;
-}
-
 export interface BeatDownload {
-  kind: "beat";
+  kind: 'beat';
   id: string;
   purchaseId: string;
   contractNumber: string;
@@ -24,7 +14,7 @@ export interface BeatDownload {
 }
 
 export interface DigitalProductDownload {
-  kind: "digital_product";
+  kind: 'digital_product';
   id: string;
   title: string;
   category: string;
