@@ -1,19 +1,21 @@
-import type { ReactNode } from "react";
+import type { ReactNode } from 'react';
 
 interface PageHeaderProps {
   title: string;
   subtitle?: string;
+  eyebrow?: string;
   actions?: ReactNode;
 }
 
-const PageHeader = ({ title, subtitle, actions }: PageHeaderProps) => (
-  <div className="flex items-start justify-between gap-4 mb-6 flex-wrap">
-    <div>
-      <h1 className="text-2xl font-bold">{title}</h1>
-      {subtitle && <p className="text-muted-foreground mt-1">{subtitle}</p>}
+const PageHeader = ({ title, subtitle, eyebrow, actions }: PageHeaderProps) => (
+  <header className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+    <div className="min-w-0">
+      {eyebrow && <p className="vdm-eyebrow">{eyebrow}</p>}
+      <h1 className={`${eyebrow ? 'mt-2' : ''} vdm-page-title`}>{title}</h1>
+      {subtitle && <p className="vdm-page-description">{subtitle}</p>}
     </div>
-    {actions && <div className="flex items-center gap-2 shrink-0">{actions}</div>}
-  </div>
+    {actions && <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div>}
+  </header>
 );
 
 export default PageHeader;
