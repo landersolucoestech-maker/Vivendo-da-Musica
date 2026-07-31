@@ -5,7 +5,6 @@ import Footer from '@/shared/components/Footer';
 import HeroSection from '@/shared/components/HeroSection';
 import InstructorsSection from '@/shared/components/InstructorsSection';
 import Navigation from '@/shared/components/Navigation';
-import PlansTeaserSection from '@/shared/components/PlansTeaserSection';
 import StatsBar from '@/shared/components/StatsBar';
 import TestimonialsSection from '@/shared/components/TestimonialsSection';
 
@@ -18,7 +17,6 @@ const Index = () => (
     <FeaturedCoursesSection />
     <InstructorsSection />
     <TestimonialsSection />
-    <PlansTeaserSection />
     <ArticlesTeaserSection />
     <Footer />
   </div>
