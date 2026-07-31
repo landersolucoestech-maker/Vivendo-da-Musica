@@ -1,39 +1,58 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@500;600;700;800&display=swap');
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
   :root {
-    --background: 240 6% 6%;
-    --foreground: 0 0% 98%;
-    --card: 240 6% 10%;
-    --card-foreground: 0 0% 98%;
-    --popover: 240 6% 10%;
-    --popover-foreground: 0 0% 98%;
-    --primary: 262 83% 58%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 240 6% 14%;
-    --secondary-foreground: 0 0% 98%;
-    --muted: 240 6% 14%;
-    --muted-foreground: 240 5% 64.9%;
-    --accent: 240 6% 16%;
-    --accent-foreground: 0 0% 98%;
+    color-scheme: dark;
+
+    /* Identidade oficial VDM — referência visual aprovada */
+    --vdm-purple-primary: 271 76% 53%; /* #8A2BE2 */
+    --vdm-purple-secondary: 262 83% 58%; /* #6C3AED */
+    --vdm-black: 0 0% 5%; /* #0D0D0D */
+    --vdm-graphite: 0 0% 10%; /* #1A1A1A */
+    --vdm-gray: 0 0% 20%; /* #333333 */
+    --vdm-silver: 0 0% 90%; /* #E5E5E5 */
+    --vdm-white: 0 0% 100%; /* #FFFFFF */
+
+    --background: var(--vdm-black);
+    --foreground: var(--vdm-white);
+    --card: var(--vdm-graphite);
+    --card-foreground: var(--vdm-white);
+    --popover: var(--vdm-graphite);
+    --popover-foreground: var(--vdm-white);
+    --primary: var(--vdm-purple-primary);
+    --primary-foreground: var(--vdm-white);
+    --secondary: 0 0% 13%;
+    --secondary-foreground: var(--vdm-white);
+    --muted: 0 0% 13%;
+    --muted-foreground: 0 0% 68%;
+    --accent: var(--vdm-purple-secondary);
+    --accent-foreground: var(--vdm-white);
     --destructive: 0 72% 51%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 240 6% 18%;
-    --input: 240 6% 18%;
-    --ring: 262 83% 58%;
-    --radius: 0.5rem;
-    --sidebar-background: 240 6% 6%;
-    --sidebar-foreground: 0 0% 90%;
-    --sidebar-primary: 262 83% 58%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 6% 14%;
-    --sidebar-accent-foreground: 0 0% 98%;
-    --sidebar-border: 240 6% 16%;
-    --sidebar-ring: 262 83% 58%;
+    --destructive-foreground: var(--vdm-white);
+    --success: 145 63% 42%;
+    --success-foreground: var(--vdm-white);
+    --warning: 38 92% 50%;
+    --warning-foreground: var(--vdm-black);
+    --border: var(--vdm-gray);
+    --input: 0 0% 16%;
+    --ring: var(--vdm-purple-secondary);
+    --radius: 0.75rem;
+
+    --sidebar-background: 0 0% 4%;
+    --sidebar-foreground: var(--vdm-silver);
+    --sidebar-primary: var(--vdm-purple-primary);
+    --sidebar-primary-foreground: var(--vdm-white);
+    --sidebar-accent: 271 76% 53% / 0.16;
+    --sidebar-accent-foreground: var(--vdm-white);
+    --sidebar-border: 0 0% 15%;
+    --sidebar-ring: var(--vdm-purple-secondary);
+
+    --shadow-card: 0 16px 40px rgb(0 0 0 / 0.28);
+    --shadow-purple: 0 12px 30px rgb(138 43 226 / 0.28);
   }
 }
 
@@ -41,31 +60,149 @@
   * {
     @apply border-border;
   }
-  
-  body {
-    @apply bg-background text-foreground font-sans;
-    font-family: 'Inter', sans-serif;
+
+  html {
+    background: hsl(var(--background));
+    scroll-behavior: smooth;
   }
-  
-  h1, h2, h3, h4, h5, h6 {
-    @apply font-bold;
+
+  body {
+    @apply min-h-screen bg-background text-foreground antialiased;
+    font-family: 'Inter', sans-serif;
+    background-image:
+      radial-gradient(circle at 15% -10%, rgb(138 43 226 / 0.14), transparent 30rem),
+      linear-gradient(180deg, #0d0d0d 0%, #090909 100%);
+    background-attachment: fixed;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: 'Poppins', sans-serif;
+    @apply font-semibold tracking-[-0.025em] text-foreground;
+  }
+
+  h1 {
+    @apply text-3xl md:text-4xl;
+  }
+
+  h2 {
+    @apply text-2xl md:text-3xl;
+  }
+
+  h3 {
+    @apply text-xl md:text-2xl;
+  }
+
+  ::selection {
+    color: #fff;
+    background: rgb(138 43 226 / 0.72);
+  }
+
+  :focus-visible {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 3px;
   }
 }
 
 @layer components {
-  /* Consistent surface used by every card across the app — replaces the
-     legacy glassmorphism look (backdrop-blur + white/5) from the original
-     template, which had drifted out of sync with the token system. */
+  .vdm-page {
+    @apply min-h-screen bg-background text-foreground;
+  }
+
+  .vdm-container {
+    @apply mx-auto w-full max-w-[1440px] px-4 py-6 sm:px-6 lg:px-8;
+  }
+
+  .vdm-surface,
   .glass-card {
-    @apply bg-card border border-border rounded-lg;
+    @apply rounded-xl border border-border/90 bg-card text-card-foreground;
+    box-shadow: var(--shadow-card);
+  }
+
+  .vdm-surface-interactive {
+    @apply vdm-surface transition duration-200 hover:-translate-y-0.5 hover:border-primary/45;
+  }
+
+  .vdm-eyebrow {
+    @apply text-xs font-semibold uppercase tracking-[0.18em] text-primary;
+  }
+
+  .vdm-page-title {
+    @apply font-display text-3xl font-bold tracking-[-0.04em] text-white md:text-4xl;
+  }
+
+  .vdm-page-description {
+    @apply mt-2 max-w-3xl text-sm leading-6 text-muted-foreground md:text-base;
   }
 
   .gradient-text {
-    @apply bg-gradient-to-r from-brand-light to-brand-medium bg-clip-text text-transparent;
+    background-image: linear-gradient(90deg, #8a2be2 0%, #6c3aed 100%);
+    @apply bg-clip-text text-transparent;
+  }
+
+  .vdm-brand-gradient {
+    background-image: linear-gradient(135deg, #8a2be2 0%, #6c3aed 100%);
   }
 
   .btn-brand,
   .btn-neon {
-    @apply inline-flex items-center justify-center gap-2 h-10 px-4 bg-primary text-primary-foreground text-sm font-medium rounded-md transition-colors hover:bg-primary/90;
+    @apply inline-flex h-10 items-center justify-center gap-2 rounded-lg px-5 text-sm font-semibold text-white transition duration-200 disabled:pointer-events-none disabled:opacity-50;
+    background-image: linear-gradient(90deg, #8a2be2 0%, #6c3aed 100%);
+    box-shadow: var(--shadow-purple);
+  }
+
+  .btn-brand:hover,
+  .btn-neon:hover {
+    filter: brightness(1.08);
+    transform: translateY(-1px);
+  }
+
+  .btn-secondary-vdm {
+    @apply inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-white/30 bg-transparent px-5 text-sm font-semibold text-white transition duration-200 hover:border-primary hover:bg-primary/10;
+  }
+
+  .link-vdm {
+    @apply font-medium text-primary underline-offset-4 transition-colors hover:text-[#A65AF0] hover:underline;
+  }
+
+  .vdm-icon-button {
+    @apply inline-flex size-10 items-center justify-center rounded-full border border-border bg-card text-muted-foreground transition hover:border-primary/55 hover:bg-primary/15 hover:text-white;
+  }
+
+  .vdm-input {
+    @apply h-11 w-full rounded-lg border border-input bg-[#121212] px-3 text-sm text-white placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-primary/20;
+  }
+
+  .vdm-divider {
+    @apply border-t border-border/80;
+  }
+
+  .vdm-progress-track {
+    @apply h-2 overflow-hidden rounded-full bg-white/10;
+  }
+
+  .vdm-progress-value {
+    @apply h-full rounded-full;
+    background-image: linear-gradient(90deg, #8a2be2 0%, #6c3aed 100%);
+  }
+
+  .vdm-pattern-dots {
+    background-image: radial-gradient(rgb(138 43 226 / 0.42) 1px, transparent 1px);
+    background-size: 16px 16px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
   }
 }
