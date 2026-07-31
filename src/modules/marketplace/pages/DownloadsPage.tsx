@@ -3,7 +3,7 @@ import { Download as DownloadIcon, FileAudio, FileText, Loader2, Lock, PackageOp
 
 import StudentLayout from '@/app/layouts/StudentLayout';
 import { useDownloads } from '@/modules/marketplace/hooks/useDownloads';
-import { marketplaceService } from '@/modules/marketplace/services/marketplace.service';
+import { downloadsService } from '@/modules/marketplace/services/downloads.service';
 import EmptyState from '@/shared/components/EmptyState';
 import { Button } from '@/shared/components/ui/button';
 import { Input } from '@/shared/components/ui/input';
@@ -15,7 +15,7 @@ const formatDate = (value: string | null) => value
 
 const DownloadsPage = () => {
   const { toast } = useToast();
-  const { data: downloads, isLoading, error } = useDownloads();
+  const { data: downloads, isLoading, error, refetch } = useDownloads();
   const [search, setSearch] = useState('');
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const [contractId, setContractId] = useState<string | null>(null);
@@ -30,11 +30,10 @@ const DownloadsPage = () => {
   const downloadFile = async (item: NonNullable<typeof downloads>[number]) => {
     setDownloadingId(item.id);
     try {
-      const url = item.kind === 'beat'
-        ? await marketplaceService.getBeatDownloadUrl(item.id)
-        : await marketplaceService.getDigitalProductDownloadUrl(item.id);
+      const url = await downloadsService.getDownloadUrl(item.kind === 'beat' ? 'beat' : 'product', item.id);
       window.location.assign(url);
-      toast({ title: 'Download autorizado', description: `${item.title}: o link temporário foi emitido.` });
+      await refetch();
+      toast({ title: 'Download autorizado', description: `${item.title}: o link temporário foi emitido por cinco minutos.` });
     } catch (downloadError) {
       toast({
         variant: 'destructive',
@@ -46,15 +45,17 @@ const DownloadsPage = () => {
     }
   };
 
-  const downloadContract = async (purchaseId: string, contractNumber: string) => {
-    setContractId(purchaseId);
+  const downloadContract = async (deliveryId: string, contractNumber: string) => {
+    setContractId(deliveryId);
     try {
-      const blob = await marketplaceService.getBeatLicenseContract(purchaseId);
+      const blob = await downloadsService.getBeatLicenseContract(deliveryId);
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
       link.download = `${contractNumber}.pdf`;
+      document.body.appendChild(link);
       link.click();
+      link.remove();
       URL.revokeObjectURL(url);
       toast({ title: 'Contrato emitido', description: contractNumber });
     } catch (contractError) {
@@ -123,8 +124,8 @@ const DownloadsPage = () => {
 
               <div className="mt-auto space-y-3 pt-6">
                 {item.kind === 'beat' && (
-                  <Button size="sm" variant="outline" className="w-full" disabled={contractId === item.purchaseId} onClick={() => void downloadContract(item.purchaseId, item.contractNumber)}>
-                    {contractId === item.purchaseId ? <Loader2 className="size-4 animate-spin" /> : <FileText className="size-4" />}
+                  <Button size="sm" variant="outline" className="w-full" disabled={contractId === item.id} onClick={() => void downloadContract(item.id, item.contractNumber)}>
+                    {contractId === item.id ? <Loader2 className="size-4 animate-spin" /> : <FileText className="size-4" />}
                     Baixar contrato
                   </Button>
                 )}
