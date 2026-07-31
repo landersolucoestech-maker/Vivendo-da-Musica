@@ -1,5 +1,6 @@
-import { supabase } from "@/integrations/supabase/client";
-import type { LessonComment } from "@/modules/lessons/types/lessonComment.types";
+import { supabase } from '@/integrations/supabase/client';
+import type { LessonComment } from '@/modules/lessons/types/lessonComment.types';
+import { isDevAuthBypassEnabled } from '@/shared/utils/devAuthBypass';
 
 const formatTimeAgo = (createdAt: string) => {
   const elapsedSeconds = Math.round((new Date(createdAt).getTime() - Date.now()) / 1000);
@@ -12,19 +13,41 @@ const formatTimeAgo = (createdAt: string) => {
   return formatter.format(Math.round(elapsedHours / 24), 'day');
 };
 
+const resolveCommentAuthorId = async (): Promise<string> => {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (user) return user.id;
+
+  if (isDevAuthBypassEnabled) {
+    const { data, error } = await supabase
+      .from('user_profiles')
+      .select('user_id')
+      .order('created_at', { ascending: true })
+      .limit(1)
+      .maybeSingle();
+
+    if (error || !data) throw new Error('Perfil de desenvolvimento não configurado');
+    return data.user_id;
+  }
+
+  throw new Error('Usuário não autenticado');
+};
+
 export const lessonCommentsService = {
   async listComments(lessonId: string): Promise<LessonComment[]> {
     const { data: comments, error } = await supabase
       .from('lesson_comments')
       .select('id, author_id, body, created_at')
       .eq('lesson_id', lessonId)
+      .eq('status', 'published')
       .order('created_at', { ascending: false });
+
     if (error) throw error;
 
     const authorIds = [...new Set((comments ?? []).map((comment) => comment.author_id))];
     const { data: profiles, error: profilesError } = authorIds.length
       ? await supabase.from('user_profiles').select('user_id, full_name').in('user_id', authorIds)
       : { data: [], error: null };
+
     if (profilesError) throw profilesError;
     const names = new Map((profiles ?? []).map((profile) => [profile.user_id, profile.full_name]));
 
@@ -37,14 +60,18 @@ export const lessonCommentsService = {
   },
 
   async createComment(lessonId: string, body: string): Promise<void> {
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError) throw authError;
-    if (!user) throw new Error('Usuário não autenticado');
+    const normalizedBody = body.trim();
+    if (!normalizedBody) throw new Error('Escreva uma mensagem antes de publicar.');
+    if (normalizedBody.length > 2000) throw new Error('O comentário deve ter no máximo 2.000 caracteres.');
+
+    const authorId = await resolveCommentAuthorId();
     const { error } = await supabase.from('lesson_comments').insert({
       lesson_id: lessonId,
-      author_id: user.id,
-      body: body.trim(),
+      author_id: authorId,
+      body: normalizedBody,
+      status: 'published',
     });
+
     if (error) throw error;
   },
 };
