@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Award, Bell, BookOpen, Briefcase, Download, PlayCircle, Users } from 'lucide-react';
 
@@ -9,7 +9,6 @@ import { useUnreadNotificationsCount } from '@/modules/dashboard/hooks/useNotifi
 import RecentActivities from '@/modules/dashboard/components/RecentActivities';
 import UserProfile from '@/modules/dashboard/components/UserProfile';
 import LessonGrid from '@/modules/lessons/components/LessonGrid';
-import VideoPlayer from '@/modules/lessons/components/VideoPlayer';
 import { useProgressCalculation } from '@/modules/lessons/hooks/useProgressCalculation';
 import { useRecommendedDownloads } from '@/modules/marketplace/hooks/useDownloads';
 import ModuleProgress from '@/modules/modules-manager/components/ModuleProgress';
@@ -27,7 +26,6 @@ const SHORTCUTS = [
 ];
 
 const Dashboard = () => {
-  const [currentLesson, setCurrentLesson] = useState<null | { id: string }>(null);
   const navigate = useNavigate();
   const { user, profile } = useAuthContext();
 
@@ -213,13 +211,6 @@ const Dashboard = () => {
                 <div className="vdm-surface py-14 text-center">
                   <p className="mb-5 text-sm text-muted-foreground">Não foi possível carregar suas aulas agora.</p>
                   <Button onClick={() => window.location.reload()}>Tentar novamente</Button>
-                </div>
-              ) : currentLesson ? (
-                <div className="space-y-6">
-                  <Button variant="outline" onClick={() => setCurrentLesson(null)}>
-                    ← Voltar às aulas
-                  </Button>
-                  <VideoPlayer lesson={currentLesson} />
                 </div>
               ) : (
                 <LessonGrid modules={modulesWithProgress} onLessonClick={handleLessonClick} />
