@@ -1,13 +1,19 @@
-import { LineChart, Line, ResponsiveContainer, XAxis, YAxis, Tooltip } from "recharts";
-import { AlertTriangle } from "lucide-react";
-import AdminLayout from "@/app/layouts/AdminLayout";
-import PageHeader from "@/shared/components/PageHeader";
-import StatCard from "@/shared/components/StatCard";
+import { Activity, AlertTriangle, BarChart3, ShoppingBag, Users, WalletCards } from 'lucide-react';
+import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+
+import AdminLayout from '@/app/layouts/AdminLayout';
 import {
-  useAdminDashboardStats, useAdminSalesSeries, useAdminTopProducts,
-  useAdminRecentSales, useAdminAlerts, useAdminRecentActivity, useAdminUpcomingEvents,
-} from "@/modules/admin/hooks/useAdminDashboard";
-import { formatPrice as formatCurrency } from "@/shared/utils/formatters";
+  useAdminAlerts,
+  useAdminDashboardStats,
+  useAdminRecentActivity,
+  useAdminRecentSales,
+  useAdminSalesSeries,
+  useAdminTopProducts,
+} from '@/modules/admin/hooks/useAdminDashboard';
+import StatCard from '@/shared/components/StatCard';
+import { Badge } from '@/shared/components/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle } from '@/shared/components/ui/card';
+import { formatPrice as formatCurrency } from '@/shared/utils/formatters';
 
 const AdminDashboard = () => {
   const { data: stats } = useAdminDashboardStats();
@@ -16,101 +22,114 @@ const AdminDashboard = () => {
   const { data: recentSales } = useAdminRecentSales();
   const { data: alerts } = useAdminAlerts();
   const { data: recentActivity } = useAdminRecentActivity();
-  const { data: upcomingEvents } = useAdminUpcomingEvents();
 
-  const statCards = stats ? [
-    { label: 'Usuários ativos', value: stats.activeUsers.toLocaleString('pt-BR'), delta: `+${stats.activeUsersDeltaPct}% este mês` },
-    { label: 'Vendas (mês)', value: formatCurrency(stats.salesLast30Days), delta: `+${stats.salesDeltaPct}% este mês` },
-    { label: 'Pedidos', value: stats.orders.toLocaleString('pt-BR'), delta: `+${stats.ordersDeltaPct}% este mês` },
-    { label: 'Taxa de conversão', value: `${stats.conversionRatePct}%`, delta: `+${stats.conversionDeltaPct}pp este mês` },
-  ] : [];
+  const statCards = stats
+    ? [
+        { label: 'Usuários ativos', value: stats.activeUsers.toLocaleString('pt-BR'), delta: `+${stats.activeUsersDeltaPct}% no mês`, icon: Users },
+        { label: 'Faturamento', value: formatCurrency(stats.salesLast30Days), delta: `+${stats.salesDeltaPct}% no mês`, icon: WalletCards },
+        { label: 'Pedidos', value: stats.orders.toLocaleString('pt-BR'), delta: `+${stats.ordersDeltaPct}% no mês`, icon: ShoppingBag },
+        { label: 'Conversão', value: `${stats.conversionRatePct}%`, delta: `+${stats.conversionDeltaPct} p.p.`, icon: BarChart3 },
+      ]
+    : [];
 
   return (
     <AdminLayout>
-      <PageHeader title="Dashboard" subtitle="Visão geral da plataforma." actions={<span className="text-sm text-muted-foreground">Últimos 30 dias</span>} />
+      <header className="mb-8 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+        <div>
+          <p className="vdm-eyebrow">Administração</p>
+          <h1 className="vdm-page-title mt-2">Visão geral da plataforma</h1>
+          <p className="vdm-page-description">Indicadores operacionais, comerciais e de atividade dos últimos 30 dias.</p>
+        </div>
+        <Badge variant="outline" className="w-fit px-3 py-1">Últimos 30 dias</Badge>
+      </header>
 
       {!!alerts?.length && (
-        <div className="space-y-2 mb-6">
+        <section className="mb-6 space-y-2" aria-label="Alertas administrativos">
           {alerts.map((alert) => (
-            <div key={alert.title} className="flex items-center gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-2 text-sm text-amber-400">
-              <AlertTriangle className="w-4 h-4 shrink-0" />
+            <div key={alert.title} className="flex items-center gap-3 rounded-lg border border-amber-500/25 bg-amber-500/8 px-4 py-3 text-sm text-amber-300">
+              <AlertTriangle className="size-4 shrink-0" />
               {alert.title}
             </div>
           ))}
-        </div>
+        </section>
       )}
 
-      <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      <div className="mb-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {statCards.map((stat) => <StatCard key={stat.label} {...stat} />)}
       </div>
 
-      <div className="grid lg:grid-cols-[1.6fr_1fr] gap-6 mb-6">
-        <div className="rounded-lg border border-border bg-card p-5">
-          <h2 className="text-sm font-semibold text-muted-foreground mb-4">Vendas nos últimos 30 dias</h2>
-          <ResponsiveContainer width="100%" height={260}>
-            <LineChart data={salesSeries ?? []}>
-              <XAxis dataKey="date" stroke="hsl(var(--muted-foreground))" fontSize={12} />
-              <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} />
-              <Tooltip
-                contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8 }}
-              />
-              <Line type="monotone" dataKey="sales" stroke="#8B5CF6" strokeWidth={2} dot={false} />
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
+      <div className="mb-8 grid gap-5 xl:grid-cols-[1.6fr_1fr]">
+        <Card>
+          <CardHeader className="flex-row items-center justify-between space-y-0">
+            <div>
+              <p className="vdm-eyebrow">Comercial</p>
+              <CardTitle className="mt-1 text-xl">Vendas nos últimos 30 dias</CardTitle>
+            </div>
+            <span className="vdm-icon-button border-primary/25 bg-primary/10 text-primary"><BarChart3 className="size-5" /></span>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={280}>
+              <LineChart data={salesSeries ?? []}>
+                <XAxis dataKey="date" stroke="hsl(var(--muted-foreground))" fontSize={12} tickLine={false} axisLine={false} />
+                <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} tickLine={false} axisLine={false} />
+                <Tooltip contentStyle={{ background: '#151515', border: '1px solid #333', borderRadius: 12 }} />
+                <Line type="monotone" dataKey="sales" stroke="#8A2BE2" strokeWidth={3} dot={false} activeDot={{ r: 5, fill: '#6C3AED' }} />
+              </LineChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
 
-        <div className="rounded-lg border border-border bg-card p-5">
-          <h2 className="text-sm font-semibold text-muted-foreground mb-4">Produtos mais vendidos</h2>
-          <ol className="space-y-3">
-            {(topProducts ?? []).map((product) => (
-              <li key={product.rank} className="flex items-center justify-between text-sm">
-                <span className="flex items-center gap-2">
-                  <span className="text-muted-foreground">{product.rank}.</span>
-                  {product.title}
-                </span>
-                <span className="text-muted-foreground">{product.sales} vendas</span>
-              </li>
-            ))}
-          </ol>
-        </div>
+        <Card>
+          <CardHeader>
+            <p className="vdm-eyebrow">Desempenho</p>
+            <CardTitle className="mt-1 text-xl">Produtos mais vendidos</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ol className="space-y-4">
+              {(topProducts ?? []).map((product) => (
+                <li key={product.rank} className="flex items-center justify-between gap-4 border-b border-white/8 pb-4 last:border-0 last:pb-0">
+                  <span className="flex min-w-0 items-center gap-3">
+                    <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/12 text-xs font-bold text-primary">{product.rank}</span>
+                    <span className="truncate text-sm font-medium text-white">{product.title}</span>
+                  </span>
+                  <span className="shrink-0 text-xs text-muted-foreground">{product.sales} vendas</span>
+                </li>
+              ))}
+            </ol>
+          </CardContent>
+        </Card>
       </div>
 
-      <div className="grid lg:grid-cols-3 gap-6">
-        <div className="rounded-lg border border-border bg-card p-5">
-          <h2 className="text-sm font-semibold text-muted-foreground mb-4">Vendas recentes</h2>
-          <div className="space-y-3">
+      <div className="grid gap-5 xl:grid-cols-2">
+        <Card>
+          <CardHeader className="flex-row items-center justify-between space-y-0">
+            <div><p className="vdm-eyebrow">Pedidos</p><CardTitle className="mt-1 text-xl">Vendas recentes</CardTitle></div>
+            <ShoppingBag className="size-5 text-primary" />
+          </CardHeader>
+          <CardContent className="space-y-4">
             {(recentSales ?? []).map((sale) => (
-              <div key={`${sale.customer}-${sale.time}`} className="text-sm">
-                <p className="font-medium">{sale.customer}</p>
-                <p className="text-muted-foreground">{sale.item} · {sale.time}</p>
+              <div key={`${sale.customer}-${sale.time}`} className="flex items-center justify-between gap-4 border-b border-white/8 pb-4 last:border-0 last:pb-0">
+                <div><p className="text-sm font-semibold text-white">{sale.customer}</p><p className="mt-1 text-xs text-muted-foreground">{sale.item}</p></div>
+                <span className="text-xs text-muted-foreground">{sale.time}</span>
               </div>
             ))}
-          </div>
-        </div>
+          </CardContent>
+        </Card>
 
-        <div className="rounded-lg border border-border bg-card p-5">
-          <h2 className="text-sm font-semibold text-muted-foreground mb-4">Atividades recentes</h2>
-          <div className="space-y-3">
+        <Card>
+          <CardHeader className="flex-row items-center justify-between space-y-0">
+            <div><p className="vdm-eyebrow">Operação</p><CardTitle className="mt-1 text-xl">Atividades recentes</CardTitle></div>
+            <Activity className="size-5 text-primary" />
+          </CardHeader>
+          <CardContent className="space-y-4">
             {(recentActivity ?? []).map((activity) => (
-              <div key={`${activity.actor}-${activity.time}`} className="text-sm">
-                <p><span className="font-medium">{activity.actor}</span> {activity.action}</p>
-                <p className="text-muted-foreground text-xs">{activity.time}</p>
+              <div key={`${activity.actor}-${activity.time}`} className="border-b border-white/8 pb-4 last:border-0 last:pb-0">
+                <p className="text-sm text-[#d4d4d4]"><span className="font-semibold text-white">{activity.actor}</span> {activity.action}</p>
+                <p className="mt-1 text-xs text-muted-foreground">{activity.time}</p>
               </div>
             ))}
-          </div>
-        </div>
-
-        <div className="rounded-lg border border-border bg-card p-5">
-          <h2 className="text-sm font-semibold text-muted-foreground mb-4">Próximos eventos</h2>
-          <div className="space-y-3">
-            {(upcomingEvents ?? []).map((event) => (
-              <div key={event.title} className="text-sm">
-                <p className="font-medium">{event.title}</p>
-                <p className="text-muted-foreground">{event.date} · {event.attendees} inscritos</p>
-              </div>
-            ))}
-          </div>
-        </div>
+          </CardContent>
+        </Card>
       </div>
     </AdminLayout>
   );
