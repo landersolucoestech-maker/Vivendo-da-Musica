@@ -1,32 +1,27 @@
+import ArticlesTeaserSection from '@/shared/components/ArticlesTeaserSection';
+import ExploreAreasSection from '@/shared/components/ExploreAreasSection';
+import FeaturedCoursesSection from '@/shared/components/FeaturedCoursesSection';
+import Footer from '@/shared/components/Footer';
+import HeroSection from '@/shared/components/HeroSection';
+import InstructorsSection from '@/shared/components/InstructorsSection';
+import Navigation from '@/shared/components/Navigation';
+import PlansTeaserSection from '@/shared/components/PlansTeaserSection';
+import StatsBar from '@/shared/components/StatsBar';
+import TestimonialsSection from '@/shared/components/TestimonialsSection';
 
-import Navigation from "@/shared/components/Navigation";
-import HeroSection from "@/shared/components/HeroSection";
-import StatsBar from "@/shared/components/StatsBar";
-import ExploreAreasSection from "@/shared/components/ExploreAreasSection";
-import FeaturedCoursesSection from "@/shared/components/FeaturedCoursesSection";
-import InstructorsSection from "@/shared/components/InstructorsSection";
-import TestimonialsSection from "@/shared/components/TestimonialsSection";
-import PlansTeaserSection from "@/shared/components/PlansTeaserSection";
-import EventsTeaserSection from "@/shared/components/EventsTeaserSection";
-import ArticlesTeaserSection from "@/shared/components/ArticlesTeaserSection";
-import Footer from "@/shared/components/Footer";
-
-const Index = () => {
-  return (
-    <div className="min-h-screen bg-background text-foreground overflow-x-hidden">
-      <Navigation />
-      <HeroSection />
-      <StatsBar />
-      <ExploreAreasSection />
-      <FeaturedCoursesSection />
-      <InstructorsSection />
-      <TestimonialsSection />
-      <PlansTeaserSection />
-      <EventsTeaserSection />
-      <ArticlesTeaserSection />
-      <Footer />
-    </div>
-  );
-};
+const Index = () => (
+  <div className="vdm-page min-h-screen overflow-x-hidden">
+    <Navigation />
+    <HeroSection />
+    <StatsBar />
+    <ExploreAreasSection />
+    <FeaturedCoursesSection />
+    <InstructorsSection />
+    <TestimonialsSection />
+    <PlansTeaserSection />
+    <ArticlesTeaserSection />
+    <Footer />
+  </div>
+);
 
 export default Index;
