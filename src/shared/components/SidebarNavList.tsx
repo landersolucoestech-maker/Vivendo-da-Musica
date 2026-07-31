@@ -1,5 +1,5 @@
-import { NavLink } from "react-router-dom";
-import type { LucideIcon } from "lucide-react";
+import type { LucideIcon } from 'lucide-react';
+import { NavLink } from 'react-router-dom';
 
 export interface SidebarNavItem {
   label: string;
@@ -14,7 +14,7 @@ interface SidebarNavListProps {
 }
 
 const SidebarNavList = ({ items, exactPath, onNavigate }: SidebarNavListProps) => (
-  <nav className="flex flex-col gap-1">
+  <nav className="flex flex-col gap-1" aria-label="Navegação do portal">
     {items.map(({ label, to, icon: Icon }) => (
       <NavLink
         key={to}
@@ -22,15 +22,23 @@ const SidebarNavList = ({ items, exactPath, onNavigate }: SidebarNavListProps) =
         end={to === exactPath}
         onClick={onNavigate}
         className={({ isActive }) =>
-          `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${
+          `group relative flex min-h-10 items-center gap-3 overflow-hidden rounded-lg px-3 py-2.5 text-sm font-medium transition duration-200 ${
             isActive
-              ? 'bg-brand-medium/10 text-brand-medium font-medium'
-              : 'text-muted-foreground hover:bg-white/5 hover:text-foreground'
+              ? 'bg-primary/15 text-white shadow-[inset_3px_0_0_#8A2BE2]'
+              : 'text-muted-foreground hover:bg-white/5 hover:text-white'
           }`
         }
       >
-        <Icon className="w-4 h-4" />
-        {label}
+        {({ isActive }) => (
+          <>
+            <Icon
+              className={`size-4 shrink-0 transition ${
+                isActive ? 'text-primary' : 'text-muted-foreground group-hover:text-primary'
+              }`}
+            />
+            <span className="truncate">{label}</span>
+          </>
+        )}
       </NavLink>
     ))}
   </nav>
