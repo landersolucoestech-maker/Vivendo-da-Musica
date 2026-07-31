@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
+
 import { supabase } from '@/integrations/supabase/client';
 import { isDevAuthBypassEnabled } from '@/shared/utils/devAuthBypass';
-import { MOCK_ACTIVITIES } from '@/shared/utils/devMockData';
 
 export interface RecentActivity {
   activity: string;
@@ -9,65 +9,75 @@ export interface RecentActivity {
   type: 'lesson_completed' | 'lesson_started' | 'module_progress';
 }
 
-export const useRecentActivities = () => {
-  return useQuery({
-    queryKey: ['recent-activities'],
-    queryFn: async (): Promise<RecentActivity[]> => {
-      if (isDevAuthBypassEnabled) return MOCK_ACTIVITIES;
+const resolveActivityUserId = async (): Promise<string> => {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (user) return user.id;
 
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('Usuário não autenticado');
+  if (isDevAuthBypassEnabled) {
+    const { data, error } = await supabase
+      .from('user_profiles')
+      .select('user_id')
+      .order('created_at', { ascending: true })
+      .limit(1)
+      .maybeSingle();
 
-      const { data: progressData, error } = await supabase
-        .from('lesson_progress')
-        .select(
-          `
-          *,
-          lessons (
-            title,
-            module_id,
-            course_modules (
-              title
-            )
-          )
-        `
-        )
-        .eq('user_id', user.id)
-        .order('updated_at', { ascending: false })
-        .limit(10);
+    if (error || !data) throw new Error('Perfil de desenvolvimento não configurado');
+    return data.user_id;
+  }
 
-      if (error) throw error;
-
-      return (progressData ?? []).map((progress) => {
-        const lessonTitle = progress.lessons?.title || 'Aula sem título';
-        const moduleTitle = progress.lessons?.course_modules?.title || 'Módulo';
-
-        const updatedAt = new Date(progress.updated_at);
-        const diffInHours = Math.floor((Date.now() - updatedAt.getTime()) / (1000 * 60 * 60));
-        const diffInDays = Math.floor(diffInHours / 24);
-
-        const time =
-          diffInHours < 1
-            ? 'Há alguns minutos'
-            : diffInHours < 24
-              ? `${diffInHours} hora${diffInHours > 1 ? 's' : ''} atrás`
-              : `${diffInDays} dia${diffInDays > 1 ? 's' : ''} atrás`;
-
-        let activity: string;
-        let type: RecentActivity['type'];
-        if (progress.completed) {
-          activity = `Completou "${lessonTitle}" em ${moduleTitle}`;
-          type = 'lesson_completed';
-        } else if (progress.progress_percentage > 0) {
-          activity = `Assistiu ${progress.progress_percentage}% de "${lessonTitle}"`;
-          type = 'lesson_started';
-        } else {
-          activity = `Iniciou "${lessonTitle}" em ${moduleTitle}`;
-          type = 'lesson_started';
-        }
-
-        return { activity, time, type };
-      });
-    },
-  });
+  throw new Error('Usuário não autenticado');
 };
+
+const formatRelativeTime = (value: string) => {
+  const updatedAt = new Date(value);
+  const diffInMinutes = Math.max(0, Math.floor((Date.now() - updatedAt.getTime()) / (1000 * 60)));
+  const diffInHours = Math.floor(diffInMinutes / 60);
+  const diffInDays = Math.floor(diffInHours / 24);
+
+  if (diffInMinutes < 1) return 'Agora';
+  if (diffInMinutes < 60) return `Há ${diffInMinutes} minuto${diffInMinutes > 1 ? 's' : ''}`;
+  if (diffInHours < 24) return `Há ${diffInHours} hora${diffInHours > 1 ? 's' : ''}`;
+  return `Há ${diffInDays} dia${diffInDays > 1 ? 's' : ''}`;
+};
+
+export const useRecentActivities = () => useQuery({
+  queryKey: ['recent-activities'],
+  queryFn: async (): Promise<RecentActivity[]> => {
+    const userId = await resolveActivityUserId();
+    const { data: progressData, error } = await supabase
+      .from('lesson_progress')
+      .select(`
+        completed,
+        progress_percentage,
+        updated_at,
+        lessons (
+          title,
+          course_modules (
+            title
+          )
+        )
+      `)
+      .eq('user_id', userId)
+      .order('updated_at', { ascending: false })
+      .limit(10);
+
+    if (error) throw error;
+
+    return (progressData ?? []).map((progress) => {
+      const lessonTitle = progress.lessons?.title ?? 'Aula';
+      const moduleTitle = progress.lessons?.course_modules?.title ?? 'Módulo';
+      const type: RecentActivity['type'] = progress.completed ? 'lesson_completed' : 'lesson_started';
+      const activity = progress.completed
+        ? `Concluiu “${lessonTitle}” em ${moduleTitle}`
+        : progress.progress_percentage > 0
+          ? `Assistiu ${progress.progress_percentage}% de “${lessonTitle}”`
+          : `Iniciou “${lessonTitle}” em ${moduleTitle}`;
+
+      return {
+        activity,
+        time: formatRelativeTime(progress.updated_at),
+        type,
+      };
+    });
+  },
+});
