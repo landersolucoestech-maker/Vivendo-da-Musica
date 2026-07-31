@@ -1,4 +1,8 @@
-import { supabase } from '@/integrations/supabase/client';
+import { createClient } from '@supabase/supabase-js';
+
+import { env } from '@/app/config/env';
+
+const affiliateClient = createClient(env.supabaseUrl, env.supabasePublishableKey);
 
 export interface AffiliateProfile {
   id: string;
@@ -63,7 +67,7 @@ export interface AffiliatePortalData {
 }
 
 export async function getAffiliatePortalData(): Promise<AffiliatePortalData> {
-  const profileResult = await supabase
+  const profileResult = await affiliateClient
     .from('affiliate_profiles')
     .select('id, display_name, referral_code, status, commission_rate, balance_cents, lifetime_earnings_cents')
     .order('is_demo', { ascending: false })
@@ -78,34 +82,40 @@ export async function getAffiliatePortalData(): Promise<AffiliatePortalData> {
   }
 
   const [linksResult, conversionsResult, commissionsResult, withdrawalsResult, materialsResult] = await Promise.all([
-    supabase
+    affiliateClient
       .from('affiliate_links')
       .select('id, label, destination_url, slug, clicks_count, conversions_count, active')
       .eq('affiliate_id', affiliateId)
       .order('created_at', { ascending: false }),
-    supabase
+    affiliateClient
       .from('affiliate_conversions')
       .select('id, customer_reference, gross_amount_cents, commission_amount_cents, status, converted_at')
       .eq('affiliate_id', affiliateId)
       .order('converted_at', { ascending: false }),
-    supabase
+    affiliateClient
       .from('affiliate_commissions')
       .select('id, amount_cents, status, available_at, created_at')
       .eq('affiliate_id', affiliateId)
       .order('created_at', { ascending: false }),
-    supabase
+    affiliateClient
       .from('affiliate_withdrawals')
       .select('id, amount_cents, status, payment_method, requested_at')
       .eq('affiliate_id', affiliateId)
       .order('requested_at', { ascending: false }),
-    supabase
+    affiliateClient
       .from('affiliate_marketing_materials')
       .select('id, title, description, material_type, asset_url')
       .eq('active', true)
       .order('created_at', { ascending: false }),
   ]);
 
-  const firstError = [linksResult.error, conversionsResult.error, commissionsResult.error, withdrawalsResult.error, materialsResult.error].find(Boolean);
+  const firstError = [
+    linksResult.error,
+    conversionsResult.error,
+    commissionsResult.error,
+    withdrawalsResult.error,
+    materialsResult.error,
+  ].find(Boolean);
   if (firstError) throw firstError;
 
   return {
