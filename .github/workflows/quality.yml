@@ -2,16 +2,24 @@ name: Quality Gates
 
 on:
   pull_request:
+    branches: [main, dev]
   push:
-    branches: [main, develop]
+    branches: [main, dev]
 
 concurrency:
   group: quality-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  VITE_SUPABASE_URL: https://ywirfqvobfnunlcsnptm.supabase.co
+  VITE_SUPABASE_PUBLISHABLE_KEY: ci-public-key-placeholder
+  VITE_DISABLE_AUTH: 'true'
+  VITE_USE_MOCK_DATA: 'false'
+
 jobs:
   quality:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -29,6 +37,7 @@ jobs:
   e2e:
     needs: quality
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -37,5 +46,4 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx playwright install --with-deps chromium
-      - run: npm run build
       - run: npm run test:e2e
