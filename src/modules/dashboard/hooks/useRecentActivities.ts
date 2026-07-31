@@ -1,32 +1,13 @@
 import { useQuery } from '@tanstack/react-query';
 
 import { supabase } from '@/integrations/supabase/client';
-import { isDevAuthBypassEnabled } from '@/shared/utils/devAuthBypass';
+import { getEffectiveUserId } from '@/shared/utils/devIdentity';
 
 export interface RecentActivity {
   activity: string;
   time: string;
   type: 'lesson_completed' | 'lesson_started' | 'module_progress';
 }
-
-const resolveActivityUserId = async (): Promise<string> => {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (user) return user.id;
-
-  if (isDevAuthBypassEnabled) {
-    const { data, error } = await supabase
-      .from('user_profiles')
-      .select('user_id')
-      .order('created_at', { ascending: true })
-      .limit(1)
-      .maybeSingle();
-
-    if (error || !data) throw new Error('Perfil de desenvolvimento não configurado');
-    return data.user_id;
-  }
-
-  throw new Error('Usuário não autenticado');
-};
 
 const formatRelativeTime = (value: string) => {
   const updatedAt = new Date(value);
@@ -43,7 +24,10 @@ const formatRelativeTime = (value: string) => {
 export const useRecentActivities = () => useQuery({
   queryKey: ['recent-activities'],
   queryFn: async (): Promise<RecentActivity[]> => {
-    const userId = await resolveActivityUserId();
+    const { data: authData, error: authError } = await supabase.auth.getUser();
+    if (authError) throw authError;
+    const userId = await getEffectiveUserId(authData.user?.id);
+
     const { data: progressData, error } = await supabase
       .from('lesson_progress')
       .select(`
