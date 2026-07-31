@@ -1,10 +1,9 @@
-import { useQuery } from "@tanstack/react-query";
-import { marketplaceService } from "@/modules/marketplace/services/marketplace.service";
+import { useQuery } from '@tanstack/react-query';
 
-export const useProductDetail = (slug: string | undefined) => {
-  return useQuery({
-    queryKey: ['product-detail', 'mock', slug],
-    queryFn: () => marketplaceService.getProductDetailBundle(slug!),
-    enabled: !!slug,
-  });
-};
+import { productService } from '@/modules/marketplace/services/product.service';
+
+export const useProductDetail = (slug: string | undefined) => useQuery({
+  queryKey: ['product-detail', slug],
+  queryFn: () => productService.getProductDetailBundle(slug!),
+  enabled: !!slug,
+});
