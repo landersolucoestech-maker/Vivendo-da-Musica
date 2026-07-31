@@ -1,231 +1,133 @@
-
 import { useState } from 'react';
-import { Button } from "@/shared/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/shared/components/ui/card";
-import { Input } from "@/shared/components/ui/input";
-import { Textarea } from "@/shared/components/ui/textarea";
-import { Label } from "@/shared/components/ui/label";
-import { Mail, Phone, MapPin, Clock, Send } from "lucide-react";
-import Navigation from "@/shared/components/Navigation";
-import Footer from "@/shared/components/Footer";
-import { useToast } from "@/shared/hooks/use-toast";
+import { ArrowUpRight, Clock3, Mail, MessageSquareText, Send } from 'lucide-react';
+
+import PublicLayout from '@/app/layouts/PublicLayout';
+import { Button } from '@/shared/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/shared/components/ui/card';
+import { Input } from '@/shared/components/ui/input';
+import { Label } from '@/shared/components/ui/label';
+import { Textarea } from '@/shared/components/ui/textarea';
+import { useToast } from '@/shared/hooks/use-toast';
+
+const CONTACT_EMAIL = 'contato@vivendodamusica.com';
 
 const Contact = () => {
-  const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    subject: '',
-    message: ''
-  });
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [formData, setFormData] = useState({ name: '', email: '', subject: '', message: '' });
   const { toast } = useToast();
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value
-    });
+  const handleInputChange = (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = event.target;
+    setFormData((current) => ({ ...current, [name]: value }));
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsSubmitting(true);
+  const handleSubmit = (event: React.FormEvent) => {
+    event.preventDefault();
 
-    // Simular envio do formulário
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    const subject = encodeURIComponent(`[Vivendo da Música] ${formData.subject}`);
+    const body = encodeURIComponent(
+      `Nome: ${formData.name}\nE-mail: ${formData.email}\n\n${formData.message}`,
+    );
 
+    window.location.href = `mailto:${CONTACT_EMAIL}?subject=${subject}&body=${body}`;
     toast({
-      title: "Mensagem enviada!",
-      description: "Entraremos em contato com você em breve.",
+      title: 'Mensagem preparada',
+      description: 'Seu aplicativo de e-mail foi aberto com os dados preenchidos.',
     });
-
-    setFormData({
-      name: '',
-      email: '',
-      subject: '',
-      message: ''
-    });
-    setIsSubmitting(false);
   };
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      <Navigation />
-
-      {/* Header Section */}
-      <section className="pt-20 pb-10 border-b border-border">
-        <div className="container mx-auto px-4 text-center">
-          <h1 className="text-2xl md:text-3xl font-bold mb-3">
-            Entre em contato
+    <PublicLayout>
+      <section className="relative overflow-hidden border-b border-white/8 py-16 sm:py-20">
+        <div className="absolute inset-0 vdm-pattern-dots opacity-20" />
+        <div className="absolute -right-40 top-0 size-96 rounded-full bg-primary/14 blur-3xl" />
+        <div className="relative mx-auto max-w-3xl text-center">
+          <p className="vdm-eyebrow">Atendimento</p>
+          <h1 className="mt-3 font-display text-4xl font-bold tracking-[-0.04em] text-white sm:text-5xl">
+            Fale com a equipe Vivendo da Música.
           </h1>
-          <p className="text-muted-foreground max-w-2xl mx-auto">
-            Tem alguma dúvida sobre o curso? Precisa de suporte? Estamos aqui para ajudar.
+          <p className="mx-auto mt-5 max-w-2xl text-base leading-7 text-muted-foreground">
+            Envie sua dúvida, solicitação comercial ou pedido de suporte pelos canais oficiais da plataforma.
           </p>
         </div>
       </section>
 
-      <div className="container mx-auto px-4 py-12">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
-          {/* Contact Information */}
-          <div className="space-y-8">
-            <div>
-              <h2 className="text-2xl font-bold mb-4">
-                Fale conosco
-              </h2>
-              <p className="text-muted-foreground leading-relaxed">
-                Nossa equipe está sempre disponível para tirar suas dúvidas e ajudar você
-                a aproveitar ao máximo a plataforma.
-              </p>
-            </div>
-
-            <div className="grid gap-4">
-              <Card>
-                <CardContent className="p-5">
-                  <div className="flex items-center gap-4 min-w-0">
-                    <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center shrink-0">
-                      <Mail className="w-5 h-5 text-primary" />
-                    </div>
-                    <div className="min-w-0">
-                      <h3 className="font-semibold text-sm">Email</h3>
-                      <p className="text-muted-foreground text-sm break-all">contato@vivendodamusica.com</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardContent className="p-5">
-                  <div className="flex items-center gap-4 min-w-0">
-                    <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center shrink-0">
-                      <Phone className="w-5 h-5 text-primary" />
-                    </div>
-                    <div className="min-w-0">
-                      <h3 className="font-semibold text-sm">WhatsApp</h3>
-                      <p className="text-muted-foreground text-sm">(11) 99999-9999</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardContent className="p-5">
-                  <div className="flex items-center gap-4 min-w-0">
-                    <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center shrink-0">
-                      <Clock className="w-5 h-5 text-primary" />
-                    </div>
-                    <div className="min-w-0">
-                      <h3 className="font-semibold text-sm">Horário de atendimento</h3>
-                      <p className="text-muted-foreground text-sm">Segunda a sexta: 9h às 18h</p>
-                      <p className="text-muted-foreground text-sm">Sábado: 9h às 14h</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardContent className="p-5">
-                  <div className="flex items-center gap-4 min-w-0">
-                    <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center shrink-0">
-                      <MapPin className="w-5 h-5 text-primary" />
-                    </div>
-                    <div className="min-w-0">
-                      <h3 className="font-semibold text-sm">Localização</h3>
-                      <p className="text-muted-foreground text-sm">São Paulo, SP - Brasil</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          </div>
-
-          {/* Contact Form */}
-          <div>
+      <section className="py-14 sm:py-20">
+        <div className="grid gap-6 lg:grid-cols-[0.85fr_1.15fr]">
+          <div className="space-y-5">
             <Card>
               <CardHeader>
-                <CardTitle className="text-xl">Envie sua mensagem</CardTitle>
-                <CardDescription>
-                  Preencha o formulário abaixo e retornaremos o mais breve possível.
-                </CardDescription>
+                <span className="vdm-icon-button mb-3 border-primary/25 bg-primary/10 text-primary">
+                  <Mail className="size-5" />
+                </span>
+                <CardTitle className="text-xl">E-mail oficial</CardTitle>
+                <CardDescription>Canal central para suporte, parcerias e informações institucionais.</CardDescription>
               </CardHeader>
               <CardContent>
-                <form onSubmit={handleSubmit} className="space-y-5">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-1.5">
-                      <Label htmlFor="name">Nome</Label>
-                      <Input
-                        id="name"
-                        name="name"
-                        type="text"
-                        value={formData.name}
-                        onChange={handleInputChange}
-                        placeholder="Seu nome completo"
-                        required
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label htmlFor="email">E-mail</Label>
-                      <Input
-                        id="email"
-                        name="email"
-                        type="email"
-                        value={formData.email}
-                        onChange={handleInputChange}
-                        placeholder="seu@email.com"
-                        required
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <Label htmlFor="subject">Assunto</Label>
-                    <Input
-                      id="subject"
-                      name="subject"
-                      type="text"
-                      value={formData.subject}
-                      onChange={handleInputChange}
-                      placeholder="Qual o motivo do contato?"
-                      required
-                    />
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <Label htmlFor="message">Mensagem</Label>
-                    <Textarea
-                      id="message"
-                      name="message"
-                      value={formData.message}
-                      onChange={handleInputChange}
-                      placeholder="Descreva sua dúvida ou mensagem..."
-                      required
-                      rows={6}
-                      className="resize-none"
-                    />
-                  </div>
-
-                  <Button
-                    type="submit"
-                    disabled={isSubmitting}
-                    className="w-full"
-                  >
-                    {isSubmitting ? (
-                      "Enviando..."
-                    ) : (
-                      <>
-                        <Send className="w-4 h-4 mr-2" />
-                        Enviar mensagem
-                      </>
-                    )}
-                  </Button>
-                </form>
+                <a href={`mailto:${CONTACT_EMAIL}`} className="link-vdm inline-flex items-center gap-2 text-sm font-semibold">
+                  {CONTACT_EMAIL}
+                  <ArrowUpRight className="size-4" />
+                </a>
               </CardContent>
             </Card>
-          </div>
-        </div>
-      </div>
 
-      <Footer />
-    </div>
+            <Card>
+              <CardHeader>
+                <span className="vdm-icon-button mb-3 border-primary/25 bg-primary/10 text-primary">
+                  <Clock3 className="size-5" />
+                </span>
+                <CardTitle className="text-xl">Prazo de atendimento</CardTitle>
+                <CardDescription>
+                  As mensagens são organizadas por assunto e respondidas conforme a prioridade operacional.
+                </CardDescription>
+              </CardHeader>
+            </Card>
+
+            <div className="vdm-surface p-5 text-sm leading-6 text-muted-foreground">
+              Para agilizar o atendimento, informe o e-mail da conta, a área da plataforma e uma descrição objetiva do problema.
+            </div>
+          </div>
+
+          <Card className="border-white/12 bg-card/95 shadow-[0_24px_70px_rgba(0,0,0,0.32)]">
+            <CardHeader>
+              <span className="vdm-icon-button mb-3 border-primary/25 bg-primary/10 text-primary">
+                <MessageSquareText className="size-5" />
+              </span>
+              <CardTitle className="text-2xl">Envie sua mensagem</CardTitle>
+              <CardDescription>Preencha os campos para preparar o contato no seu aplicativo de e-mail.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleSubmit} className="space-y-5">
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="name">Nome completo</Label>
+                    <Input id="name" name="name" value={formData.name} onChange={handleInputChange} placeholder="Seu nome" required />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="email">E-mail</Label>
+                    <Input id="email" name="email" type="email" value={formData.email} onChange={handleInputChange} placeholder="seu@email.com" required />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="subject">Assunto</Label>
+                  <Input id="subject" name="subject" value={formData.subject} onChange={handleInputChange} placeholder="Ex.: suporte ao acesso" required />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="message">Mensagem</Label>
+                  <Textarea id="message" name="message" value={formData.message} onChange={handleInputChange} placeholder="Descreva sua solicitação com os detalhes necessários." rows={7} className="resize-none" required />
+                </div>
+
+                <Button type="submit" size="lg" className="w-full">
+                  <Send className="size-4" />
+                  Preparar mensagem
+                </Button>
+              </form>
+            </CardContent>
+          </Card>
+        </div>
+      </section>
+    </PublicLayout>
   );
 };
 
