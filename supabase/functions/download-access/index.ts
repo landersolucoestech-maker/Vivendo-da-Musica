@@ -78,15 +78,18 @@ Deno.serve(async (request) => {
 
     const { data, error } = await admin
       .from('seller_product_files')
-      .select('id,storage_path,file_name,product:seller_products!inner(id,title,is_demo),orders:digital_product_order_items!inner(id,buyer_id,status,paid_at)')
+      .select('id,storage_path,file_name,product:seller_products!inner(id,title,is_demo,orders:digital_product_order_items!inner(id,buyer_id,status,paid_at))')
       .eq('id', id)
-      .eq('orders.status', 'paid')
+      .eq('product.orders.status', 'paid')
       .limit(1)
       .single();
     if (error || !data) return json({ error: 'Arquivo não encontrado.' }, 404);
-    const product = data.product as unknown as { title: string; is_demo: boolean };
-    const orders = data.orders as unknown as Array<{ buyer_id: string | null; status: string; paid_at: string | null }>;
-    const allowed = product.is_demo || orders.some((order) => authenticatedUserId && order.buyer_id === authenticatedUserId);
+    const product = data.product as unknown as {
+      title: string;
+      is_demo: boolean;
+      orders: Array<{ buyer_id: string | null; status: string; paid_at: string | null }>;
+    };
+    const allowed = product.is_demo || product.orders.some((order) => authenticatedUserId && order.buyer_id === authenticatedUserId);
     if (!allowed) return json({ error: 'Acesso negado.' }, 403);
 
     const { data: signed, error: signError } = await admin.storage
