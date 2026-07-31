@@ -1,10 +1,10 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import type { Session, User } from '@supabase/supabase-js';
 import { useQuery } from '@tanstack/react-query';
+
 import { supabase } from '@/integrations/supabase/client';
-import { isDevAuthBypassEnabled } from '@/shared/utils/devAuthBypass';
-import { MOCK_PROFILE } from '@/shared/utils/devMockData';
 import type { UserRole } from '@/modules/auth/types/role';
+import { isDevAuthBypassEnabled } from '@/shared/utils/devAuthBypass';
 
 interface AuthProfile {
   full_name: string | null;
@@ -27,7 +27,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [isSessionLoading, setIsSessionLoading] = useState(true);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
+    void supabase.auth.getSession().then(({ data }) => {
       setSession(data.session);
       setIsSessionLoading(false);
     });
@@ -42,35 +42,40 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const userId = session?.user.id;
 
   const { data: profile, isLoading: isProfileLoading } = useQuery({
-    queryKey: ['auth-profile', userId],
+    queryKey: ['auth-profile', userId ?? 'development-review'],
     queryFn: async (): Promise<AuthProfile | null> => {
-      const { data, error } = await supabase
+      let query = supabase
         .from('user_profiles')
-        .select('full_name, avatar_url, role')
-        .eq('user_id', userId!)
-        .maybeSingle();
+        .select('full_name, avatar_url, role');
 
+      if (userId) {
+        query = query.eq('user_id', userId);
+      } else if (isDevAuthBypassEnabled) {
+        query = query.order('created_at', { ascending: true }).limit(1);
+      } else {
+        return null;
+      }
+
+      const { data, error } = await query.maybeSingle();
       if (error) throw error;
       return data as AuthProfile | null;
     },
-    enabled: !!userId,
+    enabled: !!userId || isDevAuthBypassEnabled,
   });
-
-  const fallbackProfile = isDevAuthBypassEnabled && !session ? MOCK_PROFILE : null;
 
   const value: AuthContextValue = {
     session,
     user: session?.user ?? null,
-    profile: profile ?? fallbackProfile,
-    role: profile?.role ?? fallbackProfile?.role ?? null,
-    isLoading: isSessionLoading || (!!userId && isProfileLoading),
+    profile: profile ?? null,
+    role: profile?.role ?? null,
+    isLoading: isSessionLoading || ((!!userId || isDevAuthBypassEnabled) && isProfileLoading),
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
 export const useAuthContext = () => {
-  const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error('useAuthContext must be used within AuthProvider');
-  return ctx;
+  const context = useContext(AuthContext);
+  if (!context) throw new Error('useAuthContext deve ser utilizado dentro de AuthProvider');
+  return context;
 };
