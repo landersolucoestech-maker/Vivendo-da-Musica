@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { supabase } from '@/integrations/supabase/client';
-import { isDevAuthBypassEnabled } from '@/shared/utils/devAuthBypass';
+import { getEffectiveUserId } from '@/shared/utils/devIdentity';
 
 export interface LessonProgress {
   id: string;
@@ -14,22 +14,9 @@ export interface LessonProgress {
 }
 
 const resolveProgressUserId = async (): Promise<string> => {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (user) return user.id;
-
-  if (isDevAuthBypassEnabled) {
-    const { data, error } = await supabase
-      .from('user_profiles')
-      .select('user_id')
-      .order('created_at', { ascending: true })
-      .limit(1)
-      .maybeSingle();
-
-    if (error || !data) throw new Error('Perfil de desenvolvimento não configurado');
-    return data.user_id;
-  }
-
-  throw new Error('Usuário não autenticado');
+  const { data, error } = await supabase.auth.getUser();
+  if (error) throw error;
+  return getEffectiveUserId(data.user?.id);
 };
 
 export const useUserProgress = () => useQuery({
@@ -64,6 +51,7 @@ export const useUpdateProgress = () => {
     }) => {
       const userId = await resolveProgressUserId();
       const normalizedProgress = Math.min(100, Math.max(0, progressPercentage ?? (completed ? 100 : 0)));
+      const now = new Date().toISOString();
       const { data, error } = await supabase
         .from('lesson_progress')
         .upsert(
@@ -73,8 +61,8 @@ export const useUpdateProgress = () => {
             completed: completed ?? normalizedProgress === 100,
             progress_percentage: normalizedProgress,
             watched_seconds: Math.max(0, watchedSeconds ?? 0),
-            last_viewed_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
+            last_viewed_at: now,
+            updated_at: now,
           },
           { onConflict: 'user_id,lesson_id' },
         )
@@ -85,9 +73,12 @@ export const useUpdateProgress = () => {
       return data as LessonProgress;
     },
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ['user-progress'] });
-      await queryClient.invalidateQueries({ queryKey: ['student-dashboard'] });
-      await queryClient.invalidateQueries({ queryKey: ['enrolled-courses'] });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['user-progress'] }),
+        queryClient.invalidateQueries({ queryKey: ['student-dashboard'] }),
+        queryClient.invalidateQueries({ queryKey: ['enrolled-courses'] }),
+        queryClient.invalidateQueries({ queryKey: ['recent-activities'] }),
+      ]);
     },
   });
 };
