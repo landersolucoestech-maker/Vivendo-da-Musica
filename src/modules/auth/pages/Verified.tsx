@@ -1,65 +1,50 @@
-import { CheckCircle, Home, ArrowRight } from "lucide-react";
-import { Button } from "@/shared/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/shared/components/ui/card";
-import { Link } from "react-router-dom";
-import { ROUTES } from "@/shared/constants/routes";
+import { ArrowRight, CheckCircle2, Home } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
-const Verified = () => {
-  return (
-    <div className="min-h-screen w-full bg-background flex items-center justify-center p-4">
-      <Card className="max-w-md w-full text-center">
-        <CardHeader className="pb-4">
-          <div className="w-14 h-14 bg-emerald-500/10 rounded-full flex items-center justify-center mx-auto mb-2">
-            <CheckCircle className="w-6 h-6 text-emerald-500" />
+import BrandSignature from '@/shared/components/BrandSignature';
+import { Button } from '@/shared/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/shared/components/ui/card';
+import { ROUTES } from '@/shared/constants/routes';
+
+const Verified = () => (
+  <main className="vdm-pattern-dots min-h-screen bg-background px-4 py-10 text-foreground sm:py-16">
+    <div className="mx-auto flex min-h-[calc(100vh-5rem)] w-full max-w-lg flex-col justify-center">
+      <div className="mb-8 flex justify-center"><BrandSignature size="lg" /></div>
+
+      <Card className="border-white/10 bg-card/95 shadow-2xl shadow-primary/10 backdrop-blur-xl">
+        <CardHeader className="space-y-4 border-b border-white/8 pb-6 text-center">
+          <div className="mx-auto flex size-14 items-center justify-center rounded-full border border-emerald-500/25 bg-emerald-500/10 text-emerald-400">
+            <CheckCircle2 className="size-7" />
           </div>
-          <CardTitle className="text-xl">
-            E-mail verificado!
-          </CardTitle>
-          <CardDescription>
-            Sua conta foi verificada com sucesso. Você já pode acessar todos os recursos da plataforma.
-          </CardDescription>
+          <div>
+            <p className="vdm-eyebrow">Cadastro concluído</p>
+            <CardTitle className="mt-2 text-2xl">E-mail verificado</CardTitle>
+            <CardDescription className="mt-2 leading-6">
+              Sua conta está ativa e pronta para acessar os recursos da plataforma.
+            </CardDescription>
+          </div>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="bg-muted/50 border border-border rounded-lg p-4 text-left">
-            <h3 className="text-sm font-semibold mb-2 flex items-center justify-center">
-              <CheckCircle className="w-4 h-4 mr-2 text-emerald-500" />
-              Conta ativada
-            </h3>
-            <p className="text-sm text-muted-foreground">
-              Sua conta está agora totalmente ativada e você pode começar a usar todos os recursos da nossa plataforma de produção musical.
-            </p>
+
+        <CardContent className="space-y-6 pt-6">
+          <div className="vdm-surface p-5 text-sm leading-6 text-muted-foreground">
+            Agora você pode acompanhar cursos, acessar materiais, visualizar pedidos e utilizar os ambientes disponíveis para o seu perfil.
           </div>
 
-          <div className="space-y-3">
-            <Link to={ROUTES.dashboard} className="block">
-              <Button className="w-full">
-                <ArrowRight className="w-4 h-4 mr-2" />
-                Ir para dashboard
-              </Button>
-            </Link>
-
-            <Link to={ROUTES.login} className="block">
-              <Button variant="outline" className="w-full">
-                Fazer login
-              </Button>
-            </Link>
-
-            <Link to={ROUTES.home} className="block">
-              <Button variant="secondary" className="w-full">
-                <Home className="w-4 h-4 mr-2" />
-                Voltar ao início
-              </Button>
-            </Link>
-          </div>
-
-          <div className="pt-4 border-t border-border">
-            <p className="text-sm text-muted-foreground">
-              Bem-vindo à nossa plataforma! Agora você pode explorar todos os cursos e recursos disponíveis.
-            </p>
+          <div className="grid gap-3">
+            <Button asChild size="lg" className="w-full">
+              <Link to={ROUTES.dashboard}><ArrowRight className="size-4" /> Ir para o portal do aluno</Link>
+            </Button>
+            <Button asChild variant="outline" className="w-full">
+              <Link to={ROUTES.login}>Fazer login</Link>
+            </Button>
+            <Button asChild variant="ghost" className="w-full">
+              <Link to={ROUTES.home}><Home className="size-4" /> Voltar ao início</Link>
+            </Button>
           </div>
         </CardContent>
       </Card>
     </div>
-  );
-};
+  </main>
+);
+
 export default Verified;
