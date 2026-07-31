@@ -1,12 +1,14 @@
-import type { ReactNode } from "react";
-import Navigation from "@/shared/components/Navigation";
-import Footer from "@/shared/components/Footer";
+import type { ReactNode } from 'react';
+
+import Footer from '@/shared/components/Footer';
+import Navigation from '@/shared/components/Navigation';
 
 const PublicLayout = ({ children }: { children: ReactNode }) => (
-  <div className="min-h-screen bg-background text-foreground">
+  <div className="vdm-page min-h-screen overflow-x-hidden bg-background text-foreground">
     <Navigation />
-    <main className="pt-20 pb-16">
-      <div className="container mx-auto px-4">{children}</div>
+    <main className="relative pt-20">
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-72 bg-[radial-gradient(circle_at_top,rgba(138,43,226,0.12),transparent_68%)]" />
+      <div className="vdm-container relative">{children}</div>
     </main>
     <Footer />
   </div>
