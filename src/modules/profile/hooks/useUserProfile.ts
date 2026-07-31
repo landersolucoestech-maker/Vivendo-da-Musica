@@ -1,8 +1,8 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+
 import { supabase } from '@/integrations/supabase/client';
-import { isDevAuthBypassEnabled } from '@/shared/utils/devAuthBypass';
-import { MOCK_PROFILE } from '@/shared/utils/devMockData';
 import type { UserRole } from '@/modules/auth/types/role';
+import { isDevAuthBypassEnabled } from '@/shared/utils/devAuthBypass';
 
 export interface UserProfile {
   id: string;
@@ -14,58 +14,80 @@ export interface UserProfile {
   updated_at: string;
 }
 
-export const useUserProfile = () => {
-  return useQuery({
-    queryKey: ['user-profile'],
-    queryFn: async (): Promise<UserProfile | null> => {
-      if (isDevAuthBypassEnabled) return MOCK_PROFILE;
+const PROFILE_SELECT = 'user_id, full_name, avatar_url, role, created_at, updated_at';
 
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('Usuário não autenticado');
+const normalizeProfile = (profile: Omit<UserProfile, 'id'>): UserProfile => ({
+  ...profile,
+  id: profile.user_id,
+});
 
-      const { data, error } = await supabase
-        .from('user_profiles')
-        .select('*')
-        .eq('user_id', user.id)
-        .maybeSingle();
+const getDevelopmentProfile = async (): Promise<UserProfile | null> => {
+  const { data, error } = await supabase
+    .from('user_profiles')
+    .select(PROFILE_SELECT)
+    .order('created_at', { ascending: true })
+    .limit(1)
+    .maybeSingle();
 
-      if (error) throw new Error('Erro ao buscar perfil do usuário');
-      return data;
-    },
-  });
+  if (error) throw new Error('Erro ao buscar o perfil de desenvolvimento');
+  return data ? normalizeProfile(data as Omit<UserProfile, 'id'>) : null;
 };
+
+export const useUserProfile = () => useQuery({
+  queryKey: ['user-profile'],
+  queryFn: async (): Promise<UserProfile | null> => {
+    if (isDevAuthBypassEnabled) return getDevelopmentProfile();
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('Usuário não autenticado');
+
+    const { data, error } = await supabase
+      .from('user_profiles')
+      .select(PROFILE_SELECT)
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    if (error) throw new Error('Erro ao buscar o perfil do usuário');
+    return data ? normalizeProfile(data as Omit<UserProfile, 'id'>) : null;
+  },
+});
 
 export const useUpdateProfile = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async ({ avatar_url, full_name }: { avatar_url?: string; full_name?: string }) => {
-      if (isDevAuthBypassEnabled) {
-        return { ...MOCK_PROFILE, ...(avatar_url !== undefined ? { avatar_url } : {}), ...(full_name !== undefined ? { full_name } : {}) };
-      }
+      let userId: string;
 
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('Usuário não autenticado');
+      if (isDevAuthBypassEnabled) {
+        const developmentProfile = await getDevelopmentProfile();
+        if (!developmentProfile) throw new Error('Perfil de desenvolvimento não configurado');
+        userId = developmentProfile.user_id;
+      } else {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) throw new Error('Usuário não autenticado');
+        userId = user.id;
+      }
 
       const { data, error } = await supabase
         .from('user_profiles')
         .upsert(
           {
-            user_id: user.id,
+            user_id: userId,
             ...(avatar_url !== undefined ? { avatar_url } : {}),
             ...(full_name !== undefined ? { full_name } : {}),
           },
-          { onConflict: 'user_id' }
+          { onConflict: 'user_id' },
         )
-        .select()
+        .select(PROFILE_SELECT)
         .single();
 
       if (error) throw new Error('Erro ao atualizar perfil');
-      return data;
+      return normalizeProfile(data as Omit<UserProfile, 'id'>);
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['user-profile'] });
-      queryClient.invalidateQueries({ queryKey: ['auth-profile'] });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['user-profile'] });
+      await queryClient.invalidateQueries({ queryKey: ['auth-profile'] });
     },
   });
 };
