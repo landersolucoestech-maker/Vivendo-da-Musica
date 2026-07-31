@@ -1,35 +1,70 @@
-import { Star, Users } from "lucide-react";
-import { useInstructors } from "@/modules/courses/hooks/useInstructors";
+import { Star, Users } from 'lucide-react';
+
+import { useInstructors } from '@/modules/courses/hooks/useInstructors';
 
 const InstructorsSection = () => {
-  const { data: instructors } = useInstructors();
+  const { data: instructors, isLoading } = useInstructors();
 
   return (
-  <section className="bg-background pb-20">
-    <div className="container mx-auto px-4">
-      <h2 className="text-2xl font-bold mb-6">Aprenda com quem faz</h2>
-      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
-        {(instructors ?? []).map((instructor) => (
-          <div key={instructor.id} className="rounded-lg border border-border bg-card p-5 flex flex-col gap-3">
-            <div
-              className="w-14 h-14 rounded-full"
-              style={{ background: `linear-gradient(135deg, ${instructor.gradientFrom}, ${instructor.gradientTo})` }}
-            />
-            <div>
-              <p className="font-semibold">{instructor.name}</p>
-              <p className="text-sm text-muted-foreground">{instructor.specialty}</p>
-            </div>
-            <p className="text-sm text-muted-foreground line-clamp-2">{instructor.bio}</p>
-            <div className="flex items-center gap-4 text-xs text-muted-foreground pt-1">
-              <span className="flex items-center gap-1"><Star className="w-3.5 h-3.5 text-amber-400 fill-amber-400" />{instructor.rating}</span>
-              <span className="flex items-center gap-1"><Users className="w-3.5 h-3.5" />{instructor.studentsCount.toLocaleString('pt-BR')} alunos</span>
-              <span>{instructor.coursesCount} cursos</span>
-            </div>
+    <section className="bg-[#0A0A0A] py-20">
+      <div className="vdm-container">
+        <div className="mb-8 max-w-3xl">
+          <p className="vdm-eyebrow">Experiência de mercado</p>
+          <h2 className="mt-2 text-3xl font-bold md:text-4xl">Aprenda com quem faz</h2>
+          <p className="vdm-page-description">Instrutores com vivência prática, repertório profissional e conteúdo orientado a resultado.</p>
+        </div>
+
+        {isLoading ? (
+          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            {[0, 1, 2].map((item) => <div key={item} className="vdm-surface h-72 animate-pulse bg-white/[0.035]" />)}
           </div>
-        ))}
+        ) : instructors?.length ? (
+          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            {instructors.map((instructor) => (
+              <article key={instructor.id} className="vdm-surface-interactive p-6">
+                <div className="mb-5 flex items-center gap-4">
+                  <div
+                    className="size-16 rounded-full border border-white/10 shadow-lg"
+                    style={{ background: `linear-gradient(135deg, ${instructor.gradientFrom}, ${instructor.gradientTo})` }}
+                  />
+                  <div>
+                    <h3 className="text-lg font-semibold text-white">{instructor.name}</h3>
+                    <p className="mt-1 text-sm text-primary">{instructor.specialty}</p>
+                  </div>
+                </div>
+
+                <p className="line-clamp-3 text-sm leading-6 text-muted-foreground">{instructor.bio}</p>
+
+                <div className="mt-6 grid grid-cols-3 gap-3 border-t border-white/8 pt-4 text-center">
+                  <div>
+                    <div className="flex items-center justify-center gap-1 text-sm font-semibold text-white">
+                      <Star className="size-4 fill-amber-400 text-amber-400" />
+                      {instructor.rating}
+                    </div>
+                    <p className="mt-1 text-[11px] uppercase tracking-wide text-muted-foreground">Avaliação</p>
+                  </div>
+                  <div>
+                    <div className="flex items-center justify-center gap-1 text-sm font-semibold text-white">
+                      <Users className="size-4 text-primary" />
+                      {instructor.studentsCount.toLocaleString('pt-BR')}
+                    </div>
+                    <p className="mt-1 text-[11px] uppercase tracking-wide text-muted-foreground">Alunos</p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-white">{instructor.coursesCount}</p>
+                    <p className="mt-1 text-[11px] uppercase tracking-wide text-muted-foreground">Cursos</p>
+                  </div>
+                </div>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <div className="vdm-surface py-14 text-center">
+            <p className="text-sm text-muted-foreground">Os instrutores serão publicados em breve.</p>
+          </div>
+        )}
       </div>
-    </div>
-  </section>
+    </section>
   );
 };
 
