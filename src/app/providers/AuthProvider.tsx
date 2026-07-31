@@ -1,9 +1,11 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import type { Session, User } from '@supabase/supabase-js';
 import { useQuery } from '@tanstack/react-query';
+import { useLocation } from 'react-router-dom';
 
 import { supabase } from '@/integrations/supabase/client';
 import type { UserRole } from '@/modules/auth/types/role';
+import { getDevIdentityId, resolveDevRoleFromPath } from '@/shared/utils/devIdentity';
 import { isDevAuthBypassEnabled } from '@/shared/utils/devAuthBypass';
 
 interface AuthProfile {
@@ -23,6 +25,7 @@ interface AuthContextValue {
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
+  const location = useLocation();
   const [session, setSession] = useState<Session | null>(null);
   const [isSessionLoading, setIsSessionLoading] = useState(true);
 
@@ -40,35 +43,32 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const userId = session?.user.id;
+  const devRole = useMemo(() => resolveDevRoleFromPath(location.pathname), [location.pathname]);
+  const effectiveProfileId = userId ?? (isDevAuthBypassEnabled ? getDevIdentityId(devRole) : null);
 
   const { data: profile, isLoading: isProfileLoading } = useQuery({
-    queryKey: ['auth-profile', userId ?? 'development-review'],
+    queryKey: ['auth-profile', effectiveProfileId],
     queryFn: async (): Promise<AuthProfile | null> => {
-      let query = supabase
+      if (!effectiveProfileId) return null;
+
+      const { data, error } = await supabase
         .from('user_profiles')
-        .select('full_name, avatar_url, role');
+        .select('full_name, avatar_url, role')
+        .eq('user_id', effectiveProfileId)
+        .maybeSingle();
 
-      if (userId) {
-        query = query.eq('user_id', userId);
-      } else if (isDevAuthBypassEnabled) {
-        query = query.order('created_at', { ascending: true }).limit(1);
-      } else {
-        return null;
-      }
-
-      const { data, error } = await query.maybeSingle();
       if (error) throw error;
       return data as AuthProfile | null;
     },
-    enabled: !!userId || isDevAuthBypassEnabled,
+    enabled: !!effectiveProfileId,
   });
 
   const value: AuthContextValue = {
     session,
     user: session?.user ?? null,
     profile: profile ?? null,
-    role: profile?.role ?? null,
-    isLoading: isSessionLoading || ((!!userId || isDevAuthBypassEnabled) && isProfileLoading),
+    role: profile?.role ?? (isDevAuthBypassEnabled ? devRole : null),
+    isLoading: isSessionLoading || (!!effectiveProfileId && isProfileLoading),
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
