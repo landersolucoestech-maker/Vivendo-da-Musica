@@ -1,53 +1,74 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
-import { Button } from "@/shared/components/ui/button";
-import { Progress } from "@/shared/components/ui/progress";
-import { CheckCircle, Circle, PlayCircle, ArrowLeft, ChevronLeft, ChevronRight } from "lucide-react";
-import Navigation from "@/shared/components/Navigation";
-import VideoPlayer from "../components/VideoPlayer";
-import LessonComments from "../components/LessonComments";
-import { useLessons } from "../hooks/useLessons";
-import { useUserProgress } from "../hooks/useUserProgress";
-import { useModules } from "@/modules/modules-manager/hooks/useModules";
-import { useProgressCalculation } from "@/modules/lessons/hooks/useProgressCalculation";
-import { ROUTES } from "@/shared/constants/routes";
+import { ArrowLeft, CheckCircle2, ChevronLeft, ChevronRight, Circle, ListVideo, PlayCircle } from 'lucide-react';
+import { Link, useNavigate, useParams } from 'react-router-dom';
+
+import LessonComments from '@/modules/lessons/components/LessonComments';
+import VideoPlayer from '@/modules/lessons/components/VideoPlayer';
+import { useLessons } from '@/modules/lessons/hooks/useLessons';
+import { useProgressCalculation } from '@/modules/lessons/hooks/useProgressCalculation';
+import { useUpdateProgress, useUserProgress } from '@/modules/lessons/hooks/useUserProgress';
+import { useModules } from '@/modules/modules-manager/hooks/useModules';
+import Navigation from '@/shared/components/Navigation';
+import { Button } from '@/shared/components/ui/button';
+import { Progress } from '@/shared/components/ui/progress';
+import { ROUTES } from '@/shared/constants/routes';
+import { useToast } from '@/shared/hooks/use-toast';
 
 const Lesson = () => {
   const { lessonId } = useParams();
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [watchProgress, setWatchProgress] = useState(0);
+  const [markingComplete, setMarkingComplete] = useState(false);
   const { data: lessons, isLoading } = useLessons();
   const { data: userProgress } = useUserProgress();
+  const updateProgress = useUpdateProgress();
   const { data: modules } = useModules();
   const modulesWithProgress = useProgressCalculation(modules);
 
-  const currentLesson = lessons?.find(lesson => lesson.id === lessonId);
-  const lessonProgress = userProgress?.find(p => p.lesson_id === lessonId);
+  const currentLesson = lessons?.find((lesson) => lesson.id === lessonId);
+  const lessonProgress = userProgress?.find((progress) => progress.lesson_id === lessonId);
+  const currentModule = modulesWithProgress.find((module) => module.lessons.some((lesson) => lesson.id === lessonId));
 
-  const currentModule = modulesWithProgress.find((module) =>
-    module.lessons.some((lesson) => lesson.id === lessonId)
-  );
-
-  const flatLessons = useMemo(
-    () => modulesWithProgress.flatMap((module) => module.lessons),
-    [modulesWithProgress]
-  );
+  const flatLessons = useMemo(() => modulesWithProgress.flatMap((module) => module.lessons), [modulesWithProgress]);
   const currentIndex = flatLessons.findIndex((lesson) => lesson.id === lessonId);
   const previousLesson = currentIndex > 0 ? flatLessons[currentIndex - 1] : undefined;
   const nextLesson = currentIndex >= 0 && currentIndex < flatLessons.length - 1 ? flatLessons[currentIndex + 1] : undefined;
+  const completedLessons = flatLessons.filter((lesson) => lesson.completed).length;
 
   useEffect(() => {
-    if (lessonProgress) {
-      setWatchProgress(lessonProgress.progress_percentage || 0);
-    }
+    setWatchProgress(lessonProgress?.progress_percentage ?? 0);
   }, [lessonProgress]);
+
+  const handleMarkComplete = async () => {
+    if (!currentLesson || markingComplete) return;
+    setMarkingComplete(true);
+    try {
+      await updateProgress.mutateAsync({
+        lessonId: currentLesson.id,
+        completed: true,
+        progressPercentage: 100,
+        watchedSeconds: lessonProgress?.watched_seconds ?? 0,
+      });
+      setWatchProgress(100);
+      toast({ title: 'Aula concluída', description: 'Seu progresso foi atualizado.' });
+    } catch (error) {
+      toast({
+        title: 'Não foi possível concluir a aula',
+        description: error instanceof Error ? error.message : 'Tente novamente.',
+        variant: 'destructive',
+      });
+    } finally {
+      setMarkingComplete(false);
+    }
+  };
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-background text-foreground flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-medium mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Carregando aula...</p>
+      <div className="flex min-h-screen items-center justify-center bg-background text-foreground">
+        <div className="vdm-surface flex items-center gap-3 px-6 py-5 text-sm text-muted-foreground">
+          <div className="size-6 animate-spin rounded-full border-2 border-white/10 border-t-primary" />
+          Carregando aula...
         </div>
       </div>
     );
@@ -55,28 +76,23 @@ const Lesson = () => {
 
   if (!currentLesson) {
     return (
-      <div className="min-h-screen bg-background text-foreground flex items-center justify-center">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold mb-4">Aula não encontrada</h1>
-          <Button onClick={() => navigate(ROUTES.dashboard)}>
-            Voltar ao dashboard
-          </Button>
+      <div className="flex min-h-screen items-center justify-center bg-background px-4 text-foreground">
+        <div className="vdm-surface max-w-md p-8 text-center">
+          <ListVideo className="mx-auto size-9 text-primary" />
+          <h1 className="mt-5 font-display text-2xl font-bold text-white">Aula não encontrada</h1>
+          <p className="mt-3 text-sm leading-6 text-muted-foreground">O conteúdo solicitado pode ter sido removido ou ainda não estar disponível.</p>
+          <Button className="mt-6" onClick={() => navigate(ROUTES.dashboard)}>Voltar ao portal</Button>
         </div>
       </div>
     );
   }
-
-  const handleMarkComplete = () => {
-    setWatchProgress(100);
-    // The actual persistence happens inside VideoPlayer via useUpdateProgress.
-  };
 
   const lessonForPlayer = {
     id: currentLesson.id,
     title: currentLesson.title,
     description: currentLesson.description,
     duration: currentLesson.duration,
-    completed: lessonProgress?.completed || false,
+    completed: lessonProgress?.completed ?? false,
     video_url: currentLesson.video_url,
     videoUrl: currentLesson.videoUrl,
   };
@@ -86,69 +102,75 @@ const Lesson = () => {
       <Navigation />
 
       <div className="flex pt-16">
-        {/* Module/lesson navigator */}
-        <aside className="w-72 shrink-0 border-r border-border hidden lg:block">
-          <div className="p-4 sticky top-16 max-h-[calc(100vh-4rem)] overflow-y-auto">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => navigate(ROUTES.dashboard)}
-              className="text-muted-foreground hover:text-foreground mb-3 -ml-2"
-            >
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Voltar
+        <aside className="hidden w-80 shrink-0 border-r border-white/8 bg-[#090909] lg:block">
+          <div className="sticky top-16 max-h-[calc(100vh-4rem)] overflow-y-auto p-5">
+            <Button variant="ghost" size="sm" onClick={() => navigate(ROUTES.dashboard)} className="mb-5 -ml-2 text-muted-foreground hover:text-white">
+              <ArrowLeft className="size-4" />
+              Voltar ao portal
             </Button>
 
+            <div className="mb-6 rounded-xl border border-white/8 bg-white/[0.025] p-4">
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-muted-foreground">Progresso do curso</span>
+                <span className="font-semibold text-white">{completedLessons}/{flatLessons.length}</span>
+              </div>
+              <Progress value={flatLessons.length ? (completedLessons / flatLessons.length) * 100 : 0} className="mt-3 h-2" />
+            </div>
+
             {modulesWithProgress.map((module, moduleIndex) => (
-              <div key={module.id} className="mb-4">
-                <p className="text-xs font-semibold text-muted-foreground uppercase px-2 mb-1">
-                  Módulo {moduleIndex + 1}: {module.title}
+              <section key={module.id} className="mb-6">
+                <p className="mb-2 px-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                  Módulo {moduleIndex + 1}
                 </p>
-                <div className="flex flex-col gap-0.5">
-                  {module.lessons.map((lesson) => {
+                <p className="mb-3 px-2 text-sm font-semibold text-white">{module.title}</p>
+                <div className="space-y-1">
+                  {module.lessons.map((lesson, lessonIndex) => {
                     const isCurrent = lesson.id === lessonId;
                     return (
                       <Link
                         key={lesson.id}
                         to={ROUTES.lesson(lesson.id)}
-                        className={`flex items-center gap-2 px-2 py-2 rounded-lg text-sm transition-colors ${
+                        aria-current={isCurrent ? 'page' : undefined}
+                        className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition ${
                           isCurrent
-                            ? 'bg-brand-medium/10 text-brand-medium font-medium'
-                            : 'text-muted-foreground hover:bg-white/5 hover:text-foreground'
+                            ? 'bg-primary/12 text-white ring-1 ring-primary/25'
+                            : 'text-muted-foreground hover:bg-white/[0.04] hover:text-white'
                         }`}
                       >
                         {isCurrent ? (
-                          <PlayCircle className="w-4 h-4 shrink-0" />
+                          <PlayCircle className="size-4 shrink-0 text-primary" />
                         ) : lesson.completed ? (
-                          <CheckCircle className="w-4 h-4 shrink-0 text-brand-medium" />
+                          <CheckCircle2 className="size-4 shrink-0 text-emerald-300" />
                         ) : (
-                          <Circle className="w-4 h-4 shrink-0" />
+                          <Circle className="size-4 shrink-0" />
                         )}
-                        <span className="truncate">{lesson.title}</span>
+                        <span className="min-w-0 truncate">{lessonIndex + 1}. {lesson.title}</span>
                       </Link>
                     );
                   })}
                 </div>
-              </div>
+              </section>
             ))}
           </div>
         </aside>
 
-        {/* Main content */}
-        <main className="flex-1 min-w-0 px-4 md:px-8 py-8">
-          <div className="max-w-3xl">
-            <p className="text-sm text-muted-foreground mb-1">{currentModule?.title}</p>
-            <h1 className="text-2xl font-bold mb-6">{currentLesson.title}</h1>
+        <main className="min-w-0 flex-1 px-4 py-8 sm:px-6 lg:px-10">
+          <div className="mx-auto max-w-5xl">
+            <header className="mb-7">
+              <p className="vdm-eyebrow">{currentModule?.title ?? 'Aula'}</p>
+              <h1 className="mt-2 font-display text-3xl font-bold tracking-[-0.03em] text-white">{currentLesson.title}</h1>
+              {currentLesson.description && <p className="mt-3 max-w-3xl text-sm leading-6 text-muted-foreground">{currentLesson.description}</p>}
+            </header>
 
-            <div className="lg:hidden rounded-lg border border-border bg-card p-4 mb-6">
-              <div className="flex items-center justify-between gap-3 mb-3">
+            <div className="mb-6 rounded-xl border border-white/8 bg-card p-4 lg:hidden">
+              <div className="mb-3 flex items-center justify-between gap-3">
                 <div>
-                  <p className="text-xs font-semibold text-muted-foreground uppercase">Progresso do curso</p>
-                  <p className="text-sm text-muted-foreground">{flatLessons.filter((lesson) => lesson.completed).length} de {flatLessons.length} aulas concluÃ­das</p>
+                  <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">Aulas do curso</p>
+                  <p className="mt-1 text-sm text-muted-foreground">{completedLessons} de {flatLessons.length} aulas concluídas</p>
                 </div>
-                <span className="text-sm font-medium text-brand-medium">{currentIndex + 1}/{flatLessons.length}</span>
+                <span className="text-sm font-semibold text-primary">{currentIndex + 1}/{flatLessons.length}</span>
               </div>
-              <div className="flex gap-2 overflow-x-auto pb-1" aria-label="Aulas do curso">
+              <div className="flex gap-2 overflow-x-auto pb-1" aria-label="Navegação de aulas">
                 {flatLessons.map((lesson, index) => {
                   const isCurrent = lesson.id === lessonId;
                   return (
@@ -156,12 +178,12 @@ const Lesson = () => {
                       key={lesson.id}
                       to={ROUTES.lesson(lesson.id)}
                       aria-current={isCurrent ? 'page' : undefined}
-                      className={`min-w-10 h-10 rounded-md border flex items-center justify-center text-sm font-medium ${
+                      className={`flex size-10 shrink-0 items-center justify-center rounded-lg border text-sm font-semibold ${
                         isCurrent
-                          ? 'border-brand-medium bg-brand-medium/10 text-brand-medium'
+                          ? 'border-primary bg-primary/12 text-primary'
                           : lesson.completed
-                            ? 'border-brand-medium/40 text-brand-medium'
-                            : 'border-border text-muted-foreground'
+                            ? 'border-emerald-400/30 text-emerald-300'
+                            : 'border-white/10 text-muted-foreground'
                       }`}
                     >
                       {index + 1}
@@ -171,51 +193,45 @@ const Lesson = () => {
               </div>
             </div>
 
-            <VideoPlayer lesson={lessonForPlayer} />
+            <div className="overflow-hidden rounded-xl border border-white/10 bg-black shadow-[0_24px_70px_rgba(0,0,0,0.38)]">
+              <VideoPlayer lesson={lessonForPlayer} />
+            </div>
 
-            <div className="mt-6 space-y-2">
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Assistido</span>
-                <span>{watchProgress}%</span>
+            <section className="mt-6 vdm-surface p-5">
+              <div className="mb-3 flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">Progresso assistido</span>
+                <span className="font-semibold text-white">{watchProgress}%</span>
               </div>
               <Progress value={watchProgress} aria-label="Progresso assistido da aula" className="h-2" />
-            </div>
 
-            <div className="mt-4 flex items-center justify-between">
-              <Button
-                variant="outline"
-                className="border-border"
-                disabled={!previousLesson}
-                onClick={() => previousLesson && navigate(ROUTES.lesson(previousLesson.id))}
-              >
-                <ChevronLeft className="w-4 h-4 mr-1" />
-                Aula anterior
-              </Button>
-
-              {watchProgress < 100 ? (
-                <Button onClick={handleMarkComplete}>
-                  <CheckCircle className="w-4 h-4 mr-2" />
-                  Marcar como concluída
+              <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <Button variant="outline" disabled={!previousLesson} onClick={() => previousLesson && navigate(ROUTES.lesson(previousLesson.id))}>
+                  <ChevronLeft className="size-4" />
+                  Aula anterior
                 </Button>
-              ) : (
-                <span className="flex items-center text-brand-medium text-sm font-medium">
-                  <CheckCircle className="w-4 h-4 mr-2" />
-                  Aula concluída
-                </span>
-              )}
 
-              <Button
-                variant="outline"
-                className="border-border"
-                disabled={!nextLesson}
-                onClick={() => nextLesson && navigate(ROUTES.lesson(nextLesson.id))}
-              >
-                Próxima aula
-                <ChevronRight className="w-4 h-4 ml-1" />
-              </Button>
+                {watchProgress < 100 ? (
+                  <Button onClick={() => void handleMarkComplete()} disabled={markingComplete}>
+                    <CheckCircle2 className="size-4" />
+                    {markingComplete ? 'Salvando...' : 'Marcar como concluída'}
+                  </Button>
+                ) : (
+                  <span className="inline-flex items-center justify-center gap-2 rounded-full border border-emerald-400/25 bg-emerald-400/10 px-4 py-2 text-sm font-semibold text-emerald-300">
+                    <CheckCircle2 className="size-4" />
+                    Aula concluída
+                  </span>
+                )}
+
+                <Button variant="outline" disabled={!nextLesson} onClick={() => nextLesson && navigate(ROUTES.lesson(nextLesson.id))}>
+                  Próxima aula
+                  <ChevronRight className="size-4" />
+                </Button>
+              </div>
+            </section>
+
+            <div className="mt-8">
+              <LessonComments lessonId={currentLesson.id} />
             </div>
-
-            <LessonComments lessonId={currentLesson.id} />
           </div>
         </main>
       </div>
