@@ -1,22 +1,21 @@
-import type { ReactNode } from "react";
-import Navigation from "@/shared/components/Navigation";
-import AdminSidebar, { ADMIN_NAV_ITEMS } from "@/shared/components/AdminSidebar";
-import MobileSidebarMenu from "@/shared/components/MobileSidebarMenu";
-import { ROUTES } from "@/shared/constants/routes";
+import type { ReactNode } from 'react';
 
-const AdminLayout = ({ children }: { children: ReactNode }) => {
-  return (
-    <div className="min-h-screen bg-background text-foreground">
-      <Navigation />
-      <div className="pt-16">
-        <MobileSidebarMenu sectionLabel="Admin" items={ADMIN_NAV_ITEMS} exactPath={ROUTES.admin} />
-        <div className="flex">
-          <AdminSidebar />
-          <main className="flex-1 min-w-0 px-4 md:px-8 py-8">{children}</main>
-        </div>
+import AdminSidebar, { ADMIN_NAV_ITEMS } from '@/shared/components/AdminSidebar';
+import MobileSidebarMenu from '@/shared/components/MobileSidebarMenu';
+import Navigation from '@/shared/components/Navigation';
+import { ROUTES } from '@/shared/constants/routes';
+
+const AdminLayout = ({ children }: { children: ReactNode }) => (
+  <div className="vdm-page min-h-screen overflow-x-hidden">
+    <Navigation />
+    <div className="pt-16">
+      <MobileSidebarMenu sectionLabel="Administração" items={ADMIN_NAV_ITEMS} exactPath={ROUTES.admin} />
+      <div className="mx-auto flex w-full max-w-[1920px]">
+        <AdminSidebar />
+        <main className="min-w-0 flex-1 px-4 py-6 sm:px-6 lg:px-8 lg:py-8">{children}</main>
       </div>
     </div>
-  );
-};
+  </div>
+);
 
 export default AdminLayout;
