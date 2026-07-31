@@ -1,7 +1,7 @@
 {
-  "name": "vite_react_shadcn_ts",
+  "name": "vivendo-da-musica",
   "private": true,
-  "version": "0.0.0",
+  "version": "0.1.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -10,13 +10,14 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "typecheck": "tsc --build --force",
+    "types:supabase": "node scripts/generate-supabase-types.mjs",
     "test": "vitest run",
-    "test:unit": "vitest run",
-    "test:security": "vitest run",
-    "test:contracts": "vitest run",
+    "test:unit": "vitest run src",
+    "test:security": "vitest run tests/security",
+    "test:contracts": "vitest run tests/contracts",
     "test:e2e": "playwright test",
     "test:performance": "node scripts/quality-gate.mjs",
-    "quality": "npm run typecheck && npm run lint && npm run test && npm run build && npm run test:performance"
+    "quality": "npm run typecheck && npm run lint && npm run test:unit && npm run test:contracts && npm run test:security && npm run build && npm run test:performance"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.0",
