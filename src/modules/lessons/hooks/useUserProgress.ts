@@ -1,7 +1,7 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+
 import { supabase } from '@/integrations/supabase/client';
 import { isDevAuthBypassEnabled } from '@/shared/utils/devAuthBypass';
-import { MOCK_PROGRESS } from '@/shared/utils/devMockData';
 
 export interface LessonProgress {
   id: string;
@@ -13,25 +13,39 @@ export interface LessonProgress {
   last_viewed_at: string;
 }
 
-export const useUserProgress = () => {
-  return useQuery({
-    queryKey: ['user-progress'],
-    queryFn: async (): Promise<LessonProgress[]> => {
-      if (isDevAuthBypassEnabled) return MOCK_PROGRESS;
+const resolveProgressUserId = async (): Promise<string> => {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (user) return user.id;
 
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('Usuário não autenticado');
+  if (isDevAuthBypassEnabled) {
+    const { data, error } = await supabase
+      .from('user_profiles')
+      .select('user_id')
+      .order('created_at', { ascending: true })
+      .limit(1)
+      .maybeSingle();
 
-      const { data, error } = await supabase
-        .from('lesson_progress')
-        .select('*')
-        .eq('user_id', user.id);
+    if (error || !data) throw new Error('Perfil de desenvolvimento não configurado');
+    return data.user_id;
+  }
 
-      if (error) throw error;
-      return data as LessonProgress[];
-    },
-  });
+  throw new Error('Usuário não autenticado');
 };
+
+export const useUserProgress = () => useQuery({
+  queryKey: ['user-progress'],
+  queryFn: async (): Promise<LessonProgress[]> => {
+    const userId = await resolveProgressUserId();
+    const { data, error } = await supabase
+      .from('lesson_progress')
+      .select('id, user_id, lesson_id, completed, progress_percentage, watched_seconds, last_viewed_at')
+      .eq('user_id', userId)
+      .order('last_viewed_at', { ascending: false });
+
+    if (error) throw error;
+    return (data ?? []) as LessonProgress[];
+  },
+});
 
 export const useUpdateProgress = () => {
   const queryClient = useQueryClient();
@@ -48,42 +62,32 @@ export const useUpdateProgress = () => {
       progressPercentage?: number;
       watchedSeconds?: number;
     }) => {
-      if (isDevAuthBypassEnabled) {
-        return {
-          id: `mock-progress-${lessonId}`,
-          user_id: 'mock-user',
-          lesson_id: lessonId,
-          completed: completed ?? false,
-          progress_percentage: progressPercentage ?? 0,
-          watched_seconds: watchedSeconds ?? 0,
-          last_viewed_at: new Date().toISOString(),
-        };
-      }
-
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('Usuário não autenticado');
-
+      const userId = await resolveProgressUserId();
+      const normalizedProgress = Math.min(100, Math.max(0, progressPercentage ?? (completed ? 100 : 0)));
       const { data, error } = await supabase
         .from('lesson_progress')
         .upsert(
           {
-            user_id: user.id,
+            user_id: userId,
             lesson_id: lessonId,
-            completed: completed ?? false,
-            progress_percentage: progressPercentage ?? 0,
-            watched_seconds: watchedSeconds ?? 0,
+            completed: completed ?? normalizedProgress === 100,
+            progress_percentage: normalizedProgress,
+            watched_seconds: Math.max(0, watchedSeconds ?? 0),
             last_viewed_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
           },
-          { onConflict: 'user_id,lesson_id' }
+          { onConflict: 'user_id,lesson_id' },
         )
-        .select()
+        .select('id, user_id, lesson_id, completed, progress_percentage, watched_seconds, last_viewed_at')
         .single();
 
       if (error) throw error;
-      return data;
+      return data as LessonProgress;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['user-progress'] });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['user-progress'] });
+      await queryClient.invalidateQueries({ queryKey: ['student-dashboard'] });
+      await queryClient.invalidateQueries({ queryKey: ['enrolled-courses'] });
     },
   });
 };
