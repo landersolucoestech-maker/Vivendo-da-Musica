@@ -23,8 +23,10 @@ interface BeatDeliveryRow {
 interface ProductFileRow {
   id: string;
   file_name: string;
-  product: { title: string };
-  orders: Array<{ paid_at: string | null; status: string }>;
+  product: {
+    title: string;
+    orders: Array<{ paid_at: string | null; status: string }>;
+  };
 }
 
 interface DownloadAccessResponse {
@@ -98,8 +100,8 @@ export const downloadsService = {
         .order('created_at', { ascending: false }),
       supabase
         .from('seller_product_files')
-        .select('id,file_name,product:seller_products!inner(title),orders:digital_product_order_items!inner(paid_at,status)')
-        .eq('orders.status', 'paid')
+        .select('id,file_name,product:seller_products!inner(title,orders:digital_product_order_items!inner(paid_at,status))')
+        .eq('product.orders.status', 'paid')
         .order('created_at', { ascending: false }),
     ]);
 
@@ -123,7 +125,7 @@ export const downloadsService = {
 
     const productDownloads: DigitalProductDownload[] = ((productResult.data ?? []) as unknown as ProductFileRow[])
       .flatMap((row) => {
-        const paidAt = row.orders.find((order) => order.status === 'paid' && order.paid_at)?.paid_at;
+        const paidAt = row.product.orders.find((order) => order.status === 'paid' && order.paid_at)?.paid_at;
         return paidAt ? [{
           kind: 'digital_product' as const,
           id: row.id,
