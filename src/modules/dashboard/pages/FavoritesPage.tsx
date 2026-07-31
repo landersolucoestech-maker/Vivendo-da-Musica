@@ -1,19 +1,25 @@
-import { useEffect, useState } from "react";
-import { Heart, BookOpen, ShoppingBag, FileText } from "lucide-react";
-import StudentLayout from "@/app/layouts/StudentLayout";
-import PageHeader from "@/shared/components/PageHeader";
-import EmptyState from "@/shared/components/EmptyState";
-import { Button } from "@/shared/components/ui/button";
-import { useToast } from "@/shared/hooks/use-toast";
-import { useFavorites } from "@/modules/dashboard/hooks/useFavorites";
-import { studentService } from "@/modules/dashboard/services/student.service";
-import type { Favorite } from "@/modules/dashboard/types/favorite.types";
-import { Link } from "react-router-dom";
+import { useEffect, useState } from 'react';
+import { BookOpen, FileText, Heart, ShoppingBag, Trash2 } from 'lucide-react';
+import { Link } from 'react-router-dom';
+
+import StudentLayout from '@/app/layouts/StudentLayout';
+import { useFavorites } from '@/modules/dashboard/hooks/useFavorites';
+import { studentService } from '@/modules/dashboard/services/student.service';
+import type { Favorite } from '@/modules/dashboard/types/favorite.types';
+import EmptyState from '@/shared/components/EmptyState';
+import { Button } from '@/shared/components/ui/button';
+import { useToast } from '@/shared/hooks/use-toast';
 
 const TYPE_ICON: Record<Favorite['type'], typeof BookOpen> = {
   curso: BookOpen,
   produto: ShoppingBag,
   conteudo: FileText,
+};
+
+const TYPE_LABEL: Record<Favorite['type'], string> = {
+  curso: 'Curso',
+  produto: 'Produto digital',
+  conteudo: 'Conteúdo',
 };
 
 const FavoritesPage = () => {
@@ -27,31 +33,51 @@ const FavoritesPage = () => {
 
   const handleRemove = async (id: string) => {
     await studentService.removeFavorite(id);
-    setFavorites((current) => current.filter((f) => f.id !== id));
-    toast({ title: "Removido dos favoritos" });
+    setFavorites((current) => current.filter((favorite) => favorite.id !== id));
+    toast({ title: 'Favorito removido', description: 'O item não aparece mais na sua lista.' });
   };
 
   return (
     <StudentLayout>
-      <PageHeader title="Favoritos" subtitle="Cursos, produtos e conteúdos que você salvou." />
+      <header className="mb-8">
+        <p className="vdm-eyebrow">Biblioteca pessoal</p>
+        <h1 className="vdm-page-title mt-2">Favoritos</h1>
+        <p className="vdm-page-description">Acesse rapidamente cursos, produtos e conteúdos que você salvou.</p>
+      </header>
 
       {favorites.length === 0 ? (
-        <EmptyState icon={Heart} title="Você ainda não tem favoritos" description="Toque no coração em cursos, produtos ou artigos para salvá-los aqui." />
+        <EmptyState icon={Heart} title="Nenhum favorito salvo" description="Use o botão de favorito nos cursos, produtos e conteúdos para reuni-los aqui." />
       ) : (
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {favorites.map((favorite) => {
             const Icon = TYPE_ICON[favorite.type];
             return (
-              <div key={favorite.id} className="rounded-lg border border-border bg-card p-5 flex flex-col gap-3">
-                <Icon className="w-5 h-5 text-brand-medium" />
-                <div>
-                  <Link to={favorite.href} className="font-medium hover:text-brand-medium">{favorite.title}</Link>
-                  <p className="text-sm text-muted-foreground">{favorite.meta}</p>
+              <article key={favorite.id} className="vdm-surface-interactive flex min-h-56 flex-col p-5">
+                <div className="flex items-start justify-between gap-4">
+                  <span className="vdm-icon-button border-primary/25 bg-primary/10 text-primary">
+                    <Icon className="size-5" />
+                  </span>
+                  <span className="rounded-full border border-white/10 bg-white/[0.03] px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                    {TYPE_LABEL[favorite.type]}
+                  </span>
                 </div>
-                <Button size="sm" variant="outline" className="border-border mt-auto" onClick={() => handleRemove(favorite.id)}>
-                  Remover
-                </Button>
-              </div>
+
+                <div className="mt-6 flex-1">
+                  <Link to={favorite.href} className="font-display text-lg font-semibold leading-snug text-white transition hover:text-[#caa7ff]">
+                    {favorite.title}
+                  </Link>
+                  <p className="mt-2 text-sm leading-6 text-muted-foreground">{favorite.meta}</p>
+                </div>
+
+                <div className="mt-6 flex items-center gap-3 border-t border-white/8 pt-4">
+                  <Link to={favorite.href} className="flex-1">
+                    <Button className="w-full">Acessar</Button>
+                  </Link>
+                  <Button size="icon" variant="outline" aria-label={`Remover ${favorite.title} dos favoritos`} onClick={() => void handleRemove(favorite.id)}>
+                    <Trash2 className="size-4" />
+                  </Button>
+                </div>
+              </article>
             );
           })}
         </div>
