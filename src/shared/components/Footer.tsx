@@ -1,85 +1,93 @@
-import { Mail, Phone, Instagram, Youtube } from "lucide-react";
-import { Link } from "react-router-dom";
-import { ROUTES } from "@/shared/constants/routes";
+import { Instagram, Mail, Youtube } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
-const Footer = () => {
-  return (
-    <footer className="bg-background border-t border-border">
-      <div className="container mx-auto px-4 py-12">
-        <div className="grid md:grid-cols-4 gap-8">
-          <div className="space-y-4">
-            <Link to={ROUTES.home} className="flex flex-col leading-tight">
-              <span className="text-lg font-extrabold tracking-tight">
-                <span className="text-brand-medium">VIVENDO</span>
-                <span className="text-foreground"> DA</span>
-              </span>
-              <span className="text-lg font-extrabold tracking-tight text-foreground -mt-1">MÚSICA</span>
-            </Link>
-            <p className="text-muted-foreground">
-              A plataforma completa para transformar seu talento musical em carreira e negócio.
-            </p>
-            <div className="flex space-x-4">
-              <a href="#" aria-label="Instagram" className="text-muted-foreground hover:text-brand-medium transition-colors">
-                <Instagram className="w-5 h-5" />
-              </a>
-              <a href="#" aria-label="YouTube" className="text-muted-foreground hover:text-brand-medium transition-colors">
-                <Youtube className="w-5 h-5" />
-              </a>
-            </div>
-          </div>
+import BrandSignature from '@/shared/components/BrandSignature';
+import { ROUTES } from '@/shared/constants/routes';
 
-          <div>
-            <h4 className="text-foreground font-semibold mb-4">Plataforma</h4>
-            <ul className="space-y-2">
-              <li><Link to={ROUTES.academy} className="text-muted-foreground hover:text-brand-medium transition-colors">Academia</Link></li>
-              <li><Link to={ROUTES.marketplace} className="text-muted-foreground hover:text-brand-medium transition-colors">Marketplace</Link></li>
-              <li><Link to={ROUTES.communityPublic} className="text-muted-foreground hover:text-brand-medium transition-colors">Comunidade</Link></li>
-              <li><Link to={ROUTES.premiumLibraryPublic} className="text-muted-foreground hover:text-brand-medium transition-colors">Biblioteca Premium</Link></li>
-              <li><Link to={ROUTES.dashboard} className="text-muted-foreground hover:text-brand-medium transition-colors">Área do Aluno</Link></li>
-            </ul>
-          </div>
+const PLATFORM_LINKS = [
+  { label: 'Academia', to: ROUTES.academy },
+  { label: 'Marketplace', to: ROUTES.marketplace },
+  { label: 'Comunidade', to: ROUTES.communityPublic },
+  { label: 'Conteúdos', to: ROUTES.contentPortal },
+  { label: 'Oportunidades', to: ROUTES.opportunitiesPublic },
+];
 
-          <div>
-            <h4 className="text-foreground font-semibold mb-4">Suporte</h4>
-            <ul className="space-y-2">
-              <li><Link to={ROUTES.contact} className="text-muted-foreground hover:text-brand-medium transition-colors">Contato</Link></li>
-              <li><Link to={ROUTES.eventsPublic} className="text-muted-foreground hover:text-brand-medium transition-colors">Eventos</Link></li>
-              <li><Link to={ROUTES.contentPortal} className="text-muted-foreground hover:text-brand-medium transition-colors">Conteúdos</Link></li>
-              <li><Link to={ROUTES.opportunitiesPublic} className="text-muted-foreground hover:text-brand-medium transition-colors">Oportunidades</Link></li>
-            </ul>
-          </div>
+const ACCOUNT_LINKS = [
+  { label: 'Portal do aluno', to: ROUTES.dashboard },
+  { label: 'Portal do instrutor', to: ROUTES.instructor },
+  { label: 'Portal do produtor', to: ROUTES.producer },
+  { label: 'Suporte', to: ROUTES.contact },
+];
 
-          <div>
-            <h4 className="text-foreground font-semibold mb-4">Contato</h4>
-            <div className="space-y-3">
-              <div className="flex items-center gap-2 text-muted-foreground min-w-0">
-                <Mail className="w-4 h-4 shrink-0" />
-                <span className="break-all">contato@vivendodamusica.com</span>
-              </div>
-              <div className="flex items-center gap-2 text-muted-foreground min-w-0">
-                <Phone className="w-4 h-4 shrink-0" />
-                <span>(11) 99999-9999</span>
-              </div>
-            </div>
+const Footer = () => (
+  <footer className="border-t border-white/10 bg-[#070707]">
+    <div className="vdm-container py-12 sm:py-16">
+      <div className="grid gap-10 md:grid-cols-2 xl:grid-cols-[1.4fr_0.8fr_0.8fr_1fr]">
+        <div className="max-w-sm">
+          <BrandSignature size="lg" />
+          <p className="mt-5 text-sm leading-6 text-muted-foreground">
+            Formação, ferramentas e conhecimento para quem deseja desenvolver uma carreira sustentável no mercado musical.
+          </p>
+          <div className="mt-6 flex gap-3">
+            <a href="#" aria-label="Instagram" className="vdm-icon-button">
+              <Instagram className="size-4" />
+            </a>
+            <a href="#" aria-label="YouTube" className="vdm-icon-button">
+              <Youtube className="size-4" />
+            </a>
           </div>
         </div>
 
-        <div className="border-t border-border mt-12 pt-8 flex flex-col md:flex-row justify-between items-center">
-          <p className="text-muted-foreground text-sm">
-            © 2026 Vivendo da Música. Todos os direitos reservados.
+        <div>
+          <h2 className="text-sm font-semibold uppercase tracking-[0.14em] text-white">Plataforma</h2>
+          <ul className="mt-5 space-y-3">
+            {PLATFORM_LINKS.map((link) => (
+              <li key={link.to}>
+                <Link to={link.to} className="text-sm text-muted-foreground transition hover:text-white">
+                  {link.label}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        <div>
+          <h2 className="text-sm font-semibold uppercase tracking-[0.14em] text-white">Acesso</h2>
+          <ul className="mt-5 space-y-3">
+            {ACCOUNT_LINKS.map((link) => (
+              <li key={link.to}>
+                <Link to={link.to} className="text-sm text-muted-foreground transition hover:text-white">
+                  {link.label}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        <div>
+          <h2 className="text-sm font-semibold uppercase tracking-[0.14em] text-white">Contato</h2>
+          <a
+            href="mailto:contato@vivendodamusica.com"
+            className="mt-5 flex items-center gap-2 text-sm text-muted-foreground transition hover:text-white"
+          >
+            <Mail className="size-4 text-primary" />
+            contato@vivendodamusica.com
+          </a>
+          <p className="mt-4 text-xs leading-5 text-muted-foreground">
+            Atendimento e suporte realizados pelos canais oficiais da plataforma.
           </p>
-          <div className="flex space-x-6 mt-4 md:mt-0">
-            <a href="#" className="text-muted-foreground hover:text-brand-medium text-sm transition-colors">
-              Política de Privacidade
-            </a>
-            <a href="#" className="text-muted-foreground hover:text-brand-medium text-sm transition-colors">
-              Termos de Uso
-            </a>
-          </div>
         </div>
       </div>
-    </footer>
-  );
-};
+
+      <div className="mt-12 flex flex-col gap-4 border-t border-white/10 pt-6 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
+        <p>© 2026 Vivendo da Música. Todos os direitos reservados.</p>
+        <div className="flex gap-5">
+          <a href="#" className="transition hover:text-white">Política de Privacidade</a>
+          <a href="#" className="transition hover:text-white">Termos de Uso</a>
+        </div>
+      </div>
+    </div>
+  </footer>
+);
 
 export default Footer;
