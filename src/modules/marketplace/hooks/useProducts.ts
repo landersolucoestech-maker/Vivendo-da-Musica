@@ -1,16 +1,13 @@
-import { useQuery } from "@tanstack/react-query";
-import { marketplaceService } from "@/modules/marketplace/services/marketplace.service";
+import { useQuery } from '@tanstack/react-query';
 
-export const useProducts = () => {
-  return useQuery({
-    queryKey: ['products'],
-    queryFn: () => marketplaceService.listProducts(),
-  });
-};
+import { productService } from '@/modules/marketplace/services/product.service';
 
-export const useProductCategories = () => {
-  return useQuery({
-    queryKey: ['product-categories'],
-    queryFn: () => marketplaceService.listCategories(),
-  });
-};
+export const useProducts = () => useQuery({
+  queryKey: ['products'],
+  queryFn: () => productService.listProducts(),
+});
+
+export const useProductCategories = () => useQuery({
+  queryKey: ['product-categories'],
+  queryFn: () => productService.listCategories(),
+});
