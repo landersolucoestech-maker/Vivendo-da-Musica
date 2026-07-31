@@ -1,3 +1,4 @@
+import { env } from '@/app/config/env';
 import { supabase } from '@/integrations/supabase/client';
 import { isDevAuthBypassEnabled } from '@/shared/utils/devAuthBypass';
 
@@ -89,40 +90,14 @@ export async function getAffiliatePortalData(): Promise<AffiliatePortalData> {
   }
 
   const [linksResult, conversionsResult, commissionsResult, withdrawalsResult, materialsResult] = await Promise.all([
-    supabase
-      .from('affiliate_links')
-      .select('id, label, destination_url, slug, clicks_count, conversions_count, active')
-      .eq('affiliate_id', profile.id)
-      .order('created_at', { ascending: false }),
-    supabase
-      .from('affiliate_conversions')
-      .select('id, customer_reference, gross_amount_cents, commission_amount_cents, status, converted_at')
-      .eq('affiliate_id', profile.id)
-      .order('converted_at', { ascending: false }),
-    supabase
-      .from('affiliate_commissions')
-      .select('id, amount_cents, status, available_at, created_at')
-      .eq('affiliate_id', profile.id)
-      .order('created_at', { ascending: false }),
-    supabase
-      .from('affiliate_withdrawals')
-      .select('id, amount_cents, status, payment_method, requested_at')
-      .eq('affiliate_id', profile.id)
-      .order('requested_at', { ascending: false }),
-    supabase
-      .from('affiliate_marketing_materials')
-      .select('id, title, description, material_type, asset_url')
-      .eq('active', true)
-      .order('created_at', { ascending: false }),
+    supabase.from('affiliate_links').select('id, label, destination_url, slug, clicks_count, conversions_count, active').eq('affiliate_id', profile.id).order('created_at', { ascending: false }),
+    supabase.from('affiliate_conversions').select('id, customer_reference, gross_amount_cents, commission_amount_cents, status, converted_at').eq('affiliate_id', profile.id).order('converted_at', { ascending: false }),
+    supabase.from('affiliate_commissions').select('id, amount_cents, status, available_at, created_at').eq('affiliate_id', profile.id).order('created_at', { ascending: false }),
+    supabase.from('affiliate_withdrawals').select('id, amount_cents, status, payment_method, requested_at').eq('affiliate_id', profile.id).order('requested_at', { ascending: false }),
+    supabase.from('affiliate_marketing_materials').select('id, title, description, material_type, asset_url').eq('active', true).order('created_at', { ascending: false }),
   ]);
 
-  const firstError = [
-    linksResult.error,
-    conversionsResult.error,
-    commissionsResult.error,
-    withdrawalsResult.error,
-    materialsResult.error,
-  ].find(Boolean);
+  const firstError = [linksResult.error, conversionsResult.error, commissionsResult.error, withdrawalsResult.error, materialsResult.error].find(Boolean);
   if (firstError) throw firstError;
 
   return {
@@ -135,9 +110,32 @@ export async function getAffiliatePortalData(): Promise<AffiliatePortalData> {
   };
 }
 
+const requestDemoWithdrawal = async (amountCents: number, paymentMethod: 'pix' | 'bank_transfer') => {
+  const response = await fetch(`${env.supabaseUrl}/rest/v1/rpc/request_demo_affiliate_withdrawal`, {
+    method: 'POST',
+    headers: {
+      apikey: env.supabasePublishableKey,
+      Authorization: `Bearer ${env.supabasePublishableKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      requested_amount_cents: amountCents,
+      requested_payment_method: paymentMethod,
+    }),
+  });
+
+  if (!response.ok) {
+    const payload = await response.json().catch(() => null) as { message?: string } | null;
+    throw new Error(payload?.message ?? 'Não foi possível registrar o saque de desenvolvimento.');
+  }
+};
+
 export async function requestAffiliateWithdrawal(amountCents: number, paymentMethod: 'pix' | 'bank_transfer'): Promise<void> {
-  if (!Number.isInteger(amountCents) || amountCents < 1000) {
-    throw new Error('O valor mínimo para saque é R$ 10,00.');
+  if (!Number.isInteger(amountCents) || amountCents < 1000) throw new Error('O valor mínimo para saque é R$ 10,00.');
+
+  if (isDevAuthBypassEnabled) {
+    await requestDemoWithdrawal(amountCents, paymentMethod);
+    return;
   }
 
   const profile = await getAffiliateProfile();
