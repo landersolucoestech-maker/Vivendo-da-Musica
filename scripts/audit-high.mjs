@@ -28,27 +28,37 @@ for (const [packageName, vulnerability] of Object.entries(report.vulnerabilities
     .filter((entry) => typeof entry === 'object' && entry !== null)
     .map((entry) => entry.url)
     .filter(Boolean);
+  const indirectPackages = via.filter((entry) => typeof entry === 'string');
 
-  const isScopedException = packageName === 'react-router'
+  const isDirectScopedException = packageName === 'react-router'
     && advisoryUrls.length > 0
     && advisoryUrls.every((url) => allowedAdvisories.has(url));
 
-  if (isScopedException) {
-    allowed.push({ packageName, advisoryUrls });
+  const isIndirectScopedException = packageName === 'react-router-dom'
+    && advisoryUrls.length === 0
+    && indirectPackages.length > 0
+    && indirectPackages.every((dependency) => dependency === 'react-router');
+
+  if (isDirectScopedException || isIndirectScopedException) {
+    allowed.push({ packageName, advisoryUrls, indirectPackages });
   } else {
-    blocked.push({ packageName, severity: vulnerability.severity, advisoryUrls });
+    blocked.push({ packageName, severity: vulnerability.severity, advisoryUrls, indirectPackages });
   }
 }
 
 if (allowed.length) {
   console.warn('Exceção temporária e restrita aplicada: advisory RSC do React Router em SPA Vite sem RSC/server runtime.');
-  for (const item of allowed) console.warn(`- ${item.packageName}: ${item.advisoryUrls.join(', ')}`);
+  for (const item of allowed) {
+    const references = [...item.advisoryUrls, ...item.indirectPackages].join(', ');
+    console.warn(`- ${item.packageName}: ${references}`);
+  }
 }
 
 if (blocked.length) {
   console.error('Vulnerabilidades high/critical bloqueantes:');
   for (const item of blocked) {
-    console.error(`- ${item.packageName} (${item.severity}): ${item.advisoryUrls.join(', ') || 'sem URL identificada'}`);
+    const references = [...item.advisoryUrls, ...item.indirectPackages].join(', ') || 'sem referência identificada';
+    console.error(`- ${item.packageName} (${item.severity}): ${references}`);
   }
   process.exit(1);
 }
