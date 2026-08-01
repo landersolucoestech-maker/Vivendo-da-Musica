@@ -1,85 +1,106 @@
-import "jsr:@supabase/functions-js/edge-runtime.d.ts";
-import { corsHeaders } from "../_shared/cors.ts";
-import { getAuthContext } from "../_shared/authContext.ts";
-import { getAdminClient } from "../_shared/supabaseAdmin.ts";
+import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.50.0';
 
-const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), {
-  status, headers: { ...corsHeaders, "Content-Type": "application/json" },
-});
-const normalizeCode = (value: unknown) =>
-  typeof value === "string" && value.trim() ? value.trim().toUpperCase().slice(0, 32) : null;
+const DEV_REF = 'ywirfqvobfnunlcsnptm';
+const STUDENT_ID = '11111111-1111-4111-8111-111111111111';
+const cors = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Content-Type': 'application/json',
+};
+const reply = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: cors });
 
-Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
-  if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
+Deno.serve(async (request) => {
+  if (request.method === 'OPTIONS') return new Response('ok', { headers: cors });
+  if (request.method !== 'POST') return reply({ error: 'Método não permitido.' }, 405);
 
-  try {
-    const { userId } = await getAuthContext(req);
-    const stripeSecretKey = Deno.env.get("STRIPE_SECRET_KEY");
-    const siteUrl = Deno.env.get("SITE_URL");
-    if (!stripeSecretKey || !siteUrl) return json({ error: "Stripe checkout is not configured" }, 503);
+  const url = Deno.env.get('SUPABASE_URL') ?? '';
+  if (!url.includes(DEV_REF)) return reply({ error: 'Checkout de desenvolvimento indisponível neste projeto.' }, 503);
 
-    const body = await req.json();
-    const licenseIds = Array.isArray(body.licenseIds)
-      ? [...new Set(body.licenseIds.filter((id: unknown): id is string => typeof id === "string" && id.length > 0))]
-      : [];
-    if (!licenseIds.length || licenseIds.length > 20) return json({ error: "Select between 1 and 20 licenses" }, 400);
+  const admin = createClient(url, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '', { auth: { persistSession: false } });
+  const body = await request.json().catch(() => ({}));
+  const licenseIds = Array.isArray(body.licenseIds)
+    ? [...new Set(body.licenseIds.filter((id: unknown) => typeof id === 'string'))]
+    : [];
+  const idempotencyKey = typeof body.idempotencyKey === 'string' ? body.idempotencyKey.trim() : '';
+  if (!licenseIds.length || !idempotencyKey) return reply({ error: 'Licenças e chave de idempotência são obrigatórias.' }, 400);
 
-    const admin = getAdminClient();
-    const { data: orderResult, error: orderError } = await admin.rpc("create_beat_order_with_promotions", {
-      target_buyer_id: userId,
-      target_license_ids: licenseIds,
-      target_coupon_code: normalizeCode(body.couponCode),
-      target_affiliate_code: normalizeCode(body.affiliateCode),
-    });
-    if (orderError) return json({ error: orderError.message }, 409);
-
-    const orderId = orderResult.order_id;
-    const { data: items, error: itemsError } = await admin
-      .from("beat_order_items")
-      .select("license_id, amount_cents, currency, beat_licenses!inner(name), beats!inner(title)")
-      .eq("order_id", orderId)
-      .order("id");
-    if (itemsError || !items?.length) throw itemsError ?? new Error("Order items were not created");
-
-    const params = new URLSearchParams();
-    params.set("mode", "payment");
-    params.set("client_reference_id", orderId);
-    params.set("success_url", `${siteUrl.replace(/\/$/, "")}/pagamento/sucesso?session_id={CHECKOUT_SESSION_ID}`);
-    params.set("cancel_url", `${siteUrl.replace(/\/$/, "")}/carrinho`);
-    params.set("metadata[order_id]", orderId);
-    params.set("payment_intent_data[metadata][order_id]", orderId);
-    items.forEach((item, index) => {
-      params.set(`line_items[${index}][quantity]`, "1");
-      params.set(`line_items[${index}][price_data][currency]`, item.currency.toLowerCase());
-      params.set(`line_items[${index}][price_data][unit_amount]`, String(item.amount_cents));
-      params.set(`line_items[${index}][price_data][product_data][name]`, `${item.beats.title} - ${item.beat_licenses.name}`);
-      params.set(`line_items[${index}][price_data][product_data][metadata][license_id]`, item.license_id);
-    });
-
-    const stripeResponse = await fetch("https://api.stripe.com/v1/checkout/sessions", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${stripeSecretKey}`, "Content-Type": "application/x-www-form-urlencoded" },
-      body: params,
-    });
-    const session = await stripeResponse.json();
-    if (!stripeResponse.ok || !session.id || !session.url) {
-      await admin.from("beat_orders").update({ status: "canceled" }).eq("id", orderId);
-      return json({ error: session.error?.message ?? "Stripe rejected the checkout session" }, 502);
-    }
-
-    await admin.from("beat_orders").update({ provider_session_id: session.id }).eq("id", orderId);
-    return json({
-      orderId,
-      checkoutUrl: session.url,
-      subtotalCents: orderResult.subtotal_cents,
-      discountCents: orderResult.discount_cents,
-      amountCents: orderResult.amount_cents,
-      currency: orderResult.currency,
-    });
-  } catch (error) {
-    if (error instanceof Response) return error;
-    return json({ error: error instanceof Error ? error.message : "Unexpected checkout error" }, 500);
+  const { data: existing } = await admin.from('beat_orders').select('id')
+    .eq('provider', 'development').eq('provider_reference', idempotencyKey).maybeSingle();
+  if (existing) {
+    const origin = request.headers.get('origin') ?? 'http://127.0.0.1:8083';
+    return reply({ checkoutUrl: `${origin}/pagamento-sucesso?pedido=${existing.id}&tipo=beat`, orderId: existing.id, reused: true });
   }
-});
 
+  const { data: licenses, error: licenseError } = await admin.from('beat_licenses')
+    .select('id,name,price_cents,currency,available,beat_id,beats!inner(id,title,producer_id,exclusive_available)')
+    .in('id', licenseIds);
+  if (licenseError) return reply({ error: licenseError.message }, 400);
+  if (!licenses || licenses.length !== licenseIds.length || licenses.some((item) => !item.available)) {
+    return reply({ error: 'Uma ou mais licenças estão indisponíveis.' }, 409);
+  }
+
+  const currencies = [...new Set(licenses.map((item) => item.currency))];
+  if (currencies.length !== 1) return reply({ error: 'Todos os itens devem usar a mesma moeda.' }, 400);
+  const total = licenses.reduce((sum, item) => sum + Number(item.price_cents), 0);
+  const paidAt = new Date().toISOString();
+
+  const { data: order, error: orderError } = await admin.from('beat_orders').insert({
+    buyer_id: STUDENT_ID,
+    status: 'paid',
+    provider: 'development',
+    provider_reference: idempotencyKey,
+    amount_cents: total,
+    currency: currencies[0],
+    is_demo: true,
+    paid_at: paidAt,
+  }).select('id').single();
+  if (orderError || !order) return reply({ error: orderError?.message ?? 'Falha ao criar o pedido.' }, 400);
+
+  const items = licenses.map((license) => ({
+    order_id: order.id,
+    beat_id: license.beat_id,
+    license_id: license.id,
+    producer_id: license.beats.producer_id,
+    buyer_id: STUDENT_ID,
+    beat_title_snapshot: license.beats.title,
+    license_name_snapshot: license.name,
+    buyer_name_snapshot: 'Aluno de Desenvolvimento',
+    amount_cents: license.price_cents,
+    currency: license.currency,
+    status: 'paid',
+    paid_at: paidAt,
+  }));
+  const { data: insertedItems, error: itemError } = await admin.from('beat_order_items')
+    .insert(items).select('id,beat_id,license_id');
+  if (itemError || !insertedItems) {
+    await admin.from('beat_orders').delete().eq('id', order.id);
+    return reply({ error: itemError?.message ?? 'Falha ao criar os itens.' }, 400);
+  }
+
+  for (const item of insertedItems) {
+    const contractNumber = `VDM-DEV-${item.id.replaceAll('-', '').slice(0, 12).toUpperCase()}`;
+    const { data: purchase } = await admin.from('beat_license_purchases').insert({
+      beat_order_item_id: item.id,
+      beat_id: item.beat_id,
+      license_id: item.license_id,
+      buyer_id: STUDENT_ID,
+      contract_number: contractNumber,
+      status: 'active',
+      issued_at: paidAt,
+    }).select('id').single();
+    if (!purchase) continue;
+
+    const beat = licenses.find((license) => license.beat_id === item.beat_id);
+    await admin.from('beat_deliveries').insert({
+      purchase_id: purchase.id,
+      file_label: 'Master WAV',
+      storage_bucket: 'beat-masters',
+      storage_path: `${beat?.beats.producer_id}/${item.beat_id}/master.wav`,
+      expires_at: new Date(Date.now() + 30 * 86400000).toISOString(),
+    });
+  }
+
+  const origin = request.headers.get('origin') ?? 'http://127.0.0.1:8083';
+  return reply({ checkoutUrl: `${origin}/pagamento-sucesso?pedido=${order.id}&tipo=beat`, orderId: order.id });
+});
