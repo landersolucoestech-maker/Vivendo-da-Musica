@@ -1,7 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import type { Session, User } from '@supabase/supabase-js';
 import { useQuery } from '@tanstack/react-query';
-import { useLocation } from 'react-router-dom';
 
 import { supabase } from '@/integrations/supabase/client';
 import type { UserRole } from '@/modules/auth/types/role';
@@ -23,27 +22,69 @@ interface AuthContextValue {
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
+const NAVIGATION_EVENT = 'vdm:navigation';
+
+const getCurrentPathname = () => (typeof window === 'undefined' ? '/' : window.location.pathname);
+
+const useCurrentPathname = () => {
+  const [pathname, setPathname] = useState(getCurrentPathname);
+
+  useEffect(() => {
+    const updatePathname = () => setPathname(getCurrentPathname());
+    const originalPushState = window.history.pushState;
+    const originalReplaceState = window.history.replaceState;
+
+    window.history.pushState = function pushState(...args) {
+      originalPushState.apply(this, args);
+      window.dispatchEvent(new Event(NAVIGATION_EVENT));
+    };
+
+    window.history.replaceState = function replaceState(...args) {
+      originalReplaceState.apply(this, args);
+      window.dispatchEvent(new Event(NAVIGATION_EVENT));
+    };
+
+    window.addEventListener('popstate', updatePathname);
+    window.addEventListener(NAVIGATION_EVENT, updatePathname);
+
+    return () => {
+      window.history.pushState = originalPushState;
+      window.history.replaceState = originalReplaceState;
+      window.removeEventListener('popstate', updatePathname);
+      window.removeEventListener(NAVIGATION_EVENT, updatePathname);
+    };
+  }, []);
+
+  return pathname;
+};
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const location = useLocation();
+  const pathname = useCurrentPathname();
   const [session, setSession] = useState<Session | null>(null);
   const [isSessionLoading, setIsSessionLoading] = useState(true);
 
   useEffect(() => {
+    let mounted = true;
+
     void supabase.auth.getSession().then(({ data }) => {
+      if (!mounted) return;
       setSession(data.session);
       setIsSessionLoading(false);
     });
 
     const { data: listener } = supabase.auth.onAuthStateChange((_event, newSession) => {
       setSession(newSession);
+      setIsSessionLoading(false);
     });
 
-    return () => listener.subscription.unsubscribe();
+    return () => {
+      mounted = false;
+      listener.subscription.unsubscribe();
+    };
   }, []);
 
   const userId = session?.user.id;
-  const devRole = useMemo(() => resolveDevRoleFromPath(location.pathname), [location.pathname]);
+  const devRole = useMemo(() => resolveDevRoleFromPath(pathname), [pathname]);
   const effectiveProfileId = userId ?? (isDevAuthBypassEnabled ? getDevIdentityId(devRole) : null);
 
   const { data: profile, isLoading: isProfileLoading } = useQuery({
@@ -60,16 +101,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (error) throw error;
       return data as AuthProfile | null;
     },
-    enabled: !!effectiveProfileId,
+    enabled: Boolean(effectiveProfileId),
+    staleTime: 60_000,
   });
 
-  const value: AuthContextValue = {
+  const value = useMemo<AuthContextValue>(() => ({
     session,
     user: session?.user ?? null,
     profile: profile ?? null,
     role: profile?.role ?? (isDevAuthBypassEnabled ? devRole : null),
-    isLoading: isSessionLoading || (!!effectiveProfileId && isProfileLoading),
-  };
+    isLoading: isSessionLoading || (Boolean(effectiveProfileId) && isProfileLoading),
+  }), [devRole, effectiveProfileId, isProfileLoading, isSessionLoading, profile, session]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
