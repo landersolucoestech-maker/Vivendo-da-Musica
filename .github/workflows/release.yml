@@ -30,6 +30,13 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - name: Validate production safety
+        if: ${{ inputs.environment == 'production' }}
+        run: node scripts/assert-production-safe.mjs
+        env:
+          SUPABASE_PROJECT_REF: ${{ vars.SUPABASE_PROJECT_REF }}
+          VITE_DISABLE_AUTH: ${{ vars.VITE_DISABLE_AUTH }}
+          VITE_USE_MOCK_DATA: ${{ vars.VITE_USE_MOCK_DATA }}
       - run: npm audit --audit-level=high
       - run: npm run quality
       - run: npx playwright install --with-deps chromium
@@ -37,6 +44,8 @@ jobs:
         env:
           VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
           VITE_SUPABASE_PUBLISHABLE_KEY: ${{ vars.VITE_SUPABASE_PUBLISHABLE_KEY }}
+          VITE_DISABLE_AUTH: ${{ vars.VITE_DISABLE_AUTH }}
+          VITE_USE_MOCK_DATA: ${{ vars.VITE_USE_MOCK_DATA }}
       - name: Link remote Supabase project
         run: npx supabase link --project-ref "$SUPABASE_PROJECT_REF" --password "$SUPABASE_DB_PASSWORD"
         env:
@@ -69,6 +78,7 @@ jobs:
           build-args: |
             VITE_SUPABASE_URL=${{ vars.VITE_SUPABASE_URL }}
             VITE_SUPABASE_PUBLISHABLE_KEY=${{ vars.VITE_SUPABASE_PUBLISHABLE_KEY }}
+            VITE_DISABLE_AUTH=${{ vars.VITE_DISABLE_AUTH }}
+            VITE_USE_MOCK_DATA=${{ vars.VITE_USE_MOCK_DATA }}
           provenance: true
           sbom: true
-
