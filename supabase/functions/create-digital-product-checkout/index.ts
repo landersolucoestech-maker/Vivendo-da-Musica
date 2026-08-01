@@ -1,78 +1,77 @@
-import "jsr:@supabase/functions-js/edge-runtime.d.ts";
-import { corsHeaders } from "../_shared/cors.ts";
-import { getAuthContext } from "../_shared/authContext.ts";
-import { getAdminClient } from "../_shared/supabaseAdmin.ts";
+import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.50.0';
 
-const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), {
-  status, headers: { ...corsHeaders, "Content-Type": "application/json" },
-});
+const DEV_REF = 'ywirfqvobfnunlcsnptm';
+const STUDENT_ID = '11111111-1111-4111-8111-111111111111';
+const cors = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Content-Type': 'application/json',
+};
+const reply = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: cors });
 
-Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
-  if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
+Deno.serve(async (request) => {
+  if (request.method === 'OPTIONS') return new Response('ok', { headers: cors });
+  if (request.method !== 'POST') return reply({ error: 'Método não permitido.' }, 405);
 
-  try {
-    const { userId } = await getAuthContext(req);
-    const stripeSecretKey = Deno.env.get("STRIPE_SECRET_KEY");
-    const siteUrl = Deno.env.get("SITE_URL");
-    if (!stripeSecretKey || !siteUrl) return json({ error: "Stripe checkout is not configured" }, 503);
+  const url = Deno.env.get('SUPABASE_URL') ?? '';
+  if (!url.includes(DEV_REF)) return reply({ error: 'Checkout de desenvolvimento indisponível neste projeto.' }, 503);
 
-    const body = await req.json();
-    const productIds = Array.isArray(body.productIds)
-      ? [...new Set(body.productIds.filter((id: unknown): id is string => typeof id === "string" && id.length > 0))]
-      : [];
-    const idempotencyKey = typeof body.idempotencyKey === "string" ? body.idempotencyKey : "";
-    if (!productIds.length || productIds.length > 20) return json({ error: "Select between 1 and 20 products" }, 400);
-    if (idempotencyKey.length < 16 || idempotencyKey.length > 128) return json({ error: "Invalid idempotency key" }, 400);
+  const admin = createClient(url, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '', { auth: { persistSession: false } });
+  const body = await request.json().catch(() => ({}));
+  const productIds = Array.isArray(body.productIds)
+    ? [...new Set(body.productIds.filter((id: unknown) => typeof id === 'string'))]
+    : [];
+  const idempotencyKey = typeof body.idempotencyKey === 'string' ? body.idempotencyKey.trim() : '';
+  if (!productIds.length || !idempotencyKey) return reply({ error: 'Produtos e chave de idempotência são obrigatórios.' }, 400);
 
-    const admin = getAdminClient();
-    const { data: orderResult, error: orderError } = await admin.rpc("create_digital_product_order", {
-      target_buyer_id: userId,
-      target_product_ids: productIds,
-      target_idempotency_key: idempotencyKey,
-    });
-    if (orderError) return json({ error: orderError.message }, 409);
-
-    const orderId = orderResult.order_id;
-    const { data: items, error: itemsError } = await admin
-      .from("digital_product_order_items")
-      .select("product_id, product_title_snapshot, amount_cents, currency")
-      .eq("order_id", orderId)
-      .order("id");
-    if (itemsError || !items?.length) throw itemsError ?? new Error("Order items were not created");
-
-    const params = new URLSearchParams();
-    params.set("mode", "payment");
-    params.set("client_reference_id", orderId);
-    params.set("success_url", `${siteUrl.replace(/\/$/, "")}/pagamento/sucesso?session_id={CHECKOUT_SESSION_ID}`);
-    params.set("cancel_url", `${siteUrl.replace(/\/$/, "")}/carrinho`);
-    params.set("metadata[order_id]", orderId);
-    params.set("metadata[order_kind]", "digital_product");
-    params.set("payment_intent_data[metadata][order_id]", orderId);
-    params.set("payment_intent_data[metadata][order_kind]", "digital_product");
-    items.forEach((item, index) => {
-      params.set(`line_items[${index}][quantity]`, "1");
-      params.set(`line_items[${index}][price_data][currency]`, item.currency.toLowerCase());
-      params.set(`line_items[${index}][price_data][unit_amount]`, String(item.amount_cents));
-      params.set(`line_items[${index}][price_data][product_data][name]`, item.product_title_snapshot);
-      params.set(`line_items[${index}][price_data][product_data][metadata][product_id]`, item.product_id);
-    });
-
-    const stripeResponse = await fetch("https://api.stripe.com/v1/checkout/sessions", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${stripeSecretKey}`, "Content-Type": "application/x-www-form-urlencoded", "Idempotency-Key": idempotencyKey },
-      body: params,
-    });
-    const session = await stripeResponse.json();
-    if (!stripeResponse.ok || !session.id || !session.url) {
-      await admin.from("digital_product_orders").update({ status: "canceled" }).eq("id", orderId).eq("status", "pending");
-      return json({ error: session.error?.message ?? "Stripe rejected the checkout session" }, 502);
-    }
-
-    await admin.from("digital_product_orders").update({ provider_session_id: session.id }).eq("id", orderId);
-    return json({ orderId, checkoutUrl: session.url, amountCents: orderResult.amount_cents, currency: orderResult.currency });
-  } catch (error) {
-    if (error instanceof Response) return error;
-    return json({ error: error instanceof Error ? error.message : "Unexpected checkout error" }, 500);
+  const { data: existing } = await admin.from('digital_product_orders').select('id')
+    .eq('provider', 'development').eq('provider_reference', idempotencyKey).maybeSingle();
+  if (existing) {
+    const origin = request.headers.get('origin') ?? 'http://127.0.0.1:8083';
+    return reply({ checkoutUrl: `${origin}/pagamento-sucesso?pedido=${existing.id}&tipo=produto`, orderId: existing.id, reused: true });
   }
+
+  const { data: products, error: productError } = await admin.from('seller_products')
+    .select('id,seller_id,title,price_cents,currency,status').in('id', productIds);
+  if (productError) return reply({ error: productError.message }, 400);
+  if (!products || products.length !== productIds.length || products.some((item) => item.status !== 'published')) {
+    return reply({ error: 'Um ou mais produtos estão indisponíveis.' }, 409);
+  }
+
+  const currencies = [...new Set(products.map((item) => item.currency))];
+  if (currencies.length !== 1) return reply({ error: 'Todos os produtos devem usar a mesma moeda.' }, 400);
+  const total = products.reduce((sum, item) => sum + Number(item.price_cents), 0);
+  const paidAt = new Date().toISOString();
+
+  const { data: order, error: orderError } = await admin.from('digital_product_orders').insert({
+    buyer_id: STUDENT_ID,
+    status: 'paid',
+    provider: 'development',
+    provider_reference: idempotencyKey,
+    amount_cents: total,
+    currency: currencies[0],
+    is_demo: true,
+    paid_at: paidAt,
+  }).select('id').single();
+  if (orderError || !order) return reply({ error: orderError?.message ?? 'Falha ao criar o pedido.' }, 400);
+
+  const { error: itemError } = await admin.from('digital_product_order_items').insert(products.map((product) => ({
+    order_id: order.id,
+    product_id: product.id,
+    seller_id: product.seller_id,
+    buyer_id: STUDENT_ID,
+    product_title_snapshot: product.title,
+    amount_cents: product.price_cents,
+    currency: product.currency,
+    status: 'paid',
+    paid_at: paidAt,
+  })));
+  if (itemError) {
+    await admin.from('digital_product_orders').delete().eq('id', order.id);
+    return reply({ error: itemError.message }, 400);
+  }
+
+  const origin = request.headers.get('origin') ?? 'http://127.0.0.1:8083';
+  return reply({ checkoutUrl: `${origin}/pagamento-sucesso?pedido=${order.id}&tipo=produto`, orderId: order.id });
 });
