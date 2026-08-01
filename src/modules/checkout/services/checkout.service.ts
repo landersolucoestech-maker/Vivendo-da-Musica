@@ -1,92 +1,79 @@
-import type { StudentOrder } from "@/modules/checkout/types/order.types";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from '@/integrations/supabase/client';
+import type { StudentOrder } from '@/modules/checkout/types/order.types';
+import { getEffectiveUserId } from '@/shared/utils/devIdentity';
 
 interface CourseOrderRow {
   id: string;
-  status: 'pending' | 'paid' | 'canceled' | 'refunded';
+  status: string;
   provider: string;
   amount_cents: number;
   currency: string;
   created_at: string;
-  course_order_items: { amount_cents: number; courses: { title: string } | null }[] | null;
+  course_order_items: Array<{ course_title_snapshot: string; amount_cents: number }> | null;
 }
 
 interface BeatOrderRow {
   id: string;
-  status: 'pending' | 'paid' | 'canceled' | 'refunded';
+  status: string;
   provider: string;
   amount_cents: number;
   currency: string;
   created_at: string;
-  beat_order_items: {
-    amount_cents: number;
-    beats: { title: string } | null;
-    beat_licenses: { name: string } | null;
-  }[] | null;
+  beat_order_items: Array<{ beat_title_snapshot: string; license_name_snapshot: string; amount_cents: number }> | null;
 }
 
-interface DigitalProductOrderRow {
+interface ProductOrderRow {
   id: string;
-  status: 'pending' | 'paid' | 'canceled' | 'refunded' | 'disputed';
+  status: string;
   provider: string;
   amount_cents: number;
   currency: string;
   created_at: string;
-  digital_product_order_items: { product_title_snapshot: string; amount_cents: number }[] | null;
+  digital_product_order_items: Array<{ product_title_snapshot: string; amount_cents: number }> | null;
 }
 
-const mapStatus = (status: CourseOrderRow['status']): StudentOrder['status'] =>
-  status === 'paid' ? 'pago' : status === 'refunded' ? 'reembolsado' : 'pendente';
+const mapStatus = (status: string): StudentOrder['status'] => {
+  if (status === 'paid') return 'pago';
+  if (status === 'refunded') return 'reembolsado';
+  return 'pendente';
+};
+
+const getCurrentStudentId = async () => {
+  const { data: { user }, error } = await supabase.auth.getUser();
+  if (error) throw error;
+  return getEffectiveUserId(user?.id ?? null);
+};
 
 export const checkoutService = {
   async listOrders(): Promise<StudentOrder[]> {
-    const { data: authData, error: authError } = await supabase.auth.getUser();
-    if (authError || !authData.user) throw new Error('Entre na sua conta para consultar os pedidos.');
+    const userId = await getCurrentStudentId();
 
-    const courseTable = supabase.from as unknown as (table: 'course_orders') => {
-      select(columns: string): {
-        eq(column: string, value: string): {
-          order(column: string, options: { ascending: boolean }): Promise<{ data: CourseOrderRow[] | null; error: { message: string } | null }>;
-        };
-      };
-    };
-    const { data: courseOrders, error: courseError } = await courseTable('course_orders')
-      .select('id, status, provider, amount_cents, currency, created_at, course_order_items(amount_cents, courses(title))')
-      .eq('user_id', authData.user.id)
-      .order('created_at', { ascending: false });
-    if (courseError) throw new Error(`Nao foi possivel carregar os pedidos de cursos: ${courseError.message}`);
+    const [courseResult, beatResult, productResult] = await Promise.all([
+      supabase
+        .from('course_orders')
+        .select('id,status,provider,amount_cents,currency,created_at,course_order_items(course_title_snapshot,amount_cents)')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false }),
+      supabase
+        .from('beat_orders')
+        .select('id,status,provider,amount_cents,currency,created_at,beat_order_items(beat_title_snapshot,license_name_snapshot,amount_cents)')
+        .eq('buyer_id', userId)
+        .order('created_at', { ascending: false }),
+      supabase
+        .from('digital_product_orders')
+        .select('id,status,provider,amount_cents,currency,created_at,digital_product_order_items(product_title_snapshot,amount_cents)')
+        .eq('buyer_id', userId)
+        .order('created_at', { ascending: false }),
+    ]);
 
-    const beatTable = supabase.from as unknown as (table: 'beat_orders') => {
-      select(columns: string): {
-        eq(column: string, value: string): {
-          order(column: string, options: { ascending: boolean }): Promise<{ data: BeatOrderRow[] | null; error: { message: string } | null }>;
-        };
-      };
-    };
-    const { data: beatOrders, error: beatError } = await beatTable('beat_orders')
-      .select('id, status, provider, amount_cents, currency, created_at, beat_order_items(amount_cents, beats(title), beat_licenses(name))')
-      .eq('buyer_id', authData.user.id)
-      .order('created_at', { ascending: false });
-    if (beatError) throw new Error(`Nao foi possivel carregar os pedidos de beats: ${beatError.message}`);
+    const failure = courseResult.error ?? beatResult.error ?? productResult.error;
+    if (failure) throw new Error(`Não foi possível carregar os pedidos: ${failure.message}`);
 
-    const productTable = supabase.from as unknown as (table: 'digital_product_orders') => {
-      select(columns: string): {
-        eq(column: string, value: string): {
-          order(column: string, options: { ascending: boolean }): Promise<{ data: DigitalProductOrderRow[] | null; error: { message: string } | null }>;
-        };
-      };
-    };
-    const { data: productOrders, error: productError } = await productTable('digital_product_orders')
-      .select('id, status, provider, amount_cents, currency, created_at, digital_product_order_items(product_title_snapshot, amount_cents)')
-      .eq('buyer_id', authData.user.id)
-      .order('created_at', { ascending: false });
-    if (productError) throw new Error(`Nao foi possivel carregar os pedidos de produtos: ${productError.message}`);
-
-    const courses: StudentOrder[] = (courseOrders ?? []).map((order) => ({
+    const courses: StudentOrder[] = ((courseResult.data ?? []) as CourseOrderRow[]).map((order) => ({
       id: order.id,
       kind: 'curso',
       items: (order.course_order_items ?? []).map((item) => ({
-        title: item.courses?.title ?? 'Curso',
+        title: item.course_title_snapshot,
         priceCents: item.amount_cents,
       })),
       totalCents: order.amount_cents,
@@ -95,11 +82,12 @@ export const checkoutService = {
       createdAt: order.created_at,
       currency: order.currency,
     }));
-    const beats: StudentOrder[] = (beatOrders ?? []).map((order) => ({
+
+    const beats: StudentOrder[] = ((beatResult.data ?? []) as BeatOrderRow[]).map((order) => ({
       id: order.id,
       kind: 'beat',
       items: (order.beat_order_items ?? []).map((item) => ({
-        title: `${item.beats?.title ?? 'Beat'} - ${item.beat_licenses?.name ?? 'Licenca'}`,
+        title: `${item.beat_title_snapshot} — ${item.license_name_snapshot}`,
         priceCents: item.amount_cents,
       })),
       totalCents: order.amount_cents,
@@ -108,7 +96,8 @@ export const checkoutService = {
       createdAt: order.created_at,
       currency: order.currency,
     }));
-    const products: StudentOrder[] = (productOrders ?? []).map((order) => ({
+
+    const products: StudentOrder[] = ((productResult.data ?? []) as ProductOrderRow[]).map((order) => ({
       id: order.id,
       kind: 'produto',
       items: (order.digital_product_order_items ?? []).map((item) => ({
@@ -116,39 +105,42 @@ export const checkoutService = {
         priceCents: item.amount_cents,
       })),
       totalCents: order.amount_cents,
-      status: mapStatus(order.status === 'disputed' ? 'pending' : order.status),
+      status: mapStatus(order.status),
       paymentMethod: order.provider,
       createdAt: order.created_at,
       currency: order.currency,
     }));
-    return [...courses, ...beats, ...products].sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
+
+    return [...courses, ...beats, ...products]
+      .sort((left, right) => Date.parse(right.createdAt) - Date.parse(left.createdAt));
   },
 
   async createBeatCheckout(
     licenseIds: string[],
     promotions?: { couponCode?: string; affiliateCode?: string },
   ): Promise<string> {
-    const { data, error } = await supabase.functions.invoke("create-beat-checkout", {
+    const { data, error } = await supabase.functions.invoke('create-beat-checkout', {
       body: {
         licenseIds,
         couponCode: promotions?.couponCode?.trim() || null,
         affiliateCode: promotions?.affiliateCode?.trim() || null,
+        idempotencyKey: `beat_${crypto.randomUUID()}`,
       },
     });
     if (error) throw new Error(error.message);
-    if (!data?.checkoutUrl) throw new Error(data?.error ?? "O checkout nao retornou uma URL valida.");
-    return data.checkoutUrl as string;
+    if (!data?.checkoutUrl) throw new Error(data?.error ?? 'O checkout não retornou uma URL válida.');
+    return String(data.checkoutUrl);
   },
 
   async createDigitalProductCheckout(productIds: string[]): Promise<string> {
-    const { data, error } = await supabase.functions.invoke("create-digital-product-checkout", {
+    const { data, error } = await supabase.functions.invoke('create-digital-product-checkout', {
       body: {
         productIds,
         idempotencyKey: `digital_${crypto.randomUUID()}`,
       },
     });
     if (error) throw new Error(error.message);
-    if (!data?.checkoutUrl) throw new Error(data?.error ?? "O checkout nao retornou uma URL valida.");
-    return data.checkoutUrl as string;
+    if (!data?.checkoutUrl) throw new Error(data?.error ?? 'O checkout não retornou uma URL válida.');
+    return String(data.checkoutUrl);
   },
 };
