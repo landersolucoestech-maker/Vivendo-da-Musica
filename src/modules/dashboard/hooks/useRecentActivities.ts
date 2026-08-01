@@ -9,9 +9,28 @@ export interface RecentActivity {
   type: 'lesson_completed' | 'lesson_started' | 'module_progress';
 }
 
+interface ModuleRelation {
+  title: string;
+}
+
+interface LessonRelation {
+  title: string;
+  course_modules: ModuleRelation | ModuleRelation[] | null;
+}
+
+interface ProgressRelationRow {
+  completed: boolean;
+  progress_percentage: number;
+  updated_at: string;
+  lessons: LessonRelation | LessonRelation[] | null;
+}
+
+const firstRelation = <T,>(value: T | T[] | null | undefined): T | undefined =>
+  Array.isArray(value) ? value[0] : value ?? undefined;
+
 const formatRelativeTime = (value: string) => {
   const updatedAt = new Date(value);
-  const diffInMinutes = Math.max(0, Math.floor((Date.now() - updatedAt.getTime()) / (1000 * 60)));
+  const diffInMinutes = Math.max(0, Math.floor((Date.now() - updatedAt.getTime()) / 60_000));
   const diffInHours = Math.floor(diffInMinutes / 60);
   const diffInDays = Math.floor(diffInHours / 24);
 
@@ -30,26 +49,18 @@ export const useRecentActivities = () => useQuery({
 
     const { data: progressData, error } = await supabase
       .from('lesson_progress')
-      .select(`
-        completed,
-        progress_percentage,
-        updated_at,
-        lessons (
-          title,
-          course_modules (
-            title
-          )
-        )
-      `)
+      .select('completed,progress_percentage,updated_at,lessons(title,course_modules(title))')
       .eq('user_id', userId)
       .order('updated_at', { ascending: false })
       .limit(10);
 
     if (error) throw error;
 
-    return (progressData ?? []).map((progress) => {
-      const lessonTitle = progress.lessons?.title ?? 'Aula';
-      const moduleTitle = progress.lessons?.course_modules?.title ?? 'Módulo';
+    return ((progressData ?? []) as unknown as ProgressRelationRow[]).map((progress) => {
+      const lesson = firstRelation(progress.lessons);
+      const courseModule = firstRelation(lesson?.course_modules);
+      const lessonTitle = lesson?.title ?? 'Aula';
+      const moduleTitle = courseModule?.title ?? 'Módulo';
       const type: RecentActivity['type'] = progress.completed ? 'lesson_completed' : 'lesson_started';
       const activity = progress.completed
         ? `Concluiu “${lessonTitle}” em ${moduleTitle}`
