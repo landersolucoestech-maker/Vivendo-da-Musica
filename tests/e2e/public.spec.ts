@@ -12,7 +12,8 @@ test("course catalog is reachable and has no fatal browser error", async ({ page
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
   await page.goto("/academia");
-  await expect(page.getByRole("heading", { name: /academia|cursos/i }).first()).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Formação prática para quem vive de música." })).toBeVisible();
+  await expect(page.getByPlaceholder("Buscar cursos por título...")).toBeVisible();
   expect(errors).toEqual([]);
 });
 
