@@ -1,71 +1,109 @@
-import { useEffect, useState } from "react";
-import AdminLayout from "@/app/layouts/AdminLayout";
-import PageHeader from "@/shared/components/PageHeader";
-import StatusBadge from "@/shared/components/StatusBadge";
-import { Button } from "@/shared/components/ui/button";
+import { useEffect, useState } from 'react';
+
+import AdminLayout from '@/app/layouts/AdminLayout';
+import { useAdminIntegrations } from '@/modules/admin/hooks/useAdminIntegrations';
+import { adminService } from '@/modules/admin/services/admin.service';
+import type { IntegrationStatus } from '@/modules/admin/types/integration.types';
+import PageHeader from '@/shared/components/PageHeader';
+import StatusBadge from '@/shared/components/StatusBadge';
+import { Button } from '@/shared/components/ui/button';
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
-} from "@/shared/components/ui/dialog";
-import { useToast } from "@/shared/hooks/use-toast";
-import { useAdminIntegrations } from "@/modules/admin/hooks/useAdminIntegrations";
-import { adminService } from "@/modules/admin/services/admin.service";
-import type { IntegrationStatus } from "@/modules/admin/types/integration.types";
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/shared/components/ui/dialog';
+import { useToast } from '@/shared/hooks/use-toast';
 
 const AdminIntegrationsPage = () => {
   const { toast } = useToast();
-  const { data } = useAdminIntegrations();
+  const { data, isLoading, error, refetch } = useAdminIntegrations();
   const [integrations, setIntegrations] = useState<IntegrationStatus[]>([]);
   const [selected, setSelected] = useState<IntegrationStatus | null>(null);
+  const [updating, setUpdating] = useState(false);
 
   useEffect(() => {
     if (data) setIntegrations(data);
   }, [data]);
 
   const handleToggle = async () => {
-    if (!selected) return;
-    await adminService.toggleIntegration(selected.name);
-    setIntegrations((current) =>
-      current.map((i) => (i.name === selected.name ? { ...i, status: i.status === 'conectado' ? 'desconectado' : 'conectado' } : i))
-    );
-    toast({ title: `${selected.name} ${selected.status === 'conectado' ? 'desconectado' : 'conectado'} com sucesso` });
-    setSelected(null);
+    if (!selected || updating) return;
+    setUpdating(true);
+    try {
+      await adminService.toggleIntegration(selected.name);
+      await refetch();
+      toast({
+        title: 'Estado atualizado no ambiente de desenvolvimento',
+        description: `${selected.name} foi ${selected.status === 'conectado' ? 'desconectado' : 'marcado como conectado'}.`,
+      });
+      setSelected(null);
+    } catch (toggleError) {
+      toast({
+        title: 'Não foi possível atualizar a integração',
+        description: toggleError instanceof Error ? toggleError.message : 'Tente novamente.',
+        variant: 'destructive',
+      });
+    } finally {
+      setUpdating(false);
+    }
   };
 
   return (
     <AdminLayout>
-      <PageHeader title="Integrações" subtitle="Conecte serviços externos à plataforma." />
+      <PageHeader
+        title="Integrações"
+        subtitle="Acompanhe o estado operacional dos serviços externos configurados para a plataforma."
+      />
 
-      <div className="grid sm:grid-cols-2 gap-4">
-        {integrations.map((integration) => (
-          <div key={integration.name} className="rounded-lg border border-border bg-card p-5 flex items-center justify-between gap-4">
+      <div className="mb-6 rounded-lg border border-primary/20 bg-primary/5 p-4 text-sm text-muted-foreground">
+        Esta tela não coleta chaves, tokens ou senhas. No ambiente de desenvolvimento, a ação abaixo altera somente o estado sintético usado para revisão da interface.
+      </div>
+
+      {error && (
+        <p className="mb-4 text-sm text-destructive">
+          {error instanceof Error ? error.message : 'Não foi possível carregar as integrações.'}
+        </p>
+      )}
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        {isLoading ? (
+          <div className="rounded-lg border border-border bg-card p-5 text-sm text-muted-foreground">Carregando integrações...</div>
+        ) : integrations.length === 0 ? (
+          <div className="rounded-lg border border-border bg-card p-5 text-sm text-muted-foreground">Nenhuma integração cadastrada.</div>
+        ) : integrations.map((integration) => (
+          <div key={integration.name} className="flex items-center justify-between gap-4 rounded-lg border border-border bg-card p-5">
             <div>
-              <div className="flex items-center gap-2 mb-1">
+              <div className="mb-1 flex items-center gap-2">
                 <p className="font-semibold">{integration.name}</p>
-                <StatusBadge status={integration.status} label={integration.status} />
+                <StatusBadge status={integration.status} label={integration.status === 'conectado' ? 'Conectado' : 'Desconectado'} />
               </div>
               <p className="text-sm text-muted-foreground">{integration.description}</p>
             </div>
-            <Button variant="outline" className="border-border shrink-0" onClick={() => setSelected(integration)}>
-              Configurar
+            <Button variant="outline" className="shrink-0 border-border" onClick={() => setSelected(integration)}>
+              Alterar estado
             </Button>
           </div>
         ))}
       </div>
 
-      <Dialog open={!!selected} onOpenChange={(open) => !open && setSelected(null)}>
+      <Dialog open={Boolean(selected)} onOpenChange={(open) => !open && !updating && setSelected(null)}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>{selected?.name}</DialogTitle>
             <DialogDescription>
               {selected?.status === 'conectado'
-                ? `Desconectar ${selected?.name} da plataforma?`
-                : `Insira as credenciais de ${selected?.name} para conectar (simulado nesta etapa).`}
+                ? 'Marcar esta integração sintética como desconectada no Supabase DEV?'
+                : 'Marcar esta integração sintética como conectada no Supabase DEV? Nenhuma credencial será solicitada ou armazenada.'}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="outline" className="border-border" onClick={() => setSelected(null)}>Cancelar</Button>
-            <Button onClick={handleToggle}>
-              {selected?.status === 'conectado' ? 'Desconectar' : 'Conectar'}
+            <Button variant="outline" className="border-border" disabled={updating} onClick={() => setSelected(null)}>
+              Cancelar
+            </Button>
+            <Button disabled={updating} onClick={() => void handleToggle()}>
+              {updating ? 'Atualizando...' : selected?.status === 'conectado' ? 'Marcar como desconectada' : 'Marcar como conectada'}
             </Button>
           </DialogFooter>
         </DialogContent>
