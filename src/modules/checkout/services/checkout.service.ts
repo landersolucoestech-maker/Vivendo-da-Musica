@@ -44,6 +44,13 @@ const getCurrentStudentId = async () => {
   return getEffectiveUserId(user?.id ?? null);
 };
 
+const readCheckoutUrl = (data: unknown): string => {
+  if (!data || typeof data !== 'object' || !('checkoutUrl' in data) || typeof data.checkoutUrl !== 'string') {
+    throw new Error('O checkout não retornou uma URL válida.');
+  }
+  return data.checkoutUrl;
+};
+
 export const checkoutService = {
   async listOrders(): Promise<StudentOrder[]> {
     const userId = await getCurrentStudentId();
@@ -115,6 +122,17 @@ export const checkoutService = {
       .sort((left, right) => Date.parse(right.createdAt) - Date.parse(left.createdAt));
   },
 
+  async createCourseCheckout(courseIds: string[]): Promise<string> {
+    const { data, error } = await supabase.functions.invoke('create-course-checkout', {
+      body: {
+        courseIds,
+        idempotencyKey: `course_${crypto.randomUUID()}`,
+      },
+    });
+    if (error) throw new Error(error.message);
+    return readCheckoutUrl(data);
+  },
+
   async createBeatCheckout(
     licenseIds: string[],
     promotions?: { couponCode?: string; affiliateCode?: string },
@@ -128,8 +146,7 @@ export const checkoutService = {
       },
     });
     if (error) throw new Error(error.message);
-    if (!data?.checkoutUrl) throw new Error(data?.error ?? 'O checkout não retornou uma URL válida.');
-    return String(data.checkoutUrl);
+    return readCheckoutUrl(data);
   },
 
   async createDigitalProductCheckout(productIds: string[]): Promise<string> {
@@ -140,7 +157,6 @@ export const checkoutService = {
       },
     });
     if (error) throw new Error(error.message);
-    if (!data?.checkoutUrl) throw new Error(data?.error ?? 'O checkout não retornou uma URL válida.');
-    return String(data.checkoutUrl);
+    return readCheckoutUrl(data);
   },
 };
