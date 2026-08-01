@@ -60,10 +60,11 @@ test("public opportunities render records returned by the Supabase contract", as
   await expect(page.getByText("Nenhuma oportunidade encontrada")).not.toBeVisible();
 });
 
-test("development auth bypass exposes the administrative review route", async ({ page }) => {
+test("production build protects administrative routes", async ({ page }) => {
   await page.goto("/admin/observabilidade");
-  await expect(page).toHaveURL(/\/admin\/observabilidade/);
-  await expect(page.getByRole("heading", { name: /observabilidade/i }).first()).toBeVisible();
+  await expect(page).toHaveURL(/\/login/);
+  await expect(page.getByLabel(/e-mail|email/i)).toBeVisible();
+  await expect(page.getByLabel(/senha/i)).toBeVisible();
 });
 
 test("unknown routes return the application not-found screen", async ({ page }) => {
