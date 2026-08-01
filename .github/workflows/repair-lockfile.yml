@@ -7,6 +7,7 @@ on:
     paths:
       - package.json
       - package-lock.json
+      - scripts/audit-high.mjs
       - .github/workflows/repair-lockfile.yml
 
 permissions:
@@ -26,7 +27,7 @@ jobs:
       - name: Apply non-breaking audit fixes
         run: npm audit fix --package-lock-only || true
       - name: Validate high severity audit
-        run: npm audit --audit-level=high
+        run: npm run audit:high
       - uses: actions/upload-artifact@v4
         if: always()
         with:
