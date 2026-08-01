@@ -10,22 +10,16 @@ import { Button } from '@/shared/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/shared/components/ui/dialog';
 import { formatPrice } from '@/shared/utils/formatters';
 
-const KIND_LABELS: Record<string, string> = {
-  course: 'Curso',
-  product: 'Produto digital',
+const KIND_LABELS: Record<StudentOrder['kind'], string> = {
+  curso: 'Curso',
+  produto: 'Produto digital',
   beat: 'Beat',
-  license: 'Licença',
-  mixed: 'Pedido combinado',
 };
 
-const STATUS_LABELS: Record<string, string> = {
-  paid: 'Pago',
-  pending: 'Pendente',
-  canceled: 'Cancelado',
-  cancelled: 'Cancelado',
-  refunded: 'Reembolsado',
-  disputed: 'Contestado',
-  processing: 'Em processamento',
+const STATUS_LABELS: Record<StudentOrder['status'], string> = {
+  pago: 'Pago',
+  pendente: 'Pendente',
+  reembolsado: 'Reembolsado',
 };
 
 const OrdersPage = () => {
@@ -47,11 +41,11 @@ const OrdersPage = () => {
         </div>
         <div className="vdm-surface p-5">
           <p className="text-xs uppercase tracking-[0.12em] text-muted-foreground">Pagos</p>
-          <p className="mt-2 font-display text-2xl font-bold text-emerald-300">{orders?.filter((order) => order.status === 'paid').length ?? 0}</p>
+          <p className="mt-2 font-display text-2xl font-bold text-emerald-300">{orders?.filter((order) => order.status === 'pago').length ?? 0}</p>
         </div>
         <div className="vdm-surface p-5">
           <p className="text-xs uppercase tracking-[0.12em] text-muted-foreground">Pendentes</p>
-          <p className="mt-2 font-display text-2xl font-bold text-amber-300">{orders?.filter((order) => order.status === 'pending' || order.status === 'processing').length ?? 0}</p>
+          <p className="mt-2 font-display text-2xl font-bold text-amber-300">{orders?.filter((order) => order.status === 'pendente').length ?? 0}</p>
         </div>
       </div>
 
@@ -61,10 +55,10 @@ const OrdersPage = () => {
         emptyLabel="Você ainda não possui pedidos registrados."
         columns={[
           { header: 'Pedido', cell: (order) => <span className="font-mono text-xs text-white">#{order.id.slice(0, 8).toUpperCase()}</span> },
-          { header: 'Tipo', cell: (order) => KIND_LABELS[order.kind] ?? order.kind },
+          { header: 'Tipo', cell: (order) => KIND_LABELS[order.kind] },
           { header: 'Itens', cell: (order) => <span className="line-clamp-2 max-w-sm">{order.items.map((item) => item.title).join(', ')}</span> },
           { header: 'Total', cell: (order) => <span className="font-semibold text-white">{formatPrice(order.totalCents, order.currency)}</span> },
-          { header: 'Status', cell: (order) => <StatusBadge status={order.status} label={STATUS_LABELS[order.status] ?? order.status} /> },
+          { header: 'Status', cell: (order) => <StatusBadge status={order.status} label={STATUS_LABELS[order.status]} /> },
           {
             header: '',
             cell: (order) => (
@@ -77,7 +71,7 @@ const OrdersPage = () => {
         ]}
       />
 
-      <Dialog open={!!selectedOrder} onOpenChange={(open) => !open && setSelectedOrder(null)}>
+      <Dialog open={Boolean(selectedOrder)} onOpenChange={(open) => !open && setSelectedOrder(null)}>
         <DialogContent className="max-w-xl">
           <DialogHeader>
             <span className="vdm-icon-button mb-3 border-primary/25 bg-primary/10 text-primary">
