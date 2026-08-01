@@ -64,7 +64,7 @@ test("production build protects administrative routes", async ({ page }) => {
   await page.goto("/admin/observabilidade");
   await expect(page).toHaveURL(/\/login/);
   await expect(page.getByLabel(/e-mail|email/i)).toBeVisible();
-  await expect(page.getByLabel(/senha/i)).toBeVisible();
+  await expect(page.locator('input[type="password"]')).toBeVisible();
 });
 
 test("unknown routes return the application not-found screen", async ({ page }) => {
