@@ -11,13 +11,14 @@
     "preview": "vite preview",
     "typecheck": "tsc --build --force",
     "types:supabase": "node scripts/generate-supabase-types.mjs",
+    "audit:high": "node scripts/audit-high.mjs",
     "test": "vitest run",
     "test:unit": "vitest run src",
     "test:security": "vitest run tests/security",
     "test:contracts": "vitest run tests/contracts",
     "test:e2e": "playwright test",
     "test:performance": "node scripts/quality-gate.mjs",
-    "quality": "npm run typecheck && npm run lint && npm run test:unit && npm run test:contracts && npm run test:security && npm run build && npm run test:performance"
+    "quality": "npm run audit:high && npm run typecheck && npm run lint && npm run test:unit && npm run test:contracts && npm run test:security && npm run build && npm run test:performance"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.0",
@@ -46,7 +47,7 @@
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-hook-form": "^7.53.0",
-    "react-router-dom": "8.2.1",
+    "react-router-dom": "7.18.2",
     "recharts": "^2.12.7",
     "sonner": "^1.5.0",
     "tailwind-merge": "^2.5.2",
