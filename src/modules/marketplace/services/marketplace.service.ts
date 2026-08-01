@@ -1,3 +1,4 @@
+import { supabase } from '@/integrations/supabase/client';
 import { beatService } from '@/modules/marketplace/services/beat.service';
 import { downloadsService } from '@/modules/marketplace/services/downloads.service';
 import { productService } from '@/modules/marketplace/services/product.service';
@@ -36,6 +37,15 @@ export const marketplaceService = {
 
   async getProductIncludedFiles(slug: string) {
     return (await productService.getProductDetailBundle(slug))?.includedFiles ?? [];
+  },
+
+  async recordBeatEvent(beatId: string, eventType: 'view' | 'play' | 'add_to_cart' | 'checkout' | 'purchase') {
+    const { error } = await supabase.from('beat_events').insert({
+      beat_id: beatId,
+      event_type: eventType,
+      occurred_at: new Date().toISOString(),
+    });
+    if (error) throw new Error(error.message);
   },
 
   async getBeatDownloadUrl(deliveryId: string) {
