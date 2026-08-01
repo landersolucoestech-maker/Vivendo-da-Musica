@@ -1,80 +1,85 @@
-import { useState } from "react";
-import AdminLayout from "@/app/layouts/AdminLayout";
-import PageHeader from "@/shared/components/PageHeader";
-import DataTable from "@/shared/components/DataTable";
-import { Switch } from "@/shared/components/ui/switch";
-import { Button } from "@/shared/components/ui/button";
-import { useToast } from "@/shared/hooks/use-toast";
-import { useAdminRoles, useAdminAccessSessions } from "@/modules/admin/hooks/useAdminSecurity";
-import { adminService } from "@/modules/admin/services/admin.service";
+import AdminLayout from '@/app/layouts/AdminLayout';
+import PageHeader from '@/shared/components/PageHeader';
+import DataTable from '@/shared/components/DataTable';
+import { Alert, AlertDescription, AlertTitle } from '@/shared/components/ui/alert';
+import { Badge } from '@/shared/components/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle } from '@/shared/components/ui/card';
+import { ShieldCheck, Database, KeyRound, ServerCog } from 'lucide-react';
+import { useAdminRoles } from '@/modules/admin/hooks/useAdminSecurity';
 
 const AdminSecurityPage = () => {
-  const { toast } = useToast();
   const { data: roles } = useAdminRoles();
-  const { data: sessions } = useAdminAccessSessions();
-  const [twoFactor, setTwoFactor] = useState(false);
 
   return (
     <AdminLayout>
-      <PageHeader title="Segurança" subtitle="Permissões, roles, sessões e autenticação." />
+      <PageHeader
+        title="Segurança"
+        subtitle="Controles de acesso e estado técnico efetivamente implementados."
+      />
 
-      <div className="space-y-8">
-        <section className="rounded-lg border border-border bg-card p-5 flex items-center justify-between max-w-lg">
-          <div>
-            <h2 className="font-semibold">Autenticação em duas etapas</h2>
-            <p className="text-sm text-muted-foreground">Exigir 2FA para contas admin e super_admin.</p>
-          </div>
-          <Switch
-            checked={twoFactor}
-            onCheckedChange={(v) => {
-              setTwoFactor(v);
-              toast({ title: v ? "2FA ativado" : "2FA desativado" });
-            }}
-            aria-label="Autenticação em duas etapas"
-          />
-        </section>
+      <div className="space-y-6">
+        <Alert>
+          <ShieldCheck className="h-4 w-4" />
+          <AlertTitle>Autenticação administrada pelo Supabase Auth</AlertTitle>
+          <AlertDescription>
+            Login, recuperação de senha, renovação de sessão e validação de usuário são processados pelo Supabase Auth.
+            A aplicação não mantém um cadastro paralelo de sessões ou dispositivos no banco público.
+          </AlertDescription>
+        </Alert>
+
+        <div className="grid gap-4 md:grid-cols-3">
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <KeyRound className="h-4 w-4" />
+                Autorização
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2 text-sm text-muted-foreground">
+              <p>Rotas protegidas por papel no frontend.</p>
+              <p>RLS aplicada em todas as tabelas públicas expostas.</p>
+              <Badge variant="secondary">Ativo</Badge>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Database className="h-4 w-4" />
+                Banco e Storage
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2 text-sm text-muted-foreground">
+              <p>Funções privilegiadas restritas ao service role.</p>
+              <p>Uploads privados condicionados a ownership ou papel de staff.</p>
+              <Badge variant="secondary">Protegido</Badge>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <ServerCog className="h-4 w-4" />
+                Produção
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2 text-sm text-muted-foreground">
+              <p>Bypass de autenticação limitado ao servidor Vite em desenvolvimento.</p>
+              <p>Release bloqueado enquanto existirem políticas exclusivas do ambiente dev.</p>
+              <Badge variant="secondary">Fail-closed</Badge>
+            </CardContent>
+          </Card>
+        </div>
 
         <section>
-          <h2 className="text-sm font-semibold text-muted-foreground mb-3">Roles e permissões</h2>
+          <h2 className="mb-3 text-sm font-semibold text-muted-foreground">Papéis reconhecidos</h2>
           <DataTable
             rows={roles ?? []}
-            rowKey={(r) => r.role}
-            emptyLabel="Nenhuma role configurada."
+            rowKey={(row) => row.role}
+            emptyLabel="Nenhum papel configurado."
             columns={[
-              { header: 'Role', cell: (r) => r.role },
-              { header: 'Descrição', cell: (r) => r.description },
-            ]}
-          />
-        </section>
-
-        <section>
-          <h2 className="text-sm font-semibold text-muted-foreground mb-3">Sessões ativas</h2>
-          <DataTable
-            rows={sessions ?? []}
-            rowKey={(s) => s.device}
-            emptyLabel="Nenhuma sessão ativa."
-            columns={[
-              { header: 'Dispositivo', cell: (s) => s.device },
-              { header: 'Local', cell: (s) => s.location },
-              { header: 'Última atividade', cell: (s) => s.lastActive },
-              {
-                header: '',
-                cell: (s) => s.current
-                  ? <span className="text-xs text-brand-medium">Sessão atual</span>
-                  : (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="border-border"
-                      onClick={async () => {
-                        await adminService.revokeSession(s.device);
-                        toast({ title: "Sessão revogada" });
-                      }}
-                    >
-                      Revogar
-                    </Button>
-                  ),
-              },
+              { header: 'Papel', cell: (row) => row.role },
+              { header: 'Escopo', cell: (row) => row.description },
             ]}
           />
         </section>
