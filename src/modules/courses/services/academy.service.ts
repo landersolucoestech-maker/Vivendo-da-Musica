@@ -184,7 +184,8 @@ export const academyService = {
 
   async listCourseCategories(): Promise<readonly string[]> {
     const courses = await this.listCatalogCourses();
-    return [...new Set(courses.map((course) => course.category))].sort();
+    const categories: string[] = courses.map((course) => String(course.category));
+    return [...new Set<string>(categories)].sort((left, right) => left.localeCompare(right, 'pt-BR'));
   },
 
   async listInstructors(): Promise<Instructor[]> {
@@ -337,9 +338,9 @@ export const academyService = {
       gradientTo: '#6C3AED',
       isReal: true,
       itemType: 'academy-content',
-      hasVideo: !!content.videoUrl,
-      hasMaterials: !!content.attachments?.length,
-      hasWrittenContent: !!content.body,
+      hasVideo: Boolean(content.videoUrl),
+      hasMaterials: Boolean(content.attachments?.length),
+      hasWrittenContent: Boolean(content.body),
       status: content.status,
     };
   },
