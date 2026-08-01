@@ -29,9 +29,33 @@ export interface AdminRecentActivity {
   occurredAt: string;
 }
 
-const formatDayKey = (value: string) => new Date(value).toISOString().slice(0, 10);
+interface LessonRelation {
+  title: string;
+}
 
-const countRows = async (tableName: 'user_profiles' | 'courses' | 'enrollments' | 'lesson_progress' | 'lesson_comments' | 'affiliate_conversions', filters?: Array<[string, string | boolean]>) => {
+interface ProgressActivityRow {
+  id: string;
+  completed: boolean;
+  progress_percentage: number;
+  updated_at: string;
+  lessons: LessonRelation | LessonRelation[] | null;
+}
+
+interface CommentActivityRow {
+  id: string;
+  body: string;
+  created_at: string;
+  lessons: LessonRelation | LessonRelation[] | null;
+}
+
+const formatDayKey = (value: string) => new Date(value).toISOString().slice(0, 10);
+const relationTitle = (value: LessonRelation | LessonRelation[] | null | undefined) =>
+  Array.isArray(value) ? value[0]?.title ?? 'Aula' : value?.title ?? 'Aula';
+
+const countRows = async (
+  tableName: 'user_profiles' | 'courses' | 'enrollments' | 'lesson_progress' | 'lesson_comments' | 'affiliate_conversions',
+  filters?: Array<[string, string | boolean]>,
+) => {
   let query = supabase.from(tableName).select('*', { count: 'exact', head: true });
   for (const [column, value] of filters ?? []) query = query.eq(column, value);
   const { count, error } = await query;
@@ -71,7 +95,11 @@ export const adminDashboardService = {
 
     return Array.from({ length: 30 }, (_, index) => {
       const date = new Date(Date.now() - (29 - index) * 86_400_000).toISOString().slice(0, 10);
-      return { date: new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-digit' }).format(new Date(`${date}T12:00:00Z`)), value: totals.get(date) ?? 0 };
+      return {
+        date: new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-digit' })
+          .format(new Date(`${date}T12:00:00Z`)),
+        value: totals.get(date) ?? 0,
+      };
     });
   },
 
@@ -88,7 +116,10 @@ export const adminDashboardService = {
       title: course.title,
       status: course.status,
       modules: course.course_modules?.length ?? 0,
-      lessons: (course.course_modules ?? []).reduce((total, module) => total + (module.lessons?.length ?? 0), 0),
+      lessons: (course.course_modules ?? []).reduce(
+        (total, module) => total + (module.lessons?.length ?? 0),
+        0,
+      ),
     }));
   },
 
@@ -109,21 +140,22 @@ export const adminDashboardService = {
     if (progressResult.error) throw progressResult.error;
     if (commentsResult.error) throw commentsResult.error;
 
-    const progress = (progressResult.data ?? []).map((item) => ({
+    const progress = ((progressResult.data ?? []) as unknown as ProgressActivityRow[]).map((item) => ({
       id: `progress-${item.id}`,
       title: item.completed ? 'Aula concluída' : 'Progresso atualizado',
-      description: `${item.lessons?.title ?? 'Aula'} · ${item.progress_percentage}%`,
+      description: `${relationTitle(item.lessons)} · ${item.progress_percentage}%`,
       occurredAt: item.updated_at,
     }));
-    const comments = (commentsResult.data ?? []).map((item) => ({
+
+    const comments = ((commentsResult.data ?? []) as unknown as CommentActivityRow[]).map((item) => ({
       id: `comment-${item.id}`,
       title: 'Novo comentário em aula',
-      description: `${item.lessons?.title ?? 'Aula'} · ${item.body.slice(0, 80)}`,
+      description: `${relationTitle(item.lessons)} · ${item.body.slice(0, 80)}`,
       occurredAt: item.created_at,
     }));
 
     return [...progress, ...comments]
-      .sort((a, b) => Date.parse(b.occurredAt) - Date.parse(a.occurredAt))
+      .sort((left, right) => Date.parse(right.occurredAt) - Date.parse(left.occurredAt))
       .slice(0, 10);
   },
 };
