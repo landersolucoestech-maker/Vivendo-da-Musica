@@ -1,29 +1,23 @@
-import { defineConfig } from "vitest/config";
-import react from "@vitejs/plugin-react-swc";
-import path from "path";
-import { componentTagger } from "lovable-tagger";
+import path from 'path';
+import react from '@vitejs/plugin-react-swc';
+import { defineConfig } from 'vitest/config';
 
-// https://vitejs.dev/config/
-export default defineConfig(({ mode }) => ({
+export default defineConfig({
   server: {
-    host: "::",
+    host: '::',
     port: 8080,
   },
-  plugins: [
-    react(),
-    mode === 'development' &&
-    componentTagger(),
-  ].filter(Boolean),
+  plugins: [react()],
   resolve: {
     alias: {
-      "@": path.resolve(__dirname, "./src"),
+      '@': path.resolve(__dirname, './src'),
     },
   },
   test: {
     globals: true,
-    environment: "node",
-    include: ["src/**/*.test.ts", "tests/contracts/**/*.test.ts", "tests/security/**/*.test.ts"],
+    environment: 'node',
+    include: ['src/**/*.test.ts', 'tests/contracts/**/*.test.ts', 'tests/security/**/*.test.ts'],
     fileParallelism: false,
     maxWorkers: 1,
   },
-}));
+});
