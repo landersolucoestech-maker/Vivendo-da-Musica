@@ -2,20 +2,12 @@ name: Repair Lockfile
 
 on:
   workflow_dispatch:
-  pull_request:
-    branches: [main]
-    paths:
-      - package.json
-      - package-lock.json
-      - scripts/audit-high.mjs
-      - .github/workflows/repair-lockfile.yml
 
 permissions:
   contents: write
 
 jobs:
   repair:
-    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
