@@ -2,10 +2,12 @@ export interface Product {
   id: string;
   slug: string;
   title: string;
+  description: string;
   category: string;
   priceCents: number;
   originalPriceCents?: number;
   currency: string;
+  status: 'draft' | 'published' | 'archived';
   gradientFrom: string;
   gradientTo: string;
 }
