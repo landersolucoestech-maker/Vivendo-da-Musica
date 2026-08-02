@@ -63,6 +63,11 @@ test("public opportunities render records returned by the Supabase contract", as
 test("production build protects administrative routes", async ({ page }) => {
   await page.goto("/admin/observabilidade");
   await expect(page).toHaveURL(/\/login/);
+  await expect(page.getByRole("heading", { name: "Como você deseja entrar?" })).toBeVisible();
+
+  await page.getByRole("button", { name: /^Aluno/ }).click();
+
+  await expect(page).toHaveURL(/\/login\?perfil=aluno/);
   await expect(page.getByLabel(/e-mail|email/i)).toBeVisible();
   await expect(page.locator('input[type="password"]')).toBeVisible();
 });
