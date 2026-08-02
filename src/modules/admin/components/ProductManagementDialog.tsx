@@ -92,7 +92,7 @@ const ProductManagementDialog = ({ open, productId, onOpenChange }: ProductManag
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['managed-products'] }),
         queryClient.invalidateQueries({ queryKey: ['products'] }),
-        queryClient.invalidateQueries({ queryKey: ['product-by-id', 'mock', productId] }),
+        queryClient.invalidateQueries({ queryKey: ['product-by-id', productId] }),
       ]);
       onOpenChange(false);
     } catch (error) {
