@@ -8,6 +8,8 @@ import LoadingState from '@/shared/components/LoadingState';
 import { Button } from '@/shared/components/ui/button';
 import { ROUTES } from '@/shared/constants/routes';
 
+export const AFFILIATE_REFERRAL_STORAGE_KEY = 'vdm_affiliate_referral_slug';
+
 interface AffiliateReferralRedirectPageProps {
   slug: string;
 }
@@ -42,6 +44,8 @@ const AffiliateReferralRedirectPage = ({ slug }: AffiliateReferralRedirectPagePr
         setFailed(true);
         return;
       }
+
+      sessionStorage.setItem(AFFILIATE_REFERRAL_STORAGE_KEY, slug);
 
       if (resolved.startsWith('/')) {
         setDestination(resolved);
