@@ -30,7 +30,7 @@ type ProductStatus = Product['status'];
 const ProductManagementDialog = ({ open, productId, onOpenChange }: ProductManagementDialogProps) => {
   const queryClient = useQueryClient();
   const { toast } = useToast();
-  const { data: existing, isLoading } = useProductById(productId ?? undefined);
+  const { data: existing, isLoading, isError } = useProductById(productId ?? undefined);
   const { data: categories } = useProductCategories();
 
   const [title, setTitle] = useState('');
@@ -64,6 +64,15 @@ const ProductManagementDialog = ({ open, productId, onOpenChange }: ProductManag
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     if (saving) return;
+
+    if (productId && !existing) {
+      toast({
+        title: 'Produto não encontrado',
+        description: 'Recarregue a listagem e selecione um produto válido.',
+        variant: 'destructive',
+      });
+      return;
+    }
 
     const normalizedPrice = Number(price.replace(',', '.'));
     if (!Number.isFinite(normalizedPrice) || normalizedPrice < 0) {
@@ -107,6 +116,7 @@ const ProductManagementDialog = ({ open, productId, onOpenChange }: ProductManag
   };
 
   const editing = Boolean(productId);
+  const missingProduct = editing && !isLoading && (isError || !existing);
 
   return (
     <Dialog open={open} onOpenChange={(nextOpen) => !saving && onOpenChange(nextOpen)}>
@@ -120,6 +130,8 @@ const ProductManagementDialog = ({ open, productId, onOpenChange }: ProductManag
 
         {editing && isLoading ? (
           <p className="py-6 text-sm text-muted-foreground">Carregando produto...</p>
+        ) : missingProduct ? (
+          <p className="py-6 text-sm text-destructive">O produto selecionado não existe ou não está acessível.</p>
         ) : (
           <form id="product-management-form" onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
@@ -172,9 +184,11 @@ const ProductManagementDialog = ({ open, productId, onOpenChange }: ProductManag
 
         <DialogFooter>
           <Button variant="outline" type="button" disabled={saving} onClick={() => onOpenChange(false)}>Cancelar</Button>
-          <Button form="product-management-form" type="submit" disabled={saving || (editing && isLoading)}>
-            {saving ? 'Salvando...' : editing ? 'Salvar alterações' : 'Criar produto'}
-          </Button>
+          {!missingProduct && (
+            <Button form="product-management-form" type="submit" disabled={saving || (editing && isLoading)}>
+              {saving ? 'Salvando...' : editing ? 'Salvar alterações' : 'Criar produto'}
+            </Button>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>
