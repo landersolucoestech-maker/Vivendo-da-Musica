@@ -6,6 +6,7 @@ const STUDENT_ID = '11111111-1111-4111-8111-111111111111';
 const MAX_ITEMS = 20;
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const IDEMPOTENCY_PATTERN = /^[A-Za-z0-9:_-]{16,128}$/;
+const REFERRAL_PATTERN = /^[a-z0-9][a-z0-9-]{2,79}$/;
 
 function resolveOrigin(request: Request): string | null {
   const origin = request.headers.get('origin');
@@ -49,15 +50,29 @@ Deno.serve(async (request) => {
     ? [...new Set(body.productIds.filter((id: unknown): id is string => typeof id === 'string' && UUID_PATTERN.test(id)))]
     : [];
   const idempotencyKey = typeof body.idempotencyKey === 'string' ? body.idempotencyKey.trim() : '';
+  const rawReferralSlug = typeof body.referralSlug === 'string' ? body.referralSlug.trim().toLowerCase() : '';
+  const referralSlug = REFERRAL_PATTERN.test(rawReferralSlug) ? rawReferralSlug : null;
   if (!productIds.length || productIds.length > MAX_ITEMS || !IDEMPOTENCY_PATTERN.test(idempotencyKey)) {
     return reply({ error: 'Produtos ou chave de idempotência inválidos.' }, 400, origin);
   }
 
   const admin = createClient(url, serviceKey, { auth: { persistSession: false } });
+  const registerReferral = async (orderId: string) => {
+    if (!referralSlug) return;
+    await admin.schema('app_private').rpc('record_affiliate_checkout_conversion', {
+      target_order_id: orderId,
+      target_order_kind: 'digital_product',
+      target_referral_slug: referralSlug,
+    });
+  };
+
   const { data: existing } = await admin.from('digital_product_orders').select('id')
     .eq('provider', 'development').eq('provider_reference', idempotencyKey).maybeSingle();
   const appOrigin = origin ?? 'http://127.0.0.1:8083';
-  if (existing) return reply({ checkoutUrl: `${appOrigin}/pagamento-sucesso?pedido=${existing.id}&tipo=produto`, orderId: existing.id, reused: true }, 200, origin);
+  if (existing) {
+    await registerReferral(existing.id);
+    return reply({ checkoutUrl: `${appOrigin}/pagamento-sucesso?pedido=${existing.id}&tipo=produto`, orderId: existing.id, reused: true }, 200, origin);
+  }
 
   const { data: products, error: productError } = await admin.from('seller_products')
     .select('id,seller_id,title,price_cents,currency,status').in('id', productIds);
@@ -88,5 +103,6 @@ Deno.serve(async (request) => {
     return reply({ error: itemError.message }, 400, origin);
   }
 
+  await registerReferral(order.id);
   return reply({ checkoutUrl: `${appOrigin}/pagamento-sucesso?pedido=${order.id}&tipo=produto`, orderId: order.id }, 200, origin);
 });
