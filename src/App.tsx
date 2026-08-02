@@ -22,7 +22,6 @@ const NotFound = lazy(() => import('./pages/NotFound'));
 
 const Login = lazy(() => import('@/modules/auth/pages/Login'));
 const Register = lazy(() => import('@/modules/auth/pages/Register'));
-const CompanyRegisterPage = lazy(() => import('@/modules/company/pages/CompanyRegisterPage'));
 const ForgotPassword = lazy(() => import('@/modules/auth/pages/ForgotPassword'));
 const ResetPassword = lazy(() => import('@/modules/auth/pages/ResetPassword'));
 const VerifyEmail = lazy(() => import('@/modules/auth/pages/VerifyEmail'));
@@ -124,8 +123,8 @@ const App = () => (
                 <Route path={ROUTES.home} element={<Index />} />
                 <Route path={ROUTES.login} element={<Login />} />
                 <Route path={ROUTES.register} element={<Register />} />
-                <Route path="/cadastro" element={<Register />} />
-                <Route path={ROUTES.companyRegister} element={<CompanyRegisterPage />} />
+                <Route path="/cadastro" element={<Navigate to={ROUTES.register} replace />} />
+                <Route path={ROUTES.companyRegister} element={<Navigate to={`${ROUTES.register}?perfil=empresa`} replace />} />
                 <Route path={ROUTES.forgotPassword} element={<ForgotPassword />} />
                 <Route path="/recuperar-senha" element={<ForgotPassword />} />
                 <Route path={ROUTES.resetPassword} element={<ResetPassword />} />
