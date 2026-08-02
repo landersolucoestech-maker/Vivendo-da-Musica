@@ -3,12 +3,11 @@ import { Link, Navigate } from 'react-router-dom';
 
 import PublicLayout from '@/app/layouts/PublicLayout';
 import { supabase } from '@/integrations/supabase/client';
+import { setAffiliateReferralSlug } from '@/modules/affiliate/utils/referralSession';
 import EmptyState from '@/shared/components/EmptyState';
 import LoadingState from '@/shared/components/LoadingState';
 import { Button } from '@/shared/components/ui/button';
 import { ROUTES } from '@/shared/constants/routes';
-
-export const AFFILIATE_REFERRAL_STORAGE_KEY = 'vdm_affiliate_referral_slug';
 
 interface AffiliateReferralRedirectPageProps {
   slug: string;
@@ -45,7 +44,7 @@ const AffiliateReferralRedirectPage = ({ slug }: AffiliateReferralRedirectPagePr
         return;
       }
 
-      sessionStorage.setItem(AFFILIATE_REFERRAL_STORAGE_KEY, slug);
+      setAffiliateReferralSlug(slug);
 
       if (resolved.startsWith('/')) {
         setDestination(resolved);
