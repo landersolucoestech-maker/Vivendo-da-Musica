@@ -23,9 +23,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
-      VITE_SUPABASE_URL: https://ywirfqvobfnunlcsnptm.supabase.co
-      VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable_Oi717_T80P5TFfreKGATEg_qL1bEaVf
+      VITE_SUPABASE_URL: https://ehaehioqaqvyfgcetylh.supabase.co
+      VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable_s8_46GI5WcvT3rUKa8516g_FbDePsZy
       VITE_DISABLE_AUTH: "true"
+      VITE_PREVIEW_MODE: "true"
       VITE_USE_MOCK_DATA: "false"
       VITE_BASE_PATH: /Vivendo-da-Musica/
     steps:
