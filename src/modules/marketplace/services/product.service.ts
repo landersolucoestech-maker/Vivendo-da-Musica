@@ -1,5 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
 import type { Product, ProductLicense, ProductQA, ProductReview } from '@/modules/marketplace/types/product';
+import { isDevAuthBypassEnabled } from '@/shared/utils/devAuthBypass';
 import { DEV_IDENTITY_IDS, getEffectiveUserId } from '@/shared/utils/devIdentity';
 
 export type ProductType = 'preset' | 'drum_kit' | 'midi' | 'plugin' | 'template' | 'project' | 'ebook' | 'other';
@@ -136,7 +137,7 @@ export const productService = {
       price_cents: Math.max(0, Math.round(input.priceCents)),
       currency: 'BRL',
       status: 'draft',
-      is_demo: true,
+      is_demo: isDevAuthBypassEnabled,
     }).select('id,slug,title,description,product_type,price_cents,currency,status,cover_url').single();
     if (error || !data) throw new Error(error?.message ?? 'Não foi possível criar o produto.');
     return mapProduct({ ...data, seller_product_files: [] } as ProductRow, 0);
