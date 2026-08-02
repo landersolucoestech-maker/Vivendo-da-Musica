@@ -189,17 +189,20 @@ export const beatService = {
 
   async getProducerDashboard(): Promise<ProducerBeatDashboard> {
     const producerId = await currentProducerId();
-    const [beatsResult, ordersResult, accountResult, settingsResult, methodsResult, payoutsResult] = await Promise.all([
+    const [beatsResult, ordersResult, accountResult, settingsResult, methodsResult, payoutsResult, profileResult] = await Promise.all([
       supabase.from('beats').select(beatSelect).eq('producer_id', producerId).order('created_at', { ascending: false }),
       supabase.from('beat_order_items').select('id,beat_title_snapshot,buyer_name_snapshot,license_name_snapshot,amount_cents,currency,status,paid_at').eq('producer_id', producerId).order('created_at', { ascending: false }),
       supabase.from('producer_financial_accounts').select('currency,current_balance_cents,eligible_balance_cents,next_eligibility_at').eq('producer_id', producerId).maybeSingle(),
       supabase.from('platform_financial_settings').select('default_commission_bps,payout_minimum_cents,payout_delay_days').eq('id', true).maybeSingle(),
       supabase.from('producer_payout_methods').select('id,method_type,display_label,is_default').eq('producer_id', producerId).eq('verified', true),
       supabase.from('producer_payout_requests').select('id,amount_cents,status,requested_at').eq('producer_id', producerId).order('requested_at', { ascending: false }),
+      supabase.from('user_profiles').select('full_name').eq('user_id', producerId).maybeSingle(),
     ]);
-    const failure = [beatsResult.error, ordersResult.error, accountResult.error, settingsResult.error, methodsResult.error, payoutsResult.error].find(Boolean);
+    const failure = [beatsResult.error, ordersResult.error, accountResult.error, settingsResult.error, methodsResult.error, payoutsResult.error, profileResult.error].find(Boolean);
     if (failure) throw failure;
-    const beats = (beatsResult.data ?? []).map((row, index) => mapBeat(row as Record<string, unknown>, index, 'Produtor de Desenvolvimento'));
+    const producerName = profileResult.data?.full_name
+      ?? (isDevAuthBypassEnabled ? 'Produtor de Desenvolvimento' : 'Produtor');
+    const beats = (beatsResult.data ?? []).map((row, index) => mapBeat(row as Record<string, unknown>, index, producerName));
     const paidOrders = (ordersResult.data ?? []).filter((order) => order.status === 'paid');
     const totalRevenueCents = paidOrders.reduce((total, order) => total + order.amount_cents, 0);
     const totalViews = beats.reduce((total, beat) => total + beat.views, 0);
