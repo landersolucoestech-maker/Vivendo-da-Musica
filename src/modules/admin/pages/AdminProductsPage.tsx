@@ -3,17 +3,18 @@ import { Pencil, Plus } from 'lucide-react';
 
 import AdminLayout from '@/app/layouts/AdminLayout';
 import ProductManagementDialog from '@/modules/admin/components/ProductManagementDialog';
-import { useProductCategories, useProducts } from '@/modules/marketplace/hooks/useProducts';
+import { useManagedProducts, useProductCategories } from '@/modules/marketplace/hooks/useProducts';
 import DataTable from '@/shared/components/DataTable';
 import FilterBar from '@/shared/components/FilterBar';
 import PageHeader from '@/shared/components/PageHeader';
 import SearchInput from '@/shared/components/SearchInput';
 import StatCard from '@/shared/components/StatCard';
+import StatusBadge from '@/shared/components/StatusBadge';
 import { Button } from '@/shared/components/ui/button';
 import { formatPrice } from '@/shared/utils/formatters';
 
 const AdminProductsPage = () => {
-  const { data: products } = useProducts();
+  const { data: products } = useManagedProducts();
   const { data: categories } = useProductCategories();
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState('Todos');
@@ -53,7 +54,7 @@ const AdminProductsPage = () => {
 
       <div className="mb-6 grid gap-4 sm:grid-cols-3">
         <StatCard label="Total de produtos" value={String(products?.length ?? 0)} />
-        <StatCard label="Em promoção" value={String(products?.filter((product) => product.originalPriceCents).length ?? 0)} />
+        <StatCard label="Publicados" value={String(products?.filter((product) => product.status === 'published').length ?? 0)} />
         <StatCard label="Categorias" value={String(categories?.length ?? 0)} />
       </div>
 
@@ -70,6 +71,15 @@ const AdminProductsPage = () => {
           { header: 'Produto', cell: (product) => product.title },
           { header: 'Categoria', cell: (product) => product.category },
           { header: 'Preço', cell: (product) => formatPrice(product.priceCents) },
+          {
+            header: 'Status',
+            cell: (product) => (
+              <StatusBadge
+                status={product.status}
+                label={product.status === 'published' ? 'Publicado' : product.status === 'draft' ? 'Rascunho' : 'Arquivado'}
+              />
+            ),
+          },
           {
             header: 'Ações',
             cell: (product) => (
