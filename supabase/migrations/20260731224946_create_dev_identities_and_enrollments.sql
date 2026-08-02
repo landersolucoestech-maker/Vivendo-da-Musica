@@ -124,58 +124,25 @@ begin
 end
 $$;
 
--- The historical schema uses public.enrollment_source; the current dev branch
--- uses text plus a check constraint. Choose a literal that is valid for each model.
-do $$
-declare
-  enrollment_source_udt_name text;
-begin
-  select columns.udt_name
-  into enrollment_source_udt_name
-  from information_schema.columns as columns
-  where columns.table_schema = 'public'
-    and columns.table_name = 'enrollments'
-    and columns.column_name = 'source';
-
-  if enrollment_source_udt_name = 'enrollment_source' then
-    insert into public.enrollments (user_id, course_id, status, source)
-    select
-      '11111111-1111-4111-8111-111111111111'::uuid,
-      course.id,
-      'active',
-      'manual'
-    from public.courses as course
-    where course.slug = 'producao-musical-do-zero-ao-profissional'
-      and exists (
-        select 1
-        from public.user_profiles as profile
-        where profile.user_id = '11111111-1111-4111-8111-111111111111'::uuid
-      )
-    on conflict (user_id, course_id) do update
-    set status = excluded.status,
-        source = excluded.source,
-        updated_at = now();
-  else
-    insert into public.enrollments (user_id, course_id, status, source)
-    select
-      '11111111-1111-4111-8111-111111111111'::uuid,
-      course.id,
-      'active',
-      'development'
-    from public.courses as course
-    where course.slug = 'producao-musical-do-zero-ao-profissional'
-      and exists (
-        select 1
-        from public.user_profiles as profile
-        where profile.user_id = '11111111-1111-4111-8111-111111111111'::uuid
-      )
-    on conflict (user_id, course_id) do update
-    set status = excluded.status,
-        source = excluded.source,
-        updated_at = now();
-  end if;
-end
-$$;
+-- "manual" is accepted by both the historical enrollment_source enum and the
+-- current text/check-constraint contract used by the Supabase development branch.
+insert into public.enrollments (user_id, course_id, status, source)
+select
+  '11111111-1111-4111-8111-111111111111'::uuid,
+  course.id,
+  'active',
+  'manual'
+from public.courses as course
+where course.slug = 'producao-musical-do-zero-ao-profissional'
+  and exists (
+    select 1
+    from public.user_profiles as profile
+    where profile.user_id = '11111111-1111-4111-8111-111111111111'::uuid
+  )
+on conflict (user_id, course_id) do update
+set status = excluded.status,
+    source = excluded.source,
+    updated_at = now();
 
 update public.lesson_progress
 set user_id = '11111111-1111-4111-8111-111111111111'::uuid,
