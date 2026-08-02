@@ -1,6 +1,7 @@
 import { ArrowLeft, Compass, Home } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 
+import AffiliateReferralRedirectPage from '@/modules/affiliate/pages/AffiliateReferralRedirectPage';
 import BrandSignature from '@/shared/components/BrandSignature';
 import { Button } from '@/shared/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/shared/components/ui/card';
@@ -8,6 +9,11 @@ import { ROUTES } from '@/shared/constants/routes';
 
 const NotFound = () => {
   const location = useLocation();
+  const referralMatch = location.pathname.match(/^\/ref\/([a-z0-9][a-z0-9-]{2,79})\/?$/i);
+
+  if (referralMatch) {
+    return <AffiliateReferralRedirectPage slug={referralMatch[1].toLowerCase()} />;
+  }
 
   return (
     <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-background px-4 py-10 text-foreground">
