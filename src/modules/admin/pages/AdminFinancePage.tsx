@@ -2,13 +2,18 @@ import { Clock, Percent, Receipt, Wallet } from 'lucide-react';
 
 import AdminLayout from '@/app/layouts/AdminLayout';
 import {
+  useAdminAffiliateWithdrawals,
   useAdminFinanceSummary,
   useAdminInvoices,
   useAdminProducerPayouts,
   useAdminTransactions,
+  useTransitionAffiliateWithdrawal,
   useTransitionProducerPayout,
 } from '@/modules/admin/hooks/useAdminFinance';
-import type { AdminPayoutStatus } from '@/modules/admin/services/admin-finance.service';
+import type {
+  AdminAffiliateWithdrawalStatus,
+  AdminPayoutStatus,
+} from '@/modules/admin/services/admin-finance.service';
 import DataTable from '@/shared/components/DataTable';
 import PageHeader from '@/shared/components/PageHeader';
 import StatCard from '@/shared/components/StatCard';
@@ -25,6 +30,14 @@ const payoutStatusLabel: Record<AdminPayoutStatus, string> = {
   canceled: 'Cancelado',
 };
 
+const withdrawalStatusLabel: Record<AdminAffiliateWithdrawalStatus, string> = {
+  requested: 'Solicitado',
+  processing: 'Em processamento',
+  paid: 'Pago',
+  rejected: 'Rejeitado',
+  canceled: 'Cancelado',
+};
+
 const AdminFinancePage = () => {
   const { data: finance } = useAdminFinanceSummary();
   const { data: transactions } = useAdminTransactions();
@@ -34,12 +47,21 @@ const AdminFinancePage = () => {
     isLoading: payoutsLoading,
     isError: payoutsError,
   } = useAdminProducerPayouts();
+  const {
+    data: affiliateWithdrawals,
+    isLoading: affiliateWithdrawalsLoading,
+    isError: affiliateWithdrawalsError,
+  } = useAdminAffiliateWithdrawals();
   const transitionMutation = useTransitionProducerPayout();
+  const affiliateTransitionMutation = useTransitionAffiliateWithdrawal();
   const { toast } = useToast();
 
-  const pendingPayoutCents = (payouts ?? [])
-    .filter((payout) => payout.status === 'requested' || payout.status === 'processing')
-    .reduce((total, payout) => total + payout.amountCents, 0);
+  const pendingPayoutCents = [
+    ...(payouts ?? []).map((payout) => ({ amount: payout.amountCents, status: payout.status })),
+    ...(affiliateWithdrawals ?? []).map((withdrawal) => ({ amount: withdrawal.amountCents, status: withdrawal.status })),
+  ]
+    .filter((item) => item.status === 'requested' || item.status === 'processing')
+    .reduce((total, item) => total + item.amount, 0);
 
   const transitionPayout = async (
     payoutId: string,
@@ -47,10 +69,7 @@ const AdminFinancePage = () => {
   ) => {
     try {
       await transitionMutation.mutateAsync({ payoutId, status });
-      toast({
-        title: 'Repasse atualizado',
-        description: `Novo status: ${payoutStatusLabel[status]}.`,
-      });
+      toast({ title: 'Repasse atualizado', description: `Novo status: ${payoutStatusLabel[status]}.` });
     } catch (error) {
       toast({
         title: 'Não foi possível atualizar o repasse',
@@ -60,9 +79,25 @@ const AdminFinancePage = () => {
     }
   };
 
+  const transitionAffiliateWithdrawal = async (
+    withdrawalId: string,
+    status: Exclude<AdminAffiliateWithdrawalStatus, 'requested'>,
+  ) => {
+    try {
+      await affiliateTransitionMutation.mutateAsync({ withdrawalId, status });
+      toast({ title: 'Saque atualizado', description: `Novo status: ${withdrawalStatusLabel[status]}.` });
+    } catch (error) {
+      toast({
+        title: 'Não foi possível atualizar o saque',
+        description: error instanceof Error ? error.message : 'Tente novamente.',
+        variant: 'destructive',
+      });
+    }
+  };
+
   return (
     <AdminLayout>
-      <PageHeader title="Financeiro" subtitle="Saldo, repasses, transações e notas fiscais." />
+      <PageHeader title="Financeiro" subtitle="Saldo, repasses, saques, transações e notas fiscais." />
 
       <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard label="Receita paga" value={formatPrice(finance?.balanceCents ?? 0)} icon={Wallet} />
@@ -76,13 +111,13 @@ const AdminFinancePage = () => {
           <div className="mb-3">
             <h2 className="text-sm font-semibold text-muted-foreground">Repasses de produtores</h2>
             <p className="mt-1 text-xs text-muted-foreground">
-              Processamento financeiro com transições auditáveis e restituição automática em falha ou cancelamento.
+              Processamento financeiro com restituição automática em falha ou cancelamento.
             </p>
           </div>
 
           {payoutsError ? (
             <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">
-              Não foi possível carregar os repasses. Verifique a sessão administrativa e tente novamente.
+              Não foi possível carregar os repasses.
             </div>
           ) : (
             <DataTable
@@ -93,73 +128,82 @@ const AdminFinancePage = () => {
                 { header: 'Produtor', cell: (payout) => payout.producerName },
                 { header: 'Destino', cell: (payout) => payout.payoutMethodLabel },
                 { header: 'Valor', cell: (payout) => formatPrice(payout.amountCents, payout.currency) },
-                {
-                  header: 'Status',
-                  cell: (payout) => (
-                    <StatusBadge status={payout.status} label={payoutStatusLabel[payout.status]} />
-                  ),
-                },
-                {
-                  header: 'Solicitado em',
-                  cell: (payout) => new Date(payout.requestedAt).toLocaleString('pt-BR'),
-                },
+                { header: 'Status', cell: (payout) => <StatusBadge status={payout.status} label={payoutStatusLabel[payout.status]} /> },
+                { header: 'Solicitado em', cell: (payout) => new Date(payout.requestedAt).toLocaleString('pt-BR') },
                 {
                   header: 'Ações',
                   cell: (payout) => {
                     const disabled = transitionMutation.isPending;
-
                     if (payout.status === 'requested') {
                       return (
                         <div className="flex flex-wrap gap-2">
-                          <Button
-                            size="sm"
-                            disabled={disabled}
-                            onClick={() => void transitionPayout(payout.id, 'processing')}
-                          >
-                            Processar
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            disabled={disabled}
-                            onClick={() => void transitionPayout(payout.id, 'canceled')}
-                          >
-                            Cancelar
-                          </Button>
+                          <Button size="sm" disabled={disabled} onClick={() => void transitionPayout(payout.id, 'processing')}>Processar</Button>
+                          <Button size="sm" variant="outline" disabled={disabled} onClick={() => void transitionPayout(payout.id, 'canceled')}>Cancelar</Button>
                         </div>
                       );
                     }
-
                     if (payout.status === 'processing') {
                       return (
                         <div className="flex flex-wrap gap-2">
-                          <Button
-                            size="sm"
-                            disabled={disabled}
-                            onClick={() => void transitionPayout(payout.id, 'paid')}
-                          >
-                            Marcar pago
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            disabled={disabled}
-                            onClick={() => void transitionPayout(payout.id, 'failed')}
-                          >
-                            Marcar falha
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            disabled={disabled}
-                            onClick={() => void transitionPayout(payout.id, 'canceled')}
-                          >
-                            Cancelar
-                          </Button>
+                          <Button size="sm" disabled={disabled} onClick={() => void transitionPayout(payout.id, 'paid')}>Marcar pago</Button>
+                          <Button size="sm" variant="outline" disabled={disabled} onClick={() => void transitionPayout(payout.id, 'failed')}>Marcar falha</Button>
+                          <Button size="sm" variant="outline" disabled={disabled} onClick={() => void transitionPayout(payout.id, 'canceled')}>Cancelar</Button>
                         </div>
                       );
                     }
+                    return <span className="text-xs text-muted-foreground">Concluído</span>;
+                  },
+                },
+              ]}
+            />
+          )}
+        </section>
 
+        <section>
+          <div className="mb-3">
+            <h2 className="text-sm font-semibold text-muted-foreground">Saques de afiliados</h2>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Saques rejeitados ou cancelados devolvem o saldo ao afiliado de forma atômica.
+            </p>
+          </div>
+
+          {affiliateWithdrawalsError ? (
+            <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">
+              Não foi possível carregar os saques de afiliados.
+            </div>
+          ) : (
+            <DataTable
+              rows={affiliateWithdrawals ?? []}
+              rowKey={(withdrawal) => withdrawal.id}
+              emptyLabel={affiliateWithdrawalsLoading ? 'Carregando saques...' : 'Nenhum saque solicitado.'}
+              columns={[
+                { header: 'Afiliado', cell: (withdrawal) => withdrawal.affiliateName },
+                { header: 'Método', cell: (withdrawal) => withdrawal.paymentMethod === 'pix' ? 'Pix' : 'Transferência bancária' },
+                { header: 'Valor', cell: (withdrawal) => formatPrice(withdrawal.amountCents) },
+                { header: 'Status', cell: (withdrawal) => <StatusBadge status={withdrawal.status} label={withdrawalStatusLabel[withdrawal.status]} /> },
+                { header: 'Solicitado em', cell: (withdrawal) => new Date(withdrawal.requestedAt).toLocaleString('pt-BR') },
+                {
+                  header: 'Ações',
+                  cell: (withdrawal) => {
+                    const disabled = affiliateTransitionMutation.isPending;
+                    if (withdrawal.status === 'requested') {
+                      return (
+                        <div className="flex flex-wrap gap-2">
+                          <Button size="sm" disabled={disabled} onClick={() => void transitionAffiliateWithdrawal(withdrawal.id, 'processing')}>Processar</Button>
+                          <Button size="sm" variant="outline" disabled={disabled} onClick={() => void transitionAffiliateWithdrawal(withdrawal.id, 'rejected')}>Rejeitar</Button>
+                          <Button size="sm" variant="outline" disabled={disabled} onClick={() => void transitionAffiliateWithdrawal(withdrawal.id, 'canceled')}>Cancelar</Button>
+                        </div>
+                      );
+                    }
+                    if (withdrawal.status === 'processing') {
+                      return (
+                        <div className="flex flex-wrap gap-2">
+                          <Button size="sm" disabled={disabled} onClick={() => void transitionAffiliateWithdrawal(withdrawal.id, 'paid')}>Marcar pago</Button>
+                          <Button size="sm" variant="outline" disabled={disabled} onClick={() => void transitionAffiliateWithdrawal(withdrawal.id, 'rejected')}>Rejeitar</Button>
+                          <Button size="sm" variant="outline" disabled={disabled} onClick={() => void transitionAffiliateWithdrawal(withdrawal.id, 'canceled')}>Cancelar</Button>
+                        </div>
+                      );
+                    }
                     return <span className="text-xs text-muted-foreground">Concluído</span>;
                   },
                 },
@@ -192,10 +236,7 @@ const AdminFinancePage = () => {
             columns={[
               { header: 'Número', cell: (invoice) => invoice.id },
               { header: 'Valor', cell: (invoice) => formatPrice(invoice.amountCents) },
-              {
-                header: 'Status',
-                cell: (invoice) => <StatusBadge status={invoice.status} label={invoice.status} />,
-              },
+              { header: 'Status', cell: (invoice) => <StatusBadge status={invoice.status} label={invoice.status} /> },
               { header: 'Data', cell: (invoice) => invoice.date },
             ]}
           />
