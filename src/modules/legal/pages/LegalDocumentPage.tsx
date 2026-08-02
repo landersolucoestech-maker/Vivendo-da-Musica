@@ -70,6 +70,9 @@ const renderInline = (value: string): ReactNode[] =>
       return <Fragment key={`${token}-${index}`}>{token}</Fragment>;
     });
 
+const formatInlineList = (items: string[]) =>
+  `${items.map((item) => item.replace(/[;.]$/, '')).join(', ')}.`;
+
 const parseLegalDocument = (source: string): LegalDocument => {
   const lines = source.replace(/\r\n/g, '\n').split('\n');
   const title = lines.shift()?.replace(/^#\s+/, '').trim() ?? 'Documento jurídico';
@@ -302,6 +305,15 @@ const LegalDocumentPage = () => {
                         }
 
                         if (block.type === 'list') {
+                          const isTermsIntroductionList =
+                            isTerms &&
+                            block.items.length === 11 &&
+                            block.items[0]?.toLowerCase().startsWith('oferta de cursos e conteúdos educacionais');
+
+                          if (isTermsIntroductionList) {
+                            return <p key={`inline-list-${index}`}>{renderInline(formatInlineList(block.items))}</p>;
+                          }
+
                           return (
                             <ul key={`list-${index}`} className="space-y-2 pl-1">
                               {block.items.map((item, itemIndex) => (
