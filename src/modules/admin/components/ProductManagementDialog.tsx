@@ -43,7 +43,7 @@ const ProductManagementDialog = ({ open, productId, onOpenChange }: ProductManag
       setTitle(existing.title);
       setCategory(existing.category);
       setPrice(String(existing.priceCents / 100));
-      setDescription(existing.description ?? '');
+      setDescription('');
       return;
     }
 
@@ -136,6 +136,11 @@ const ProductManagementDialog = ({ open, productId, onOpenChange }: ProductManag
             <div className="space-y-2">
               <Label htmlFor="product-description">Descrição</Label>
               <Textarea id="product-description" value={description} onChange={(event) => setDescription(event.target.value)} disabled={saving} />
+              {editing && (
+                <p className="text-xs text-muted-foreground">
+                  O contrato atual de leitura não retorna a descrição existente. Preencha este campo apenas para substituí-la.
+                </p>
+              )}
             </div>
 
             <div className="space-y-2">
