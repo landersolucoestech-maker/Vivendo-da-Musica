@@ -9,6 +9,66 @@ drop policy if exists beat_orders_demo_read on public.beat_order_items;
 alter policy demo_digital_product_order_items_read on public.digital_product_order_items using ((exists (select 1 from public.digital_product_orders o where o.id = digital_product_order_items.order_id and o.is_demo)) or seller_id = '22222222-2222-4222-8222-222222222222'::uuid or buyer_id = '11111111-1111-4111-8111-111111111111'::uuid);
 drop policy if exists digital_product_orders_demo_read on public.digital_product_order_items;
 
+-- The split policies may already exist when the repository rebuild includes the
+-- restored development-domain migrations. Remove only the exact targets that
+-- this consolidation recreates; permissions are recreated immediately below.
+do $migration$
+declare
+  policy_target record;
+begin
+  for policy_target in
+    select *
+    from (values
+      ('affiliate_commissions','affiliate_commissions_staff_insert'),
+      ('affiliate_commissions','affiliate_commissions_staff_update'),
+      ('affiliate_commissions','affiliate_commissions_staff_delete'),
+      ('affiliate_conversions','affiliate_conversions_staff_insert'),
+      ('affiliate_conversions','affiliate_conversions_staff_update'),
+      ('affiliate_conversions','affiliate_conversions_staff_delete'),
+      ('affiliate_links','affiliate_links_owner_insert'),
+      ('affiliate_links','affiliate_links_owner_update'),
+      ('affiliate_links','affiliate_links_owner_delete'),
+      ('affiliate_marketing_materials','affiliate_materials_staff_insert'),
+      ('affiliate_marketing_materials','affiliate_materials_staff_update'),
+      ('affiliate_marketing_materials','affiliate_materials_staff_delete'),
+      ('affiliate_profiles','affiliate_profiles_staff_insert'),
+      ('affiliate_profiles','affiliate_profiles_staff_update'),
+      ('affiliate_profiles','affiliate_profiles_staff_delete'),
+      ('beats','beats_demo_insert'),
+      ('beats','beats_demo_update'),
+      ('beats','beats_demo_delete'),
+      ('beats','beats_owner_insert'),
+      ('beats','beats_owner_update'),
+      ('beats','beats_owner_delete'),
+      ('beat_licenses','beat_licenses_demo_insert'),
+      ('beat_licenses','beat_licenses_demo_update'),
+      ('beat_licenses','beat_licenses_demo_delete'),
+      ('beat_licenses','beat_licenses_owner_insert'),
+      ('beat_licenses','beat_licenses_owner_update'),
+      ('beat_licenses','beat_licenses_owner_delete'),
+      ('seller_products','seller_products_demo_insert'),
+      ('seller_products','seller_products_demo_update'),
+      ('seller_products','seller_products_demo_delete'),
+      ('seller_products','seller_products_owner_insert'),
+      ('seller_products','seller_products_owner_update'),
+      ('seller_products','seller_products_owner_delete'),
+      ('seller_product_files','seller_product_files_demo_insert'),
+      ('seller_product_files','seller_product_files_demo_update'),
+      ('seller_product_files','seller_product_files_demo_delete'),
+      ('seller_product_files','seller_product_files_owner_insert'),
+      ('seller_product_files','seller_product_files_owner_update'),
+      ('seller_product_files','seller_product_files_owner_delete')
+    ) as targets(table_name, policy_name)
+  loop
+    execute format(
+      'drop policy if exists %I on public.%I',
+      policy_target.policy_name,
+      policy_target.table_name
+    );
+  end loop;
+end
+$migration$;
+
 drop policy if exists affiliate_commissions_staff_write on public.affiliate_commissions;
 create policy affiliate_commissions_staff_insert on public.affiliate_commissions for insert to authenticated with check (is_platform_staff());
 create policy affiliate_commissions_staff_update on public.affiliate_commissions for update to authenticated using (is_platform_staff()) with check (is_platform_staff());
