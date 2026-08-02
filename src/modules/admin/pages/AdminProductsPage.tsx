@@ -14,8 +14,10 @@ import { Button } from '@/shared/components/ui/button';
 import { formatPrice } from '@/shared/utils/formatters';
 
 const AdminProductsPage = () => {
-  const { data: products } = useManagedProducts();
-  const { data: categories } = useProductCategories();
+  const productsQuery = useManagedProducts();
+  const categoriesQuery = useProductCategories();
+  const products = productsQuery.data;
+  const categories = categoriesQuery.data;
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState('Todos');
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -45,7 +47,7 @@ const AdminProductsPage = () => {
         title="Produtos"
         subtitle="Catálogo do Marketplace."
         actions={
-          <Button onClick={openCreateDialog}>
+          <Button onClick={openCreateDialog} disabled={categoriesQuery.isLoading || categoriesQuery.isError}>
             <Plus className="mr-2 h-4 w-4" />
             Novo produto
           </Button>
@@ -63,10 +65,16 @@ const AdminProductsPage = () => {
         <FilterBar options={['Todos', ...(categories ?? [])]} value={category} onChange={setCategory} />
       </div>
 
+      {(productsQuery.isError || categoriesQuery.isError) && (
+        <p className="mb-4 text-sm text-destructive">
+          Não foi possível carregar o catálogo administrativo. Verifique sua sessão e tente novamente.
+        </p>
+      )}
+
       <DataTable
         rows={filtered}
         rowKey={(product) => product.id}
-        emptyLabel="Nenhum produto encontrado."
+        emptyLabel={productsQuery.isLoading ? 'Carregando produtos...' : 'Nenhum produto encontrado.'}
         columns={[
           { header: 'Produto', cell: (product) => product.title },
           { header: 'Categoria', cell: (product) => product.category },
