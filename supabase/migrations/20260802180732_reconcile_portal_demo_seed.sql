@@ -51,7 +51,7 @@ set search_path = public, pg_temp
 as $$
 begin
   if new.ticket_code is null or new.ticket_code !~ '^T-[A-F0-9]{8}$' then
-    new.ticket_code := 'T-' || upper(left(replace(new.id::text, '-', ''), 8));
+    new.ticket_code := 'T-' || upper(left(md5(new.id::text), 8));
   end if;
 
   if new.status::text = 'resolved' then
