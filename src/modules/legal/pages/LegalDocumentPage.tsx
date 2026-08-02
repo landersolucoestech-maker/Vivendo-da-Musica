@@ -211,7 +211,7 @@ const LegalDocumentPage = () => {
   return (
     <PublicLayout>
       <section className="pb-16 pt-10 sm:pb-20 sm:pt-14">
-        <div className="mx-auto max-w-7xl">
+        <div className="mx-auto w-full max-w-[1520px]">
           {!document && !loadError ? (
             <div className="flex min-h-[50vh] items-center justify-center rounded-3xl border border-white/10 bg-white/[0.025]">
               <div className="flex items-center gap-3 text-sm text-muted-foreground">
