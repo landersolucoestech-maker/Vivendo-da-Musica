@@ -24,6 +24,7 @@ interface ProductMutationInput {
   category: string;
   description: string;
   priceCents: number;
+  status: ProductStatus;
 }
 
 const labels: Record<ProductType, string> = {
@@ -136,7 +137,8 @@ export const productService = {
       product_type: resolveType(input.category),
       price_cents: Math.max(0, Math.round(input.priceCents)),
       currency: 'BRL',
-      status: 'draft',
+      status: input.status,
+      published_at: input.status === 'published' ? new Date().toISOString() : null,
       is_demo: isDevAuthBypassEnabled,
     }).select('id,slug,title,description,product_type,price_cents,currency,status,cover_url').single();
     if (error || !data) throw new Error(error?.message ?? 'Não foi possível criar o produto.');
@@ -149,6 +151,8 @@ export const productService = {
       description: input.description.trim(),
       product_type: resolveType(input.category),
       price_cents: Math.max(0, Math.round(input.priceCents)),
+      status: input.status,
+      published_at: input.status === 'published' ? new Date().toISOString() : null,
       updated_at: new Date().toISOString(),
     }).eq('id', id)
       .select('id,slug,title,description,product_type,price_cents,currency,status,cover_url').single();
