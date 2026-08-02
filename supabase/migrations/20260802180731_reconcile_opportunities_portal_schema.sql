@@ -97,6 +97,9 @@ create trigger normalize_legacy_opportunity_kind_before_write
   on public.opportunities
   for each row execute function public.normalize_legacy_opportunity_kind();
 
+update public.opportunities
+set kind = kind;
+
 alter table public.opportunities
   drop constraint if exists opportunities_kind_check;
 alter table public.opportunities
