@@ -4,10 +4,25 @@
 alter table if exists public.producer_payout_methods
   add column if not exists verified boolean not null default false;
 
-update public.producer_payout_methods
-set verified = true
-where status::text = 'verified'
-  and verified = false;
+-- The historical table tracks verification through an enum status; the final
+-- development table stores the boolean directly.
+do $migration$
+begin
+  if exists (
+    select 1 from information_schema.columns
+    where table_schema='public'
+      and table_name='producer_payout_methods'
+      and column_name='status'
+  ) then
+    execute $sql$
+      update public.producer_payout_methods
+      set verified = true
+      where status::text = 'verified'
+        and verified = false
+    $sql$;
+  end if;
+end
+$migration$;
 
 -- Historical provider metadata remains available, but development/demo writes
 -- must not be forced to fabricate processor credentials.
