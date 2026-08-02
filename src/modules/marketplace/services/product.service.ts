@@ -150,9 +150,8 @@ export const productService = {
 
   async updateProduct(id: string, input: ProductMutationInput): Promise<Product> {
     const existing = await this.getProductById(id);
-    const publishedAt = input.status === 'published'
-      ? existing?.publishedAt ?? new Date().toISOString()
-      : null;
+    const publishedAt = existing?.publishedAt
+      ?? (input.status === 'published' ? new Date().toISOString() : null);
 
     const { data, error } = await supabase.from('seller_products').update({
       title: input.title.trim(),
