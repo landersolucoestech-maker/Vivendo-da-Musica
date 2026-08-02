@@ -9,6 +9,8 @@ export const ROUTES = {
   comingSoon: '/curso-em-breve',
   accessDenied: '/acesso-negado',
   contact: '/contato',
+  privacyPolicy: '/politica-de-privacidade',
+  termsOfUse: '/termos-de-uso',
   paymentSuccess: '/pagamento-sucesso',
   validateCertificate: '/validar',
 
