@@ -9,12 +9,13 @@ import SearchInput from '@/shared/components/SearchInput';
 import StatCard from '@/shared/components/StatCard';
 import { Badge } from '@/shared/components/ui/badge';
 
-const ROLE_FILTERS = ['Todos', 'student', 'instructor', 'producer', 'affiliate', 'admin', 'super_admin'];
+const ROLE_FILTERS = ['Todos', 'student', 'instructor', 'producer', 'affiliate', 'company', 'admin', 'super_admin'];
 const roleLabel = (role: string) => ({
   student: 'Aluno',
   instructor: 'Instrutor',
   producer: 'Produtor',
   affiliate: 'Afiliado',
+  company: 'Empresa',
   admin: 'Administrador',
   super_admin: 'Superadministrador',
 }[role] ?? role);
@@ -38,7 +39,7 @@ const AdminUsersPage = () => {
       <div className="mb-6 grid gap-4 sm:grid-cols-3">
         <StatCard label="Total de perfis" value={String(users.length)} />
         <StatCard label="Alunos" value={String(users.filter((user) => user.role === 'student').length)} />
-        <StatCard label="Equipe e parceiros" value={String(users.filter((user) => user.role !== 'student').length)} />
+        <StatCard label="Equipe, empresas e parceiros" value={String(users.filter((user) => user.role !== 'student').length)} />
       </div>
 
       <div className="mb-6 flex flex-col gap-4 sm:flex-row">
