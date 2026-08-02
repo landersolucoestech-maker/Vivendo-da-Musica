@@ -107,6 +107,8 @@ export interface MaterialInput {
   order_index: number;
 }
 
+const MATERIAL_BUCKET = 'lesson-materials';
+
 const assertConfiguration = () => {
   if (!env.supabaseUrl || !env.supabasePublishableKey) {
     throw new Error('As variáveis do Supabase DEV não estão configuradas.');
@@ -143,6 +145,20 @@ const request = async <T>(path: string, init?: RequestInit): Promise<T> => {
 
   if (response.status === 204) return undefined as T;
   return response.json() as Promise<T>;
+};
+
+const safeFileName = (value: string) => value
+  .normalize('NFD')
+  .replace(/[\u0300-\u036f]/g, '')
+  .replace(/[^a-zA-Z0-9._-]/g, '-')
+  .replace(/-+/g, '-')
+  .replace(/^-|-$/g, '');
+
+const removeMaterialFiles = async (paths: string[]) => {
+  const validPaths = paths.filter((path) => path && !/^https?:\/\//i.test(path));
+  if (!validPaths.length) return;
+  const { error } = await supabase.storage.from(MATERIAL_BUCKET).remove(validPaths);
+  if (error) console.warn('Falha ao remover arquivos de materiais órfãos.', error);
 };
 
 const normalizeCourse = (course: ManagedCourse): ManagedCourse => ({
@@ -240,7 +256,14 @@ export const courseManagementApi = {
   },
 
   async deleteModule(id: string): Promise<void> {
+    const modules = await request<Array<{ lessons: Array<{ lesson_materials: Array<{ file_url: string }> }> }>>(
+      `course_modules?id=eq.${encodeURIComponent(id)}&select=lessons(lesson_materials(file_url))&limit=1`,
+    );
+    const paths = (modules[0]?.lessons ?? []).flatMap((lesson) =>
+      (lesson.lesson_materials ?? []).map((material) => material.file_url),
+    );
     await request<void>(`course_modules?id=eq.${encodeURIComponent(id)}`, { method: 'DELETE' });
+    await removeMaterialFiles(paths);
   },
 
   async createLesson(input: LessonInput): Promise<LessonRecord> {
@@ -262,7 +285,37 @@ export const courseManagementApi = {
   },
 
   async deleteLesson(id: string): Promise<void> {
+    const lessons = await request<Array<{ lesson_materials: Array<{ file_url: string }> }>>(
+      `lessons?id=eq.${encodeURIComponent(id)}&select=lesson_materials(file_url)&limit=1`,
+    );
+    const paths = (lessons[0]?.lesson_materials ?? []).map((material) => material.file_url);
     await request<void>(`lessons?id=eq.${encodeURIComponent(id)}`, { method: 'DELETE' });
+    await removeMaterialFiles(paths);
+  },
+
+  async uploadMaterialFile(courseId: string, lessonId: string, file: File) {
+    const fileName = safeFileName(file.name) || 'material';
+    const path = `${courseId}/${lessonId}/${crypto.randomUUID()}-${fileName}`;
+    const { error } = await supabase.storage.from(MATERIAL_BUCKET).upload(path, file, {
+      upsert: false,
+      contentType: file.type || 'application/octet-stream',
+    });
+    if (error) throw new Error(error.message);
+    return {
+      path,
+      mimeType: file.type || 'application/octet-stream',
+      sizeBytes: file.size,
+      originalName: file.name,
+    };
+  },
+
+  async createSignedMaterialUrl(path: string, expiresInSeconds = 300): Promise<string> {
+    if (/^https?:\/\//i.test(path)) return path;
+    const { data, error } = await supabase.storage
+      .from(MATERIAL_BUCKET)
+      .createSignedUrl(path, expiresInSeconds);
+    if (error || !data?.signedUrl) throw new Error(error?.message ?? 'Não foi possível liberar o material.');
+    return data.signedUrl;
   },
 
   async createMaterial(input: MaterialInput): Promise<LessonMaterialRecord> {
@@ -275,6 +328,10 @@ export const courseManagementApi = {
   },
 
   async deleteMaterial(id: string): Promise<void> {
+    const materials = await request<Array<{ file_url: string }>>(
+      `lesson_materials?id=eq.${encodeURIComponent(id)}&select=file_url&limit=1`,
+    );
     await request<void>(`lesson_materials?id=eq.${encodeURIComponent(id)}`, { method: 'DELETE' });
+    await removeMaterialFiles(materials[0]?.file_url ? [materials[0].file_url] : []);
   },
 };
