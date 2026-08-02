@@ -8,6 +8,7 @@ export interface Product {
   originalPriceCents?: number;
   currency: string;
   status: 'draft' | 'published' | 'archived';
+  publishedAt: string | null;
   gradientFrom: string;
   gradientTo: string;
 }
