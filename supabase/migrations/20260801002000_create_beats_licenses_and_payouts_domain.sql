@@ -1,6 +1,6 @@
 -- Domínio de beats aplicado no Supabase dev.
--- A estrutura completa inclui beats, licenças, eventos, pedidos, compras,
--- entregas, contas financeiras, métodos de repasse e solicitações.
+-- A migration também reconcilia o marketplace histórico criado em julho: quando
+-- as tabelas já existem, adiciona e preenche o contrato exigido pelo portal novo.
 
 create table if not exists public.beats (
   id uuid primary key default gen_random_uuid(),
@@ -131,6 +131,116 @@ create table if not exists public.producer_payout_requests (
   processed_at timestamptz
 );
 
+-- Compatibilidade com o domínio histórico de beats.
+alter table public.beats
+  add column if not exists copyright_evidence_id text,
+  add column if not exists is_demo boolean not null default false;
+
+alter table public.beat_order_items
+  add column if not exists buyer_id uuid,
+  add column if not exists beat_title_snapshot text,
+  add column if not exists license_name_snapshot text,
+  add column if not exists buyer_name_snapshot text not null default 'Comprador',
+  add column if not exists status text not null default 'pending',
+  add column if not exists paid_at timestamptz;
+
+do $compatibility$
+begin
+  if exists (
+    select 1 from information_schema.columns
+    where table_schema='public' and table_name='beat_order_items' and column_name='order_id'
+  ) then
+    execute $sql$
+      update public.beat_order_items item
+      set buyer_id = coalesce(item.buyer_id, parent.buyer_id),
+          beat_title_snapshot = coalesce(item.beat_title_snapshot, beat.title),
+          license_name_snapshot = coalesce(item.license_name_snapshot, license.name),
+          status = coalesce(nullif(item.status, ''), parent.status::text),
+          paid_at = coalesce(item.paid_at, parent.paid_at)
+      from public.beats beat,
+           public.beat_licenses license,
+           public.beat_orders parent
+      where beat.id = item.beat_id
+        and license.id = item.license_id
+        and parent.id = item.order_id
+    $sql$;
+  end if;
+end
+$compatibility$;
+
+update public.beat_order_items item
+set beat_title_snapshot = coalesce(item.beat_title_snapshot, beat.title),
+    license_name_snapshot = coalesce(item.license_name_snapshot, license.name),
+    buyer_name_snapshot = coalesce(nullif(item.buyer_name_snapshot, ''), 'Comprador')
+from public.beats beat,
+     public.beat_licenses license
+where beat.id = item.beat_id
+  and license.id = item.license_id;
+
+alter table public.beat_order_items
+  alter column beat_title_snapshot set not null,
+  alter column license_name_snapshot set not null,
+  alter column buyer_name_snapshot set not null,
+  alter column status set not null;
+
+alter table public.beat_license_purchases
+  add column if not exists beat_order_item_id uuid,
+  add column if not exists contract_number text;
+
+do $compatibility$
+begin
+  if exists (
+    select 1 from information_schema.columns
+    where table_schema='public' and table_name='beat_license_purchases' and column_name='order_item_id'
+  ) then
+    execute 'update public.beat_license_purchases set beat_order_item_id = coalesce(beat_order_item_id, order_item_id)';
+  end if;
+end
+$compatibility$;
+
+update public.beat_license_purchases
+set contract_number = coalesce(
+  nullif(contract_number, ''),
+  'VDM-BEAT-' || upper(substr(replace(id::text, '-', ''), 1, 16))
+);
+
+alter table public.beat_license_purchases
+  alter column beat_order_item_id set not null,
+  alter column contract_number set not null;
+
+create unique index if not exists beat_license_purchases_beat_order_item_id_uidx
+  on public.beat_license_purchases(beat_order_item_id);
+create unique index if not exists beat_license_purchases_contract_number_uidx
+  on public.beat_license_purchases(contract_number);
+
+alter table public.beat_deliveries
+  add column if not exists storage_bucket text,
+  add column if not exists storage_path text,
+  add column if not exists download_count integer not null default 0;
+
+do $compatibility$
+begin
+  if exists (
+    select 1 from information_schema.columns
+    where table_schema='public' and table_name='beat_deliveries' and column_name='file_path'
+  ) then
+    execute $sql$
+      update public.beat_deliveries
+      set storage_bucket = coalesce(storage_bucket, 'beat-masters'),
+          storage_path = coalesce(storage_path, file_path)
+    $sql$;
+  end if;
+end
+$compatibility$;
+
+update public.beat_deliveries
+set storage_bucket = coalesce(storage_bucket, 'beat-masters'),
+    storage_path = coalesce(storage_path, id::text);
+
+alter table public.beat_deliveries
+  alter column storage_bucket set not null,
+  alter column storage_path set not null;
+
 alter table public.beats enable row level security;
 alter table public.beat_licenses enable row level security;
 alter table public.beat_events enable row level security;
@@ -176,6 +286,32 @@ create policy beat_storage_demo_update on storage.objects for update to anon usi
 create policy beat_storage_demo_delete on storage.objects for delete to anon using (bucket_id in ('beat-previews','beat-masters','beat-stems') and (storage.foldername(name))[1]='22222222-2222-4222-8222-222222222222');
 create policy beat_storage_owner_all on storage.objects for all to authenticated using (bucket_id in ('beat-previews','beat-masters','beat-stems') and ((storage.foldername(name))[1]=auth.uid()::text or is_platform_staff())) with check (bucket_id in ('beat-previews','beat-masters','beat-stems') and ((storage.foldername(name))[1]=auth.uid()::text or is_platform_staff()));
 
-insert into public.platform_financial_settings(id) values(true) on conflict(id) do nothing;
-insert into public.producer_financial_accounts(id,producer_id,current_balance_cents,eligible_balance_cents) values('bf100000-0000-4000-8000-000000000001','22222222-2222-4222-8222-222222222222',34700,34700) on conflict(producer_id) do nothing;
-insert into public.producer_payout_methods(id,producer_id,method_type,display_label,is_default,verified) values('bf200000-0000-4000-8000-000000000001','22222222-2222-4222-8222-222222222222','pix','Pix de desenvolvimento',true,true) on conflict(id) do nothing;
+insert into public.platform_financial_settings(id)
+values(true)
+on conflict(id) do nothing;
+
+insert into public.producer_financial_accounts(
+  id,producer_id,current_balance_cents,eligible_balance_cents
+)
+select
+  'bf100000-0000-4000-8000-000000000001'::uuid,
+  profile.user_id,
+  34700,
+  34700
+from public.user_profiles profile
+where profile.user_id='22222222-2222-4222-8222-222222222222'::uuid
+on conflict(producer_id) do nothing;
+
+insert into public.producer_payout_methods(
+  id,producer_id,method_type,display_label,is_default,verified
+)
+select
+  'bf200000-0000-4000-8000-000000000001'::uuid,
+  account.producer_id,
+  'pix',
+  'Pix de desenvolvimento',
+  true,
+  true
+from public.producer_financial_accounts account
+where account.producer_id='22222222-2222-4222-8222-222222222222'::uuid
+on conflict(id) do nothing;
