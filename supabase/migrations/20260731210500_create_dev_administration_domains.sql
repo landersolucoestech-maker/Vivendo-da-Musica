@@ -6,7 +6,7 @@ create table if not exists public.platform_integrations (
   key text primary key,
   display_name text not null unique,
   category text not null,
-  status text not null default 'disconnected' check (status in ('connected','disconnected','degraded')),
+  status text not null default 'disconnected',
   is_demo boolean not null default false,
   updated_by uuid,
   updated_at timestamptz not null default now()
@@ -16,7 +16,7 @@ create table if not exists public.marketing_campaigns (
   id uuid primary key default gen_random_uuid(),
   name text not null,
   channel text not null,
-  status text not null default 'draft' check (status in ('draft','scheduled','active','paused','completed')),
+  status text not null default 'draft',
   is_demo boolean not null default false,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
@@ -45,7 +45,7 @@ create table if not exists public.cms_documents (
 );
 
 create table if not exists public.admin_audit_logs (
-  id uuid primary key default gen_random_uuid(),
+  id bigint generated always as identity primary key,
   actor_id uuid,
   actor_name_snapshot text not null,
   action text not null,
@@ -55,6 +55,25 @@ create table if not exists public.admin_audit_logs (
   is_demo boolean not null default false,
   created_at timestamptz not null default now()
 );
+
+-- These tables may already exist from the admin control-plane migration.
+alter table public.platform_integrations
+  add column if not exists is_demo boolean not null default false;
+
+alter table public.marketing_campaigns
+  add column if not exists is_demo boolean not null default false;
+
+alter table public.marketing_leads
+  add column if not exists campaign_id uuid references public.marketing_campaigns(id) on delete set null;
+
+alter table public.marketing_leads
+  add column if not exists is_demo boolean not null default false;
+
+alter table public.cms_documents
+  add column if not exists is_demo boolean not null default false;
+
+alter table public.admin_audit_logs
+  add column if not exists is_demo boolean not null default false;
 
 alter table public.discount_coupons enable row level security;
 alter table public.coupon_redemptions enable row level security;
@@ -82,19 +101,29 @@ using (
 );
 
 drop policy if exists platform_integrations_demo_select on public.platform_integrations;
-create policy platform_integrations_demo_select on public.platform_integrations for select to anon using (is_demo);
+create policy platform_integrations_demo_select
+on public.platform_integrations for select to anon
+using (is_demo);
 
 drop policy if exists marketing_campaigns_demo_select on public.marketing_campaigns;
-create policy marketing_campaigns_demo_select on public.marketing_campaigns for select to anon using (is_demo);
+create policy marketing_campaigns_demo_select
+on public.marketing_campaigns for select to anon
+using (is_demo);
 
 drop policy if exists marketing_leads_demo_select on public.marketing_leads;
-create policy marketing_leads_demo_select on public.marketing_leads for select to anon using (is_demo);
+create policy marketing_leads_demo_select
+on public.marketing_leads for select to anon
+using (is_demo);
 
 drop policy if exists cms_documents_demo_select on public.cms_documents;
-create policy cms_documents_demo_select on public.cms_documents for select to anon using (is_demo);
+create policy cms_documents_demo_select
+on public.cms_documents for select to anon
+using (is_demo);
 
 drop policy if exists admin_audit_logs_demo_select on public.admin_audit_logs;
-create policy admin_audit_logs_demo_select on public.admin_audit_logs for select to anon using (is_demo);
+create policy admin_audit_logs_demo_select
+on public.admin_audit_logs for select to anon
+using (is_demo);
 
 insert into public.discount_coupons (
   id,
@@ -166,13 +195,54 @@ set title = excluded.title,
     is_demo = true,
     updated_at = now();
 
-insert into public.admin_audit_logs(id,actor_id,actor_name_snapshot,action,entity_type,entity_id,metadata,is_demo)
-values
-  ('aa100000-0000-4000-8000-000000000001','44444444-4444-4444-8444-444444444444','Administrador de Desenvolvimento','criou','curso','c9100000-0000-4000-8000-000000000001','{}',true),
-  ('aa100000-0000-4000-8000-000000000002','44444444-4444-4444-8444-444444444444','Administrador de Desenvolvimento','revisou','configuração','supabase','{}',true)
-on conflict (id) do update
-set actor_name_snapshot = excluded.actor_name_snapshot,
-    action = excluded.action,
-    entity_type = excluded.entity_type,
-    entity_id = excluded.entity_id,
-    is_demo = true;
+insert into public.admin_audit_logs(
+  actor_id,
+  actor_name_snapshot,
+  action,
+  entity_type,
+  entity_id,
+  metadata,
+  is_demo
+)
+select
+  null,
+  'Administrador de Desenvolvimento',
+  'criou',
+  'curso',
+  'c9100000-0000-4000-8000-000000000001',
+  '{}'::jsonb,
+  true
+where not exists (
+  select 1
+  from public.admin_audit_logs
+  where action = 'criou'
+    and entity_type = 'curso'
+    and entity_id = 'c9100000-0000-4000-8000-000000000001'
+    and is_demo
+);
+
+insert into public.admin_audit_logs(
+  actor_id,
+  actor_name_snapshot,
+  action,
+  entity_type,
+  entity_id,
+  metadata,
+  is_demo
+)
+select
+  null,
+  'Administrador de Desenvolvimento',
+  'revisou',
+  'configuração',
+  'supabase',
+  '{}'::jsonb,
+  true
+where not exists (
+  select 1
+  from public.admin_audit_logs
+  where action = 'revisou'
+    and entity_type = 'configuração'
+    and entity_id = 'supabase'
+    and is_demo
+);
