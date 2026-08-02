@@ -71,6 +71,32 @@ begin
 end
 $$;
 
+create or replace function public.normalize_legacy_opportunity_kind()
+returns trigger
+language plpgsql
+set search_path = public, pg_temp
+as $$
+begin
+  new.kind := case lower(btrim(new.kind))
+    when 'vaga' then 'job'
+    when 'freela' then 'job'
+    when 'colaboracao' then 'collab'
+    when 'colaboração' then 'collab'
+    when 'edital' then 'grant'
+    when 'concurso' then 'contest'
+    else lower(btrim(new.kind))
+  end;
+
+  return new;
+end;
+$$;
+
+drop trigger if exists normalize_legacy_opportunity_kind_before_write on public.opportunities;
+create trigger normalize_legacy_opportunity_kind_before_write
+  before insert or update of kind
+  on public.opportunities
+  for each row execute function public.normalize_legacy_opportunity_kind();
+
 alter table public.opportunities
   drop constraint if exists opportunities_kind_check;
 alter table public.opportunities
@@ -88,3 +114,5 @@ alter table public.opportunity_applications
 alter table public.opportunity_applications
   add constraint opportunity_applications_status_check
   check (status in ('submitted','reviewing','shortlisted','interview','approved','rejected','withdrawn'));
+
+revoke all on function public.normalize_legacy_opportunity_kind() from public, anon, authenticated;
