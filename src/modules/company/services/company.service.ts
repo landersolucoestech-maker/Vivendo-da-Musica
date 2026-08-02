@@ -19,6 +19,26 @@ interface CompanyContext {
   profile: CompanyProfile;
 }
 
+interface BasicProfileRow {
+  user_id: string;
+  full_name: string | null;
+  avatar_url: string | null;
+}
+
+interface CandidateProfileRow {
+  user_id: string;
+  headline: string | null;
+  bio: string | null;
+  city: string | null;
+  state: string | null;
+  experience_years: number;
+  skills: string[];
+  preferred_roles: string[];
+  portfolio_url: string | null;
+  resume_url: string | null;
+  availability: string;
+}
+
 const getUserId = async () => {
   const { data, error } = await supabase.auth.getUser();
   if (error || !data.user) throw new Error('Entre com uma conta empresarial para acessar este portal.');
@@ -110,9 +130,13 @@ const listCandidatesForContext = async (context: CompanyContext): Promise<Compan
   if (profilesError) throw new Error(`Não foi possível carregar os candidatos: ${profilesError.message}`);
   if (candidateProfilesError) throw new Error(`Não foi possível carregar os perfis profissionais: ${candidateProfilesError.message}`);
 
-  const opportunityNames = new Map(opportunities.map((item) => [item.id, item.title]));
-  const basicProfiles = new Map((profiles ?? []).map((item: any) => [item.user_id, item]));
-  const professionalProfiles = new Map((candidateProfiles ?? []).map((item: any) => [item.user_id, item]));
+  const opportunityNames = new Map(opportunities.map((item) => [item.id, item.title] as const));
+  const basicProfiles = new Map<string, BasicProfileRow>(
+    ((profiles ?? []) as BasicProfileRow[]).map((item) => [item.user_id, item] as const),
+  );
+  const professionalProfiles = new Map<string, CandidateProfileRow>(
+    ((candidateProfiles ?? []) as CandidateProfileRow[]).map((item) => [item.user_id, item] as const),
+  );
 
   return (applications ?? []).map((application: any) => {
     const basic = basicProfiles.get(application.applicant_id);
