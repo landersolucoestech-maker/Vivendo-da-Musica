@@ -126,13 +126,13 @@ const affiliateRoute = (element: JSX.Element) => (
 );
 
 const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <AuthProvider>
-      <CartProvider>
-        <TooltipProvider>
-          <Toaster />
-          <Sonner />
-          <BrowserRouter>
+  <BrowserRouter>
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
+        <CartProvider>
+          <TooltipProvider>
+            <Toaster />
+            <Sonner />
             <Suspense fallback={<FullScreenSpinner />}>
               <Routes>
                 <Route path="/" element={<Index />} />
@@ -166,14 +166,7 @@ const App = () => (
                 <Route path={ROUTES.premiumLibraryPublic} element={<PublicPremiumLibraryPage />} />
                 <Route path={ROUTES.opportunitiesPublic} element={<PublicOpportunitiesPage />} />
 
-                <Route
-                  path="/aula/:lessonId"
-                  element={
-                    <ProtectedRoute>
-                      <LessonRoute />
-                    </ProtectedRoute>
-                  }
-                />
+                <Route path="/aula/:lessonId" element={<ProtectedRoute><LessonRoute /></ProtectedRoute>} />
 
                 <Route path={ROUTES.dashboard} element={studentRoute(<Dashboard />)} />
                 <Route path="/aluno/dashboard" element={<Navigate to={ROUTES.dashboard} replace />} />
@@ -236,11 +229,11 @@ const App = () => (
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </Suspense>
-          </BrowserRouter>
-        </TooltipProvider>
-      </CartProvider>
-    </AuthProvider>
-  </QueryClientProvider>
+          </TooltipProvider>
+        </CartProvider>
+      </AuthProvider>
+    </QueryClientProvider>
+  </BrowserRouter>
 );
 
 export default App;
