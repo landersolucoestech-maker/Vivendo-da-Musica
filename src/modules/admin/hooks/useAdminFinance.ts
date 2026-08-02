@@ -1,6 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
-import { adminFinanceService, type AdminPayoutStatus } from '@/modules/admin/services/admin-finance.service';
+import {
+  adminFinanceService,
+  type AdminAffiliateWithdrawalStatus,
+  type AdminPayoutStatus,
+} from '@/modules/admin/services/admin-finance.service';
 import { adminService } from '@/modules/admin/services/admin.service';
 
 export const useAdminFinanceSummary = () => useQuery({
@@ -23,6 +27,11 @@ export const useAdminProducerPayouts = () => useQuery({
   queryFn: () => adminFinanceService.listProducerPayouts(),
 });
 
+export const useAdminAffiliateWithdrawals = () => useQuery({
+  queryKey: ['admin-affiliate-withdrawals'],
+  queryFn: () => adminFinanceService.listAffiliateWithdrawals(),
+});
+
 export const useTransitionProducerPayout = () => {
   const queryClient = useQueryClient();
 
@@ -36,6 +45,24 @@ export const useTransitionProducerPayout = () => {
         queryClient.invalidateQueries({ queryKey: ['admin-producer-payouts'] }),
         queryClient.invalidateQueries({ queryKey: ['admin-finance-summary'] }),
         queryClient.invalidateQueries({ queryKey: ['producer-beat-dashboard'] }),
+      ]);
+    },
+  });
+};
+
+export const useTransitionAffiliateWithdrawal = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (input: {
+      withdrawalId: string;
+      status: Exclude<AdminAffiliateWithdrawalStatus, 'requested'>;
+    }) => adminFinanceService.transitionAffiliateWithdrawal(input.withdrawalId, input.status),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['admin-affiliate-withdrawals'] }),
+        queryClient.invalidateQueries({ queryKey: ['admin-finance-summary'] }),
+        queryClient.invalidateQueries({ queryKey: ['affiliate-portal'] }),
       ]);
     },
   });
