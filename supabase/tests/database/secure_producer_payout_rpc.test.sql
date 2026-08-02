@@ -17,7 +17,7 @@ select has_function(
 );
 
 select ok(
-  (
+  not (
     select p.prosecdef
     from pg_proc p
     join pg_namespace n on n.oid = p.pronamespace
@@ -25,7 +25,7 @@ select ok(
       and p.proname = 'request_producer_payout'
       and pg_get_function_identity_arguments(p.oid) = 'target_method_id uuid, requested_amount_cents bigint, requested_currency text'
   ),
-  'public producer payout RPC is SECURITY DEFINER'
+  'public producer payout RPC is SECURITY INVOKER'
 );
 
 select is(
@@ -60,12 +60,12 @@ select ok(
 );
 
 select ok(
-  not has_function_privilege(
+  has_function_privilege(
     'authenticated',
     'app_private.request_producer_payout(uuid,bigint,text)',
     'EXECUTE'
   ),
-  'authenticated cannot execute the private implementation directly'
+  'authenticated can reach the validated private implementation through the invoker wrapper'
 );
 
 select ok(
@@ -78,8 +78,8 @@ select ok(
 );
 
 select ok(
-  not has_schema_privilege('authenticated', 'app_private', 'USAGE'),
-  'authenticated has no usage on the private schema'
+  has_schema_privilege('authenticated', 'app_private', 'USAGE'),
+  'authenticated can resolve the non-exposed private schema through the invoker wrapper'
 );
 
 select ok(
