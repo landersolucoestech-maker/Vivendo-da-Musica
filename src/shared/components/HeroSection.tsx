@@ -16,8 +16,6 @@ const HeroSection = () => (
     <div className="relative mx-auto w-full max-w-[1440px] px-4 sm:px-6 lg:px-8">
       <div className="grid items-center gap-12 lg:grid-cols-[1.05fr_0.95fr] lg:gap-16">
         <div className="text-center lg:text-left">
-          <VdmBrand showTagline className="mb-8 justify-center lg:justify-start" />
-
           <p className="vdm-eyebrow">Formação musical completa</p>
           <h1 className="mt-4 font-display text-4xl font-extrabold leading-[1.04] tracking-[-0.055em] text-white sm:text-5xl lg:text-6xl xl:text-7xl">
             Aprenda. Crie.
