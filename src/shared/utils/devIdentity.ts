@@ -6,6 +6,7 @@ export const DEV_IDENTITY_IDS: Record<Exclude<UserRole, 'super_admin'>, string> 
   instructor: 'c3942032-967a-4cde-b00c-22446584e699',
   producer: '22222222-2222-4222-8222-222222222222',
   affiliate: '33333333-3333-4333-8333-333333333333',
+  company: '55555555-5555-4555-8555-555555555555',
   admin: '44444444-4444-4444-8444-444444444444',
 };
 
@@ -13,6 +14,7 @@ const PATH_ROLE_RULES: Array<{ prefix: string; role: Exclude<UserRole, 'super_ad
   { prefix: '/instrutor', role: 'instructor' },
   { prefix: '/produtor', role: 'producer' },
   { prefix: '/afiliado', role: 'affiliate' },
+  { prefix: '/empresa', role: 'company' },
   { prefix: '/admin', role: 'admin' },
   { prefix: '/aluno', role: 'student' },
 ];
