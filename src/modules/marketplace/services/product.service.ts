@@ -143,14 +143,13 @@ export const productService = {
   },
 
   async updateProduct(id: string, input: ProductMutationInput): Promise<Product> {
-    const sellerId = await currentSellerId();
     const { data, error } = await supabase.from('seller_products').update({
       title: input.title.trim(),
       description: input.description.trim(),
       product_type: resolveType(input.category),
       price_cents: Math.max(0, Math.round(input.priceCents)),
       updated_at: new Date().toISOString(),
-    }).eq('id', id).eq('seller_id', sellerId)
+    }).eq('id', id)
       .select('id,slug,title,description,product_type,price_cents,currency,status,cover_url').single();
     if (error || !data) throw new Error(error?.message ?? 'Não foi possível atualizar o produto.');
     return mapProduct({ ...data, seller_product_files: [] } as ProductRow, 0);
