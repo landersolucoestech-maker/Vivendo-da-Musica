@@ -22,6 +22,7 @@ const NotFound = lazy(() => import('./pages/NotFound'));
 
 const Login = lazy(() => import('@/modules/auth/pages/Login'));
 const Register = lazy(() => import('@/modules/auth/pages/Register'));
+const CompanyRegisterPage = lazy(() => import('@/modules/company/pages/CompanyRegisterPage'));
 const ForgotPassword = lazy(() => import('@/modules/auth/pages/ForgotPassword'));
 const ResetPassword = lazy(() => import('@/modules/auth/pages/ResetPassword'));
 const VerifyEmail = lazy(() => import('@/modules/auth/pages/VerifyEmail'));
@@ -90,39 +91,25 @@ const InstructorDashboard = lazy(() => import('@/modules/instructor/pages/Instru
 const InstructorCoursesPage = lazy(() => import('@/modules/instructor/pages/InstructorCoursesPage'));
 const InstructorAudiencePage = lazy(() => import('@/modules/instructor/pages/InstructorAudiencePage'));
 const InstructorReportsPage = lazy(() => import('@/modules/instructor/pages/InstructorReportsPage'));
+const CompanyDashboardPage = lazy(() => import('@/modules/company/pages/CompanyDashboardPage'));
+const CompanyOpportunitiesPage = lazy(() => import('@/modules/company/pages/CompanyOpportunitiesPage'));
+const CompanyCandidatesPage = lazy(() => import('@/modules/company/pages/CompanyCandidatesPage'));
+const CompanyMessagesPage = lazy(() => import('@/modules/company/pages/CompanyMessagesPage'));
+const CompanyProfilePage = lazy(() => import('@/modules/company/pages/CompanyProfilePage'));
 
 const queryClient = new QueryClient();
 
 const LessonRoute = () => {
   const { lessonId } = useParams();
-  return (
-    <EnrollmentGuard lessonId={lessonId!}>
-      <Lesson />
-    </EnrollmentGuard>
-  );
+  return <EnrollmentGuard lessonId={lessonId!}><Lesson /></EnrollmentGuard>;
 };
 
 const studentRoute = (element: JSX.Element) => <ProtectedRoute>{element}</ProtectedRoute>;
-const adminRoute = (element: JSX.Element) => (
-  <ProtectedRoute>
-    <RoleGuard allow={['admin', 'super_admin']}>{element}</RoleGuard>
-  </ProtectedRoute>
-);
-const instructorRoute = (element: JSX.Element) => (
-  <ProtectedRoute>
-    <RoleGuard allow={['instructor', 'admin', 'super_admin']}>{element}</RoleGuard>
-  </ProtectedRoute>
-);
-const producerRoute = (element: JSX.Element) => (
-  <ProtectedRoute>
-    <RoleGuard allow={['producer', 'admin', 'super_admin']}>{element}</RoleGuard>
-  </ProtectedRoute>
-);
-const affiliateRoute = (element: JSX.Element) => (
-  <ProtectedRoute>
-    <RoleGuard allow={['affiliate', 'admin', 'super_admin']}>{element}</RoleGuard>
-  </ProtectedRoute>
-);
+const adminRoute = (element: JSX.Element) => <ProtectedRoute><RoleGuard allow={['admin', 'super_admin']}>{element}</RoleGuard></ProtectedRoute>;
+const instructorRoute = (element: JSX.Element) => <ProtectedRoute><RoleGuard allow={['instructor', 'admin', 'super_admin']}>{element}</RoleGuard></ProtectedRoute>;
+const producerRoute = (element: JSX.Element) => <ProtectedRoute><RoleGuard allow={['producer', 'admin', 'super_admin']}>{element}</RoleGuard></ProtectedRoute>;
+const affiliateRoute = (element: JSX.Element) => <ProtectedRoute><RoleGuard allow={['affiliate', 'admin', 'super_admin']}>{element}</RoleGuard></ProtectedRoute>;
+const companyRoute = (element: JSX.Element) => <ProtectedRoute><RoleGuard allow={['company', 'admin', 'super_admin']}>{element}</RoleGuard></ProtectedRoute>;
 
 const App = () => (
   <BrowserRouter>
@@ -134,21 +121,22 @@ const App = () => (
             <Sonner />
             <Suspense fallback={<FullScreenSpinner />}>
               <Routes>
-                <Route path="/" element={<Index />} />
-                <Route path="/login" element={<Login />} />
-                <Route path="/matricule-se" element={<Register />} />
+                <Route path={ROUTES.home} element={<Index />} />
+                <Route path={ROUTES.login} element={<Login />} />
+                <Route path={ROUTES.register} element={<Register />} />
                 <Route path="/cadastro" element={<Register />} />
-                <Route path="/esqueceu-senha" element={<ForgotPassword />} />
+                <Route path={ROUTES.companyRegister} element={<CompanyRegisterPage />} />
+                <Route path={ROUTES.forgotPassword} element={<ForgotPassword />} />
                 <Route path="/recuperar-senha" element={<ForgotPassword />} />
-                <Route path="/redefinir-senha" element={<ResetPassword />} />
-                <Route path="/verificar-email" element={<VerifyEmail />} />
-                <Route path="/verificado" element={<Verified />} />
-                <Route path="/contato" element={<Contact />} />
+                <Route path={ROUTES.resetPassword} element={<ResetPassword />} />
+                <Route path={ROUTES.verifyEmail} element={<VerifyEmail />} />
+                <Route path={ROUTES.verified} element={<Verified />} />
+                <Route path={ROUTES.contact} element={<Contact />} />
                 <Route path={ROUTES.privacyPolicy} element={<LegalDocumentPage />} />
                 <Route path={ROUTES.termsOfUse} element={<LegalDocumentPage />} />
-                <Route path="/acesso-negado" element={<AccessDenied />} />
-                <Route path="/curso-em-breve" element={<ComingSoon />} />
-                <Route path="/pagamento-sucesso" element={<PaymentSuccess />} />
+                <Route path={ROUTES.accessDenied} element={<AccessDenied />} />
+                <Route path={ROUTES.comingSoon} element={<ComingSoon />} />
+                <Route path={ROUTES.paymentSuccess} element={<PaymentSuccess />} />
 
                 <Route path={ROUTES.academy} element={<CourseCatalogPage />} />
                 <Route path="/academia/:courseSlug" element={<CourseDetailPage />} />
@@ -203,6 +191,12 @@ const App = () => (
                 <Route path={ROUTES.affiliateWithdrawals} element={affiliateRoute(<AffiliatePortalPage />)} />
                 <Route path={ROUTES.affiliateMaterials} element={affiliateRoute(<AffiliatePortalPage />)} />
                 <Route path={ROUTES.affiliateProfile} element={affiliateRoute(<AffiliatePortalPage />)} />
+
+                <Route path={ROUTES.company} element={companyRoute(<CompanyDashboardPage />)} />
+                <Route path={ROUTES.companyOpportunities} element={companyRoute(<CompanyOpportunitiesPage />)} />
+                <Route path={ROUTES.companyCandidates} element={companyRoute(<CompanyCandidatesPage />)} />
+                <Route path={ROUTES.companyMessages} element={companyRoute(<CompanyMessagesPage />)} />
+                <Route path={ROUTES.companyProfile} element={companyRoute(<CompanyProfilePage />)} />
 
                 <Route path={ROUTES.admin} element={adminRoute(<AdminDashboard />)} />
                 <Route path={ROUTES.adminUsers} element={adminRoute(<AdminUsersPage />)} />
