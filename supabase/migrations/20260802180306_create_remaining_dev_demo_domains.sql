@@ -204,7 +204,7 @@ with check (user_id='11111111-1111-4111-8111-111111111111'::uuid);
 create policy support_tickets_demo_all on public.support_tickets for all to anon
 using (user_id='11111111-1111-4111-8111-111111111111'::uuid)
 with check (user_id='11111111-1111-4111-8111-111111111111'::uuid);
-create policy support_faq_public_read on public.support_faq for select to anon,authenticated using (active);
+create policy support_faq_public_read on public.support_faq for select to anon,authenticated using (published);
 create policy course_certificates_demo_read on public.course_certificates for select to anon using (is_demo);
 
 create policy community_groups_public_read on public.community_groups for select to anon,authenticated using (visibility='public' and status='active');
