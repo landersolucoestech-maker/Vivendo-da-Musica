@@ -44,6 +44,11 @@ const currentProducerId = async () => {
   return getEffectiveUserId(user?.id ?? null);
 };
 
+const parseRpcError = async (response: Response, fallback: string) => {
+  const payload = await response.json().catch(() => null) as { message?: string } | null;
+  return new Error(payload?.message ?? fallback);
+};
+
 const mapLicense = (row: Record<string, unknown>): BeatLicense => ({
   id: String(row.id),
   type: row.license_type as BeatLicense['type'],
@@ -225,13 +230,30 @@ export const beatService = {
   },
 
   async requestProducerPayout(methodId: string, amountCents: number, currency: string): Promise<void> {
-    if (isDevAuthBypassEnabled) {
-      const response = await fetch(`${env.supabaseUrl}/rest/v1/rpc/request_demo_producer_payout`, { method: 'POST', headers: { apikey: env.supabasePublishableKey, Authorization: `Bearer ${env.supabasePublishableKey}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ target_method_id: methodId, requested_amount_cents: amountCents, requested_currency: currency }) });
-      if (!response.ok) { const payload = await response.json().catch(() => null) as { message?: string } | null; throw new Error(payload?.message ?? 'Não foi possível solicitar o repasse.'); }
-      return;
+    const rpcName = isDevAuthBypassEnabled ? 'request_demo_producer_payout' : 'request_producer_payout';
+    let authorization = `Bearer ${env.supabasePublishableKey}`;
+
+    if (!isDevAuthBypassEnabled) {
+      const { data: { session }, error } = await supabase.auth.getSession();
+      if (error) throw error;
+      if (!session?.access_token) throw new Error('Sessão do produtor não encontrada.');
+      authorization = `Bearer ${session.access_token}`;
     }
-    const producerId = await currentProducerId();
-    const { error } = await supabase.from('producer_payout_requests').insert({ producer_id: producerId, payout_method_id: methodId, amount_cents: amountCents, currency, status: 'requested' });
-    if (error) throw error;
+
+    const response = await fetch(`${env.supabaseUrl}/rest/v1/rpc/${rpcName}`, {
+      method: 'POST',
+      headers: {
+        apikey: env.supabasePublishableKey,
+        Authorization: authorization,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        target_method_id: methodId,
+        requested_amount_cents: amountCents,
+        requested_currency: currency,
+      }),
+    });
+
+    if (!response.ok) throw await parseRpcError(response, 'Não foi possível solicitar o repasse.');
   },
 };
