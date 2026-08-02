@@ -32,6 +32,8 @@ jobs:
       - run: npm run lint
       - run: npm run test
       - run: npm run build
+        env:
+          VITE_BASE_PATH: /functions/v1/vivendo-preview/
       - uses: actions/upload-artifact@v4
         with:
           name: vercel-preview-dist
