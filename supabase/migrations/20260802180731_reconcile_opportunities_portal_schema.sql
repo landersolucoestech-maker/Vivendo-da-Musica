@@ -1,14 +1,5 @@
--- Reconcile the original opportunities enums and required public slug with the
--- current company portal contract while preserving policy dependencies.
-
-alter type public.opportunity_kind add value if not exists 'vaga';
-alter type public.opportunity_kind add value if not exists 'freela';
-alter type public.opportunity_kind add value if not exists 'colaboracao';
-alter type public.opportunity_kind add value if not exists 'edital';
-alter type public.opportunity_kind add value if not exists 'concurso';
-
-alter type public.opportunity_application_status add value if not exists 'interview';
-alter type public.opportunity_application_status add value if not exists 'approved';
+-- Reconcile the original opportunities schema with the current company portal
+-- contract while preserving policies that depend on enum-backed columns.
 
 do $$
 begin
