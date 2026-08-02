@@ -1,7 +1,7 @@
 import { supabase } from '@/integrations/supabase/client';
 import type { Product, ProductLicense, ProductQA, ProductReview } from '@/modules/marketplace/types/product';
 import { isDevAuthBypassEnabled } from '@/shared/utils/devAuthBypass';
-import { DEV_IDENTITY_IDS, getEffectiveUserId } from '@/shared/utils/devIdentity';
+import { getEffectiveUserId } from '@/shared/utils/devIdentity';
 
 export type ProductType = 'preset' | 'drum_kit' | 'midi' | 'plugin' | 'template' | 'project' | 'ebook' | 'other';
 type ProductStatus = Product['status'];
@@ -59,7 +59,7 @@ const resolveType = (category: string): ProductType =>
 const currentSellerId = async () => {
   const { data: { user }, error } = await supabase.auth.getUser();
   if (error) throw error;
-  return getEffectiveUserId(user?.id ?? DEV_IDENTITY_IDS.producer);
+  return getEffectiveUserId(user?.id);
 };
 
 const mapProduct = (row: ProductRow, index: number): Product => {
