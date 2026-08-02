@@ -110,6 +110,15 @@ export async function getAffiliatePortalData(): Promise<AffiliatePortalData> {
   };
 }
 
+const parseRpcError = async (response: Response, fallback: string): Promise<Error> => {
+  const payload = await response.json().catch(() => null) as {
+    message?: string;
+    error?: string;
+    details?: string;
+  } | null;
+  return new Error(payload?.message ?? payload?.error ?? payload?.details ?? fallback);
+};
+
 const requestDemoWithdrawal = async (amountCents: number, paymentMethod: 'pix' | 'bank_transfer') => {
   const response = await fetch(`${env.supabaseUrl}/rest/v1/rpc/request_demo_affiliate_withdrawal`, {
     method: 'POST',
@@ -125,8 +134,30 @@ const requestDemoWithdrawal = async (amountCents: number, paymentMethod: 'pix' |
   });
 
   if (!response.ok) {
-    const payload = await response.json().catch(() => null) as { message?: string } | null;
-    throw new Error(payload?.message ?? 'Não foi possível registrar o saque de desenvolvimento.');
+    throw await parseRpcError(response, 'Não foi possível registrar o saque de desenvolvimento.');
+  }
+};
+
+const requestAuthenticatedWithdrawal = async (amountCents: number, paymentMethod: 'pix' | 'bank_transfer') => {
+  const { data, error } = await supabase.auth.getSession();
+  if (error) throw new Error(error.message);
+  if (!data.session?.access_token) throw new Error('Sessão de afiliado não encontrada.');
+
+  const response = await fetch(`${env.supabaseUrl}/rest/v1/rpc/request_affiliate_withdrawal`, {
+    method: 'POST',
+    headers: {
+      apikey: env.supabasePublishableKey,
+      Authorization: `Bearer ${data.session.access_token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      requested_amount_cents: amountCents,
+      requested_payment_method: paymentMethod,
+    }),
+  });
+
+  if (!response.ok) {
+    throw await parseRpcError(response, 'Não foi possível registrar o saque.');
   }
 };
 
@@ -138,18 +169,5 @@ export async function requestAffiliateWithdrawal(amountCents: number, paymentMet
     return;
   }
 
-  const profile = await getAffiliateProfile();
-  if (!profile) throw new Error('Perfil de afiliado não encontrado.');
-  if (profile.status !== 'active') throw new Error('O perfil de afiliado não está ativo.');
-  if (amountCents > profile.balance_cents) throw new Error('O valor solicitado excede o saldo disponível.');
-
-  const { error } = await supabase.from('affiliate_withdrawals').insert({
-    affiliate_id: profile.id,
-    amount_cents: amountCents,
-    status: 'requested',
-    payment_method: paymentMethod,
-    requested_at: new Date().toISOString(),
-  });
-
-  if (error) throw error;
+  await requestAuthenticatedWithdrawal(amountCents, paymentMethod);
 }
