@@ -53,10 +53,7 @@ const Navigation = () => {
         <div className="flex h-16 items-center justify-between gap-5 sm:h-20">
           <Link to={ROUTES.home} className="shrink-0" aria-label="Vivendo da Música — início">
             <VdmBrand compact className="origin-left scale-90 sm:hidden" />
-            <VdmBrand
-              showTagline
-              className="hidden origin-left scale-[0.82] sm:inline-flex md:scale-90 lg:scale-100"
-            />
+            <VdmBrand className="hidden origin-left scale-[0.82] sm:inline-flex md:scale-90 lg:scale-100" />
           </Link>
 
           <div className="hidden items-center gap-7 xl:flex">
