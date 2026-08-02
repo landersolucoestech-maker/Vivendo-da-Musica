@@ -132,7 +132,15 @@ export const beatService = {
         if (stemsError) throw stemsError;
         uploaded.push({ bucket: 'beat-stems', path: stemsPath });
       }
-      const { error: updateError } = await supabase.from('beats').update({ preview_file_path: previewPath, master_file_path: masterPath, stems_file_path: stemsPath, copyright_status: 'registered', copyright_evidence_id: `DEV-${data.id}` }).eq('id', data.id).eq('producer_id', producerId);
+      const copyrightFields = isDevAuthBypassEnabled
+        ? { copyright_status: 'registered', copyright_evidence_id: `DEV-${data.id}` }
+        : {};
+      const { error: updateError } = await supabase.from('beats').update({
+        preview_file_path: previewPath,
+        master_file_path: masterPath,
+        stems_file_path: stemsPath,
+        ...copyrightFields,
+      }).eq('id', data.id).eq('producer_id', producerId);
       if (updateError) throw updateError;
       const defaults = [
         { license_type: 'basic', name: 'Licença Básica', price_cents: 9900, deliverables: ['MP3'], usage_rights: ['Até 5.000 streams'], max_copies: 5000, is_exclusive: false },
@@ -156,7 +164,18 @@ export const beatService = {
 
   async setBeatStatus(id: string, status: Beat['status']): Promise<void> {
     const producerId = await currentProducerId();
-    const { error } = await supabase.from('beats').update({ status, published_at: status === 'published' ? new Date().toISOString() : null, updated_at: new Date().toISOString() }).eq('id', id).eq('producer_id', producerId);
+    const { data: beat, error: readError } = await supabase
+      .from('beats')
+      .select('published_at')
+      .eq('id', id)
+      .eq('producer_id', producerId)
+      .maybeSingle();
+    if (readError) throw readError;
+    if (!beat) throw new Error('Beat não encontrado para este produtor.');
+
+    const publishedAt = beat.published_at
+      ?? (status === 'published' ? new Date().toISOString() : null);
+    const { error } = await supabase.from('beats').update({ status, published_at: publishedAt, updated_at: new Date().toISOString() }).eq('id', id).eq('producer_id', producerId);
     if (error) throw error;
   },
 
