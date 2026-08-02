@@ -1,0 +1,1 @@
+-- Migration version aligned with Supabase dev history.
