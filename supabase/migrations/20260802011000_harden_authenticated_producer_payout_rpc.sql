@@ -15,6 +15,9 @@ as $$
   );
 $$;
 
+revoke usage on schema app_private from public, anon, authenticated;
+grant usage on schema app_private to service_role;
+
 revoke all on function app_private.request_producer_payout(uuid, bigint, text) from public, anon, authenticated;
 grant execute on function app_private.request_producer_payout(uuid, bigint, text) to service_role;
 
