@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
-import { Navigate } from 'react-router-dom';
+import { Link, Navigate } from 'react-router-dom';
 
 import PublicLayout from '@/app/layouts/PublicLayout';
 import { supabase } from '@/integrations/supabase/client';
 import EmptyState from '@/shared/components/EmptyState';
 import LoadingState from '@/shared/components/LoadingState';
+import { Button } from '@/shared/components/ui/button';
 import { ROUTES } from '@/shared/constants/routes';
 
 interface AffiliateReferralRedirectPageProps {
@@ -64,8 +65,11 @@ const AffiliateReferralRedirectPage = ({ slug }: AffiliateReferralRedirectPagePr
         <EmptyState
           title="Link de indicação indisponível"
           description="Este link não existe, foi desativado ou possui um destino inválido."
-          actionLabel="Voltar ao início"
-          actionHref={ROUTES.home}
+          action={
+            <Link to={ROUTES.home}>
+              <Button>Voltar ao início</Button>
+            </Link>
+          }
         />
       </PublicLayout>
     );
