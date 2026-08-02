@@ -18,6 +18,55 @@ begin
 end
 $$;
 
+insert into public.courses (
+  id,
+  title,
+  slug,
+  short_description,
+  description,
+  category,
+  original_price_cents,
+  discount_cents,
+  price_cents,
+  currency,
+  status,
+  visibility,
+  instructor_id,
+  published_at,
+  is_demo,
+  created_at,
+  updated_at
+) values (
+  'd22c835b-cbfd-4c2a-9b1c-32a2df1c0800',
+  'Produção Musical do Zero ao Profissional',
+  'producao-musical-zero-ao-profissional',
+  'Formação completa em produção musical.',
+  'Curso de desenvolvimento técnico e profissional em produção musical.',
+  'Produção musical',
+  0,
+  0,
+  0,
+  'BRL',
+  'published',
+  'public',
+  'c3942032-967a-4cde-b00c-22446584e699',
+  now() - interval '90 days',
+  true,
+  now() - interval '120 days',
+  now()
+)
+on conflict (id) do update
+set title = excluded.title,
+    short_description = excluded.short_description,
+    description = excluded.description,
+    category = excluded.category,
+    status = 'published',
+    visibility = 'public',
+    instructor_id = excluded.instructor_id,
+    published_at = coalesce(public.courses.published_at, excluded.published_at),
+    is_demo = true,
+    updated_at = now();
+
 create or replace function public.sync_support_faq_publication_fields()
 returns trigger
 language plpgsql
