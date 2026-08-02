@@ -1,6 +1,7 @@
 import { env } from '@/app/config/env';
 import { supabase } from '@/integrations/supabase/client';
 import { isDevAuthBypassEnabled } from '@/shared/utils/devAuthBypass';
+import { getEffectiveUserId } from '@/shared/utils/devIdentity';
 
 export type CourseStatus = 'draft' | 'published' | 'archived';
 export type CourseVisibility = 'public' | 'private' | 'unlisted';
@@ -124,6 +125,12 @@ const getAuthorizationToken = async (): Promise<string> => {
   return data.session.access_token;
 };
 
+const getCourseOwnerId = async (): Promise<string> => {
+  const { data: { user }, error } = await supabase.auth.getUser();
+  if (error) throw new Error(error.message);
+  return getEffectiveUserId(user?.id ?? null);
+};
+
 const request = async <T>(path: string, init?: RequestInit): Promise<T> => {
   assertConfiguration();
   const authorizationToken = await getAuthorizationToken();
@@ -220,10 +227,15 @@ export const courseManagementApi = {
   },
 
   async createCourse(input: CourseInput): Promise<ManagedCourse> {
+    const instructorId = await getCourseOwnerId();
     const [course] = await request<ManagedCourse[]>('courses?select=*', {
       method: 'POST',
       headers: { Prefer: 'return=representation' },
-      body: JSON.stringify(input),
+      body: JSON.stringify({
+        ...input,
+        instructor_id: instructorId,
+        is_demo: isDevAuthBypassEnabled,
+      }),
     });
     return { ...course, course_modules: [] };
   },
