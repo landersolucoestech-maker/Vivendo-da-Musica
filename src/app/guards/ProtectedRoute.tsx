@@ -14,6 +14,7 @@ const allowedRolesForPath = (pathname: string): UserRole[] | null => {
   if (pathname === '/instrutor' || pathname.startsWith('/instrutor/')) return ['instructor', ...STAFF_ROLES];
   if (pathname === '/produtor' || pathname.startsWith('/produtor/')) return ['producer', ...STAFF_ROLES];
   if (pathname === '/afiliado' || pathname.startsWith('/afiliado/')) return ['affiliate', ...STAFF_ROLES];
+  if (pathname === '/empresa' || pathname.startsWith('/empresa/')) return ['company', ...STAFF_ROLES];
   if (pathname === '/admin' || pathname.startsWith('/admin/')) return STAFF_ROLES;
   return null;
 };
