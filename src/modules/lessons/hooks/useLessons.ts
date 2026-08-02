@@ -15,7 +15,7 @@ export const useLessons = () => useQuery({
   queryFn: async (): Promise<Lesson[]> => {
     const { data, error } = await supabase
       .from('lessons')
-      .select('id, title, description, video_url, duration_minutes, order_index, module_id')
+      .select('id, title, description, video_url, duration_minutes, order_index, module_id, lesson_materials(id,name,description,material_type,file_url,mime_type,size_bytes,order_index)')
       .order('module_id', { ascending: true })
       .order('order_index', { ascending: true });
 
@@ -30,6 +30,18 @@ export const useLessons = () => useQuery({
       duration: formatDuration(lesson.duration_minutes),
       order_index: lesson.order_index,
       module_id: lesson.module_id,
+      materials: (lesson.lesson_materials ?? [])
+        .slice()
+        .sort((a, b) => a.order_index - b.order_index)
+        .map((material) => ({
+          id: material.id,
+          name: material.name,
+          description: material.description,
+          material_type: material.material_type,
+          file_url: material.file_url,
+          mime_type: material.mime_type,
+          size_bytes: material.size_bytes === null ? null : Number(material.size_bytes),
+        })),
     }));
   },
 });
