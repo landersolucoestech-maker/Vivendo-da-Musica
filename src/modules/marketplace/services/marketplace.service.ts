@@ -10,7 +10,7 @@ export const marketplaceService = {
   ...productService,
 
   async getProductById(id: string) {
-    return (await productService.listProducts()).find((product) => product.id === id);
+    return productService.getProductById(id);
   },
 
   async listRelatedProducts(product: Product, limit = 4) {
