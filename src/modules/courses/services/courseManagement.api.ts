@@ -309,6 +309,10 @@ export const courseManagementApi = {
     };
   },
 
+  async removeMaterialFile(path: string): Promise<void> {
+    await removeMaterialFiles([path]);
+  },
+
   async createSignedMaterialUrl(path: string, expiresInSeconds = 300): Promise<string> {
     if (/^https?:\/\//i.test(path)) return path;
     const { data, error } = await supabase.storage
