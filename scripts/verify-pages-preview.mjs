@@ -31,6 +31,7 @@ try {
     const page = await context.newPage();
     const pageErrors = [];
     const failedAssets = [];
+    const failedResponses = [];
     const consoleErrors = [];
 
     page.on('pageerror', (error) => {
@@ -62,6 +63,10 @@ try {
 
       if (isFirstParty && isCriticalAsset && response.status() >= 400) {
         failedAssets.push(`${resourceType} ${response.url()} — HTTP ${response.status()}`);
+      }
+
+      if (response.status() >= 400 && resourceType !== 'document') {
+        failedResponses.push(`${resourceType} ${response.url()} — HTTP ${response.status()}`);
       }
     });
 
@@ -122,6 +127,10 @@ try {
       failures.push(`${route.name}: first-party asset failures: ${failedAssets.join(' | ')}`);
     }
 
+    if (failedResponses.length > 0) {
+      warnings.push(`${route.name}: non-critical HTTP responses: ${failedResponses.join(' | ')}`);
+    }
+
     if (consoleErrors.length > 0) {
       warnings.push(`${route.name}: browser console errors observed: ${consoleErrors.join(' | ')}`);
     }
@@ -139,6 +148,7 @@ try {
           stylesheetCount: snapshot.stylesheets.length,
           pageErrors,
           failedAssets,
+          failedResponses,
           consoleErrors,
         },
         null,
