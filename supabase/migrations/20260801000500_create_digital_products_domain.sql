@@ -39,6 +39,16 @@ create table if not exists public.digital_product_order_items (
   updated_at timestamptz not null default now()
 );
 
+-- A clean repository rebuild includes the older marketplace schema first. Add
+-- the development-domain columns that CREATE TABLE IF NOT EXISTS cannot add.
+alter table public.seller_products
+  add column if not exists is_demo boolean not null default false;
+
+alter table public.digital_product_order_items
+  add column if not exists buyer_id uuid references auth.users(id) on delete set null,
+  add column if not exists status text not null default 'pending',
+  add column if not exists updated_at timestamptz not null default now();
+
 alter table public.seller_products enable row level security;
 alter table public.seller_product_files enable row level security;
 alter table public.digital_product_order_items enable row level security;
@@ -87,18 +97,64 @@ create index if not exists seller_product_files_product_idx on public.seller_pro
 create index if not exists digital_product_order_items_seller_idx on public.digital_product_order_items(seller_id,created_at desc);
 create index if not exists digital_product_order_items_buyer_idx on public.digital_product_order_items(buyer_id,created_at desc);
 
-insert into public.seller_products (id,seller_id,title,slug,description,product_type,price_cents,status,is_demo,published_at) values
-('db100000-0000-4000-8000-000000000001','22222222-2222-4222-8222-222222222222','Afrobeat Sample Pack','afrobeat-sample-pack','Coleção de loops, one-shots e elementos rítmicos preparados para produção musical.','drum_kit',7900,'published',true,now()-interval '10 days'),
-('db100000-0000-4000-8000-000000000002','22222222-2222-4222-8222-222222222222','Template de Mixagem Profissional','template-mixagem-profissional','Template organizado para acelerar sessões de mixagem e padronizar o fluxo de trabalho.','template',11900,'published',true,now()-interval '6 days'),
-('db100000-0000-4000-8000-000000000003','22222222-2222-4222-8222-222222222222','Guia de Produção Musical','guia-producao-musical','Material digital de apoio com fundamentos, exercícios e checklist de produção musical.','ebook',4900,'draft',true,null)
+insert into public.seller_products (
+  id,seller_id,title,slug,description,product_type,price_cents,status,is_demo,published_at
+)
+select
+  seed.id, seed.seller_id, seed.title, seed.slug, seed.description,
+  seed.product_type, seed.price_cents, seed.status, seed.is_demo, seed.published_at
+from (
+  values
+    ('db100000-0000-4000-8000-000000000001'::uuid,'22222222-2222-4222-8222-222222222222'::uuid,'Afrobeat Sample Pack','afrobeat-sample-pack','Coleção de loops, one-shots e elementos rítmicos preparados para produção musical.','drum_kit',7900,'published',true,now()-interval '10 days'),
+    ('db100000-0000-4000-8000-000000000002'::uuid,'22222222-2222-4222-8222-222222222222'::uuid,'Template de Mixagem Profissional','template-mixagem-profissional','Template organizado para acelerar sessões de mixagem e padronizar o fluxo de trabalho.','template',11900,'published',true,now()-interval '6 days'),
+    ('db100000-0000-4000-8000-000000000003'::uuid,'22222222-2222-4222-8222-222222222222'::uuid,'Guia de Produção Musical','guia-producao-musical','Material digital de apoio com fundamentos, exercícios e checklist de produção musical.','ebook',4900,'draft',true,null::timestamptz)
+) as seed(id,seller_id,title,slug,description,product_type,price_cents,status,is_demo,published_at)
+where exists (
+  select 1 from auth.users u where u.id = seed.seller_id
+)
+   or exists (
+     select 1 from public.user_profiles p where p.user_id = seed.seller_id
+   )
 on conflict (id) do nothing;
 
-insert into public.seller_product_files (id,product_id,storage_path,file_name,mime_type,size_bytes) values
-('db200000-0000-4000-8000-000000000001','db100000-0000-4000-8000-000000000001','22222222-2222-4222-8222-222222222222/db100000-0000-4000-8000-000000000001/afrobeat-sample-pack.zip','afrobeat-sample-pack.zip','application/zip',10485760),
-('db200000-0000-4000-8000-000000000002','db100000-0000-4000-8000-000000000002','22222222-2222-4222-8222-222222222222/db100000-0000-4000-8000-000000000002/template-mixagem.zip','template-mixagem.zip','application/zip',7340032)
+insert into public.seller_product_files (id,product_id,storage_path,file_name,mime_type,size_bytes)
+select seed.id, seed.product_id, seed.storage_path, seed.file_name, seed.mime_type, seed.size_bytes
+from (
+  values
+    ('db200000-0000-4000-8000-000000000001'::uuid,'db100000-0000-4000-8000-000000000001'::uuid,'22222222-2222-4222-8222-222222222222/db100000-0000-4000-8000-000000000001/afrobeat-sample-pack.zip','afrobeat-sample-pack.zip','application/zip',10485760::bigint),
+    ('db200000-0000-4000-8000-000000000002'::uuid,'db100000-0000-4000-8000-000000000002'::uuid,'22222222-2222-4222-8222-222222222222/db100000-0000-4000-8000-000000000002/template-mixagem.zip','template-mixagem.zip','application/zip',7340032::bigint)
+) as seed(id,product_id,storage_path,file_name,mime_type,size_bytes)
+where exists (select 1 from public.seller_products p where p.id = seed.product_id)
 on conflict (id) do nothing;
 
-insert into public.digital_product_order_items (id,product_id,seller_id,buyer_id,product_title_snapshot,amount_cents,status,paid_at,created_at) values
-('db300000-0000-4000-8000-000000000001','db100000-0000-4000-8000-000000000001','22222222-2222-4222-8222-222222222222','11111111-1111-4111-8111-111111111111','Afrobeat Sample Pack',7900,'paid',now()-interval '4 days',now()-interval '4 days'),
-('db300000-0000-4000-8000-000000000002','db100000-0000-4000-8000-000000000002','22222222-2222-4222-8222-222222222222','11111111-1111-4111-8111-111111111111','Template de Mixagem Profissional',11900,'paid',now()-interval '2 days',now()-interval '2 days')
+insert into public.digital_product_order_items (
+  id,product_id,seller_id,buyer_id,product_title_snapshot,amount_cents,status,paid_at,created_at
+)
+select
+  seed.id, seed.product_id, seed.seller_id, seed.buyer_id,
+  seed.product_title_snapshot, seed.amount_cents, seed.status,
+  seed.paid_at, seed.created_at
+from (
+  values
+    ('db300000-0000-4000-8000-000000000001'::uuid,'db100000-0000-4000-8000-000000000001'::uuid,'22222222-2222-4222-8222-222222222222'::uuid,'11111111-1111-4111-8111-111111111111'::uuid,'Afrobeat Sample Pack',7900,'paid',now()-interval '4 days',now()-interval '4 days'),
+    ('db300000-0000-4000-8000-000000000002'::uuid,'db100000-0000-4000-8000-000000000002'::uuid,'22222222-2222-4222-8222-222222222222'::uuid,'11111111-1111-4111-8111-111111111111'::uuid,'Template de Mixagem Profissional',11900,'paid',now()-interval '2 days',now()-interval '2 days')
+) as seed(id,product_id,seller_id,buyer_id,product_title_snapshot,amount_cents,status,paid_at,created_at)
+where exists (select 1 from public.seller_products p where p.id = seed.product_id)
+  and (
+    not exists (
+      select 1
+      from information_schema.columns c
+      where c.table_schema = 'public'
+        and c.table_name = 'digital_product_order_items'
+        and c.column_name = 'order_id'
+    )
+    or exists (
+      select 1
+      from information_schema.columns c
+      where c.table_schema = 'public'
+        and c.table_name = 'digital_product_order_items'
+        and c.column_name = 'order_id'
+        and c.is_nullable = 'YES'
+    )
+  )
 on conflict (id) do nothing;
