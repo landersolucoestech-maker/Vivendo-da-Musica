@@ -65,7 +65,6 @@ const Navigation = () => {
             ) : (
               <>
                 <Button asChild variant="ghost" size="sm"><Link to={ROUTES.login}>Entrar</Link></Button>
-                <Button asChild variant="outline" size="sm"><Link to={ROUTES.companyRegister}>Sou empresa</Link></Button>
                 <Button size="sm" onClick={handleGetStarted}>Criar conta</Button>
               </>
             )}
@@ -94,18 +93,18 @@ const Navigation = () => {
               </Link>
             ))}
 
-            <div className="grid gap-2 border-t border-white/10 pt-4 sm:grid-cols-2">
+            <div className="grid gap-2 border-t border-white/10 pt-4 sm:grid-cols-3">
               <Button asChild variant="outline" size="sm" className="w-full">
                 <Link to={ROUTES.cart} onClick={() => setIsOpen(false)}>Carrinho ({items.length})</Link>
               </Button>
               {session ? (
-                <Button asChild size="sm" className="w-full">
+                <Button asChild size="sm" className="w-full sm:col-span-2">
                   <Link to={portalRoute} onClick={() => setIsOpen(false)}>Meu portal</Link>
                 </Button>
               ) : (
                 <>
-                  <Button asChild variant="outline" size="sm" className="w-full">
-                    <Link to={ROUTES.companyRegister} onClick={() => setIsOpen(false)}>Cadastrar empresa</Link>
+                  <Button asChild variant="ghost" size="sm" className="w-full">
+                    <Link to={ROUTES.login} onClick={() => setIsOpen(false)}>Entrar</Link>
                   </Button>
                   <Button size="sm" onClick={handleGetStarted} className="w-full">Criar conta</Button>
                 </>
