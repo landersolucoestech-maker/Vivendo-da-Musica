@@ -45,15 +45,15 @@ insert into public.community_groups (id,owner_id,slug,name,description,visibilit
 ('cc100000-0000-4000-8000-000000000003','11111111-1111-4111-8111-111111111111','compositores','Compositores','Espaço para letras, melodias, coautoria, repertório e documentação de obras.','public','active',137,true,now()-interval '72 days',now())
 on conflict (id) do update set name=excluded.name,description=excluded.description,member_count=excluded.member_count,status=excluded.status,updated_at=now();
 
-insert into public.community_group_members (id,group_id,user_id,member_role,joined_at) values
-('cc200000-0000-4000-8000-000000000001','cc100000-0000-4000-8000-000000000001','c3942032-967a-4cde-b00c-22446584e699','owner',now()),
-('cc200000-0000-4000-8000-000000000002','cc100000-0000-4000-8000-000000000001','11111111-1111-4111-8111-111111111111','member',now()),
-('cc200000-0000-4000-8000-000000000003','cc100000-0000-4000-8000-000000000001','22222222-2222-4222-8222-222222222222','moderator',now()),
-('cc200000-0000-4000-8000-000000000004','cc100000-0000-4000-8000-000000000002','33333333-3333-4333-8333-333333333333','owner',now()),
-('cc200000-0000-4000-8000-000000000005','cc100000-0000-4000-8000-000000000002','11111111-1111-4111-8111-111111111111','member',now()),
-('cc200000-0000-4000-8000-000000000006','cc100000-0000-4000-8000-000000000003','11111111-1111-4111-8111-111111111111','owner',now()),
-('cc200000-0000-4000-8000-000000000007','cc100000-0000-4000-8000-000000000003','c3942032-967a-4cde-b00c-22446584e699','moderator',now())
-on conflict (group_id,user_id) do update set member_role=excluded.member_role;
+insert into public.community_group_members (group_id,user_id,member_role,joined_at) values
+('cc100000-0000-4000-8000-000000000001','c3942032-967a-4cde-b00c-22446584e699','owner',now()),
+('cc100000-0000-4000-8000-000000000001','11111111-1111-4111-8111-111111111111','member',now()),
+('cc100000-0000-4000-8000-000000000001','22222222-2222-4222-8222-222222222222','moderator',now()),
+('cc100000-0000-4000-8000-000000000002','33333333-3333-4333-8333-333333333333','owner',now()),
+('cc100000-0000-4000-8000-000000000002','11111111-1111-4111-8111-111111111111','member',now()),
+('cc100000-0000-4000-8000-000000000003','11111111-1111-4111-8111-111111111111','owner',now()),
+('cc100000-0000-4000-8000-000000000003','c3942032-967a-4cde-b00c-22446584e699','moderator',now())
+on conflict (group_id,user_id) do update set member_role=excluded.member_role,joined_at=excluded.joined_at;
 
 insert into public.community_posts (id,group_id,author_id,author_name_snapshot,author_role_snapshot,content,status,like_count,is_demo,created_at,updated_at) values
 ('cc300000-0000-4000-8000-000000000001','cc100000-0000-4000-8000-000000000001','22222222-2222-4222-8222-222222222222','Produtor de Desenvolvimento','producer','Testei três cadeias de vocal e a versão mais simples traduziu melhor no celular. #mixagem #vocais','published',38,true,now()-interval '2 hours',now()),
