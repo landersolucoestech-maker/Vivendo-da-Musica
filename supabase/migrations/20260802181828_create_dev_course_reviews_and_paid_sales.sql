@@ -16,6 +16,9 @@ create table if not exists public.course_reviews (
   unique(course_id,user_id)
 );
 
+alter table public.course_reviews
+  add column if not exists is_demo boolean not null default false;
+
 create index if not exists course_reviews_course_created_idx on public.course_reviews(course_id,created_at desc);
 create index if not exists course_reviews_user_id_idx on public.course_reviews(user_id);
 
