@@ -1,11 +1,15 @@
 import { useEffect, useState } from 'react';
-import { Navigate, useParams } from 'react-router-dom';
+import { Navigate } from 'react-router-dom';
 
 import PublicLayout from '@/app/layouts/PublicLayout';
 import { supabase } from '@/integrations/supabase/client';
 import EmptyState from '@/shared/components/EmptyState';
 import LoadingState from '@/shared/components/LoadingState';
 import { ROUTES } from '@/shared/constants/routes';
+
+interface AffiliateReferralRedirectPageProps {
+  slug: string;
+}
 
 const isSafeDestination = (value: string) => {
   if (value.startsWith('/') && !value.startsWith('//')) return true;
@@ -18,8 +22,7 @@ const isSafeDestination = (value: string) => {
   }
 };
 
-const AffiliateReferralRedirectPage = () => {
-  const { slug = '' } = useParams();
+const AffiliateReferralRedirectPage = ({ slug }: AffiliateReferralRedirectPageProps) => {
   const [destination, setDestination] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
 
