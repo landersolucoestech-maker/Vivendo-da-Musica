@@ -85,26 +85,21 @@ const DownloadsPage = lazy(() => import('@/modules/marketplace/pages/DownloadsPa
 const PremiumLibraryPage = lazy(() => import('@/modules/library/pages/PremiumLibraryPage'));
 const CommunityPage = lazy(() => import('@/modules/community/pages/CommunityPage'));
 const OpportunitiesPage = lazy(() => import('@/modules/opportunities/pages/OpportunitiesPage'));
-
 const InstructorDashboard = lazy(() => import('@/modules/instructor/pages/InstructorDashboard'));
 const InstructorCoursesPage = lazy(() => import('@/modules/instructor/pages/InstructorCoursesPage'));
 const InstructorAudiencePage = lazy(() => import('@/modules/instructor/pages/InstructorAudiencePage'));
 const InstructorReportsPage = lazy(() => import('@/modules/instructor/pages/InstructorReportsPage'));
 
 const queryClient = new QueryClient();
-const routerBaseName = import.meta.env.BASE_URL === '/' ? undefined : import.meta.env.BASE_URL.replace(/\/$/, '');
 
 const LessonRoute = () => {
   const { lessonId } = useParams();
-  if (!lessonId) return <Navigate to={ROUTES.dashboard} replace />;
-  return <Lesson lessonId={lessonId} />;
+  return (
+    <EnrollmentGuard lessonId={lessonId!}>
+      <Lesson />
+    </EnrollmentGuard>
+  );
 };
-
-const enrolledLessonRoute = (element: JSX.Element) => (
-  <EnrollmentGuard>
-    {element}
-  </EnrollmentGuard>
-);
 
 const studentRoute = (element: JSX.Element) => <ProtectedRoute>{element}</ProtectedRoute>;
 const adminRoute = (element: JSX.Element) => (
@@ -129,7 +124,7 @@ const affiliateRoute = (element: JSX.Element) => (
 );
 
 const App = () => (
-  <BrowserRouter basename={routerBaseName}>
+  <BrowserRouter>
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <CartProvider>
