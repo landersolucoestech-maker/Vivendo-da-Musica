@@ -1,13 +1,13 @@
-import { useEffect, useState } from 'react';
-import type { User } from '@supabase/supabase-js';
+import { useState } from 'react';
 import { Menu, ShoppingCart, X } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 
-import { supabase } from '@/integrations/supabase/client';
+import { useAuthContext } from '@/app/providers/AuthProvider';
 import { useCart } from '@/modules/checkout/store/CartContext';
 import { VdmBrand } from '@/shared/components/brand/VdmBrand';
 import { Button } from '@/shared/components/ui/button';
 import { ROUTES } from '@/shared/constants/routes';
+import { getPortalRoute } from '@/shared/utils/portalRoute';
 
 const NAV_LINKS = [
   { label: 'Academia', to: ROUTES.academy },
@@ -19,31 +19,13 @@ const NAV_LINKS = [
 
 const Navigation = () => {
   const [isOpen, setIsOpen] = useState(false);
-  const [user, setUser] = useState<User | null>(null);
   const navigate = useNavigate();
   const { items } = useCart();
-
-  useEffect(() => {
-    const checkUser = async () => {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      setUser(session?.user ?? null);
-    };
-
-    void checkUser();
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
+  const { session, role } = useAuthContext();
+  const portalRoute = getPortalRoute(role);
 
   const handleGetStarted = () => {
-    navigate(user ? ROUTES.dashboard : ROUTES.register);
+    navigate(session ? portalRoute : ROUTES.register);
     setIsOpen(false);
   };
 
@@ -69,11 +51,7 @@ const Navigation = () => {
           </div>
 
           <div className="hidden items-center gap-2 lg:flex">
-            <Link
-              to={ROUTES.cart}
-              aria-label="Carrinho"
-              className="vdm-icon-button relative"
-            >
+            <Link to={ROUTES.cart} aria-label="Carrinho" className="vdm-icon-button relative">
               <ShoppingCart className="size-5" />
               {items.length > 0 && (
                 <span className="absolute -right-1 -top-1 flex size-5 items-center justify-center rounded-full bg-gradient-brand text-[10px] font-bold text-white">
@@ -82,18 +60,13 @@ const Navigation = () => {
               )}
             </Link>
 
-            {user ? (
-              <Button asChild size="sm">
-                <Link to={ROUTES.dashboard}>Meu portal</Link>
-              </Button>
+            {session ? (
+              <Button asChild size="sm"><Link to={portalRoute}>Meu portal</Link></Button>
             ) : (
               <>
-                <Button asChild variant="ghost" size="sm">
-                  <Link to={ROUTES.login}>Entrar</Link>
-                </Button>
-                <Button size="sm" onClick={handleGetStarted}>
-                  Criar conta
-                </Button>
+                <Button asChild variant="ghost" size="sm"><Link to={ROUTES.login}>Entrar</Link></Button>
+                <Button asChild variant="outline" size="sm"><Link to={ROUTES.companyRegister}>Sou empresa</Link></Button>
+                <Button size="sm" onClick={handleGetStarted}>Criar conta</Button>
               </>
             )}
           </div>
@@ -123,20 +96,19 @@ const Navigation = () => {
 
             <div className="grid gap-2 border-t border-white/10 pt-4 sm:grid-cols-2">
               <Button asChild variant="outline" size="sm" className="w-full">
-                <Link to={ROUTES.cart} onClick={() => setIsOpen(false)}>
-                  Carrinho ({items.length})
-                </Link>
+                <Link to={ROUTES.cart} onClick={() => setIsOpen(false)}>Carrinho ({items.length})</Link>
               </Button>
-              {user ? (
+              {session ? (
                 <Button asChild size="sm" className="w-full">
-                  <Link to={ROUTES.dashboard} onClick={() => setIsOpen(false)}>
-                    Meu portal
-                  </Link>
+                  <Link to={portalRoute} onClick={() => setIsOpen(false)}>Meu portal</Link>
                 </Button>
               ) : (
-                <Button size="sm" onClick={handleGetStarted} className="w-full">
-                  Criar conta
-                </Button>
+                <>
+                  <Button asChild variant="outline" size="sm" className="w-full">
+                    <Link to={ROUTES.companyRegister} onClick={() => setIsOpen(false)}>Cadastrar empresa</Link>
+                  </Button>
+                  <Button size="sm" onClick={handleGetStarted} className="w-full">Criar conta</Button>
+                </>
               )}
             </div>
           </div>
