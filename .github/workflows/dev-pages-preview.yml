@@ -3,6 +3,8 @@ name: Dev Pages Preview
 on:
   push:
     branches: [dev]
+  pull_request:
+    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -11,13 +13,13 @@ permissions:
   id-token: write
 
 concurrency:
-  group: dev-pages-preview
+  group: dev-pages-preview-${{ github.event_name }}
   cancel-in-progress: true
 
 jobs:
   build:
     name: Build preview artifact
-    if: github.ref == 'refs/heads/dev'
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch' || github.head_ref == 'dev'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
@@ -57,7 +59,7 @@ jobs:
 
   deploy:
     name: Deploy dev preview
-    if: github.ref == 'refs/heads/dev'
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
     needs: build
     runs-on: ubuntu-latest
     timeout-minutes: 10
