@@ -36,7 +36,6 @@ const EditProfile = lazy(() => import('@/modules/profile/pages/EditProfile'));
 const AdminDashboard = lazy(() => import('@/modules/admin/pages/AdminDashboard'));
 const AdminUsersPage = lazy(() => import('@/modules/admin/pages/AdminUsersPage'));
 const AdminStudentsPage = lazy(() => import('@/modules/admin/pages/AdminStudentsPage'));
-const AdminSubscriptionsPage = lazy(() => import('@/modules/admin/pages/AdminSubscriptionsPage'));
 const AdminCoursesPage = lazy(() => import('@/modules/admin/pages/AdminCoursesPage'));
 const AdminProductsPage = lazy(() => import('@/modules/admin/pages/AdminProductsPage'));
 const AdminOrdersPage = lazy(() => import('@/modules/admin/pages/AdminOrdersPage'));
@@ -205,7 +204,7 @@ const App = () => (
                 <Route path={ROUTES.admin} element={adminRoute(<AdminDashboard />)} />
                 <Route path={ROUTES.adminUsers} element={adminRoute(<AdminUsersPage />)} />
                 <Route path={ROUTES.adminStudents} element={adminRoute(<AdminStudentsPage />)} />
-                <Route path={ROUTES.adminSubscriptions} element={adminRoute(<AdminSubscriptionsPage />)} />
+                <Route path={ROUTES.adminSubscriptions} element={<Navigate to={ROUTES.admin} replace />} />
                 <Route path={ROUTES.adminCourses} element={adminRoute(<AdminCoursesPage />)} />
                 <Route path={ROUTES.adminProducts} element={adminRoute(<AdminProductsPage />)} />
                 <Route path={ROUTES.adminProductNew} element={<Navigate to={ROUTES.adminProducts} replace />} />
