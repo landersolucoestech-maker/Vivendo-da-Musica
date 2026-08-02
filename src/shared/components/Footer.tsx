@@ -80,7 +80,7 @@ const Footer = () => (
       </div>
 
       <div className="mt-12 flex flex-col gap-4 border-t border-white/10 pt-6 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
-        <p>© 2026 Vivendo da Música. Todos os direitos reservados.</p>
+        <p>© 2026 Vivendo da Música by Lander Solutions. Todos os direitos reservados.</p>
         <div className="flex gap-5">
           <a href="#" className="transition hover:text-white">Política de Privacidade</a>
           <a href="#" className="transition hover:text-white">Termos de Uso</a>
