@@ -95,6 +95,25 @@ begin
     limit 1;
   end if;
 
+  if new.enrollment_id is null then
+    insert into public.enrollments (
+      user_id,
+      course_id,
+      status,
+      source
+    ) values (
+      new.user_id,
+      new.course_id,
+      'active',
+      'manual'
+    )
+    on conflict (user_id, course_id) do update
+      set status = 'active',
+          source = 'manual',
+          updated_at = now()
+    returning id into new.enrollment_id;
+  end if;
+
   if new.certificate_code is null or new.certificate_code !~ '^VDM-[A-F0-9]{16}$' then
     new.certificate_code := 'VDM-' || upper(left(replace(new.id::text, '-', ''), 16));
   end if;
