@@ -17,6 +17,7 @@ concurrency:
 jobs:
   build:
     name: Build preview artifact
+    if: github.ref == 'refs/heads/dev'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
@@ -56,6 +57,7 @@ jobs:
 
   deploy:
     name: Deploy dev preview
+    if: github.ref == 'refs/heads/dev'
     needs: build
     runs-on: ubuntu-latest
     timeout-minutes: 10
