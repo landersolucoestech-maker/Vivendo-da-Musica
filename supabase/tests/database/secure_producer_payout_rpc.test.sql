@@ -87,8 +87,32 @@ select ok(
   'service_role has usage on the private schema'
 );
 
-insert into public.user_profiles (user_id, full_name, role, is_demo)
-values ('9f100000-0000-4000-8000-000000000001'::uuid, 'RPC Payout Test Producer', 'producer', true);
+insert into auth.users (
+  id,
+  aud,
+  role,
+  email,
+  raw_app_meta_data,
+  raw_user_meta_data,
+  created_at,
+  updated_at
+)
+values (
+  '9f100000-0000-4000-8000-000000000001'::uuid,
+  'authenticated',
+  'authenticated',
+  'rpc-payout-producer@example.test',
+  '{}'::jsonb,
+  '{"full_name":"RPC Payout Test Producer"}'::jsonb,
+  now(),
+  now()
+);
+
+update public.user_profiles
+set full_name = 'RPC Payout Test Producer',
+    role = 'producer'::public.user_role,
+    is_demo = true
+where user_id = '9f100000-0000-4000-8000-000000000001'::uuid;
 
 insert into public.producer_financial_accounts (
   producer_id,
