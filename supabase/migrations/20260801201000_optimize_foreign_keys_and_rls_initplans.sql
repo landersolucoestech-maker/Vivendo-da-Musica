@@ -17,37 +17,63 @@ create index if not exists producer_payout_methods_producer_id_idx on public.pro
 create index if not exists producer_payout_requests_payout_method_id_idx on public.producer_payout_requests (payout_method_id);
 create index if not exists producer_payout_requests_producer_id_idx on public.producer_payout_requests (producer_id);
 
-alter policy affiliate_profiles_owner_select on public.affiliate_profiles using ((user_id = (select auth.uid())) or is_platform_staff());
-alter policy affiliate_links_owner_select on public.affiliate_links using (exists (select 1 from public.affiliate_profiles p where p.id = affiliate_links.affiliate_id and (p.user_id = (select auth.uid()) or is_platform_staff())));
-alter policy affiliate_links_owner_write on public.affiliate_links using (exists (select 1 from public.affiliate_profiles p where p.id = affiliate_links.affiliate_id and (p.user_id = (select auth.uid()) or is_platform_staff()))) with check (exists (select 1 from public.affiliate_profiles p where p.id = affiliate_links.affiliate_id and (p.user_id = (select auth.uid()) or is_platform_staff())));
-alter policy affiliate_conversions_owner_select on public.affiliate_conversions using (exists (select 1 from public.affiliate_profiles p where p.id = affiliate_conversions.affiliate_id and (p.user_id = (select auth.uid()) or is_platform_staff())));
-alter policy affiliate_commissions_owner_select on public.affiliate_commissions using (exists (select 1 from public.affiliate_profiles p where p.id = affiliate_commissions.affiliate_id and (p.user_id = (select auth.uid()) or is_platform_staff())));
-alter policy affiliate_withdrawals_owner_select on public.affiliate_withdrawals using (exists (select 1 from public.affiliate_profiles p where p.id = affiliate_withdrawals.affiliate_id and (p.user_id = (select auth.uid()) or is_platform_staff())));
-alter policy affiliate_withdrawals_owner_insert on public.affiliate_withdrawals with check (exists (select 1 from public.affiliate_profiles p where p.id = affiliate_withdrawals.affiliate_id and p.user_id = (select auth.uid())));
-alter policy lesson_progress_owner_select on public.lesson_progress using (user_id = (select auth.uid()));
-alter policy lesson_progress_owner_insert on public.lesson_progress with check (user_id = (select auth.uid()));
-alter policy lesson_progress_owner_update on public.lesson_progress using (user_id = (select auth.uid())) with check (user_id = (select auth.uid()));
-alter policy lesson_comments_authenticated_read on public.lesson_comments using ((status = 'published') or (author_id = (select auth.uid())));
-alter policy lesson_comments_owner_insert on public.lesson_comments with check (author_id = (select auth.uid()));
-alter policy lesson_comments_owner_update on public.lesson_comments using (author_id = (select auth.uid())) with check (author_id = (select auth.uid()));
-alter policy enrollments_owner_select on public.enrollments using (user_id = (select auth.uid()));
-alter policy seller_products_public_read on public.seller_products using ((status = 'published') or is_demo or (seller_id = (select auth.uid())) or is_platform_staff());
-alter policy seller_products_owner_write on public.seller_products using ((seller_id = (select auth.uid())) or is_platform_staff()) with check ((seller_id = (select auth.uid())) or is_platform_staff());
-alter policy seller_product_files_owner_read on public.seller_product_files using (exists (select 1 from public.seller_products p where p.id = seller_product_files.product_id and (p.seller_id = (select auth.uid()) or is_platform_staff())));
-alter policy seller_product_files_owner_write on public.seller_product_files using (exists (select 1 from public.seller_products p where p.id = seller_product_files.product_id and (p.seller_id = (select auth.uid()) or is_platform_staff()))) with check (exists (select 1 from public.seller_products p where p.id = seller_product_files.product_id and (p.seller_id = (select auth.uid()) or is_platform_staff())));
-alter policy beats_public_read on public.beats using ((status = 'published') or is_demo or (producer_id = (select auth.uid())) or is_platform_staff());
-alter policy beats_owner_write on public.beats using ((producer_id = (select auth.uid())) or is_platform_staff()) with check ((producer_id = (select auth.uid())) or is_platform_staff());
-alter policy beat_licenses_public_read on public.beat_licenses using (exists (select 1 from public.beats b where b.id = beat_licenses.beat_id and (b.status = 'published' or b.is_demo or b.producer_id = (select auth.uid()) or is_platform_staff())));
-alter policy beat_licenses_owner_write on public.beat_licenses using (exists (select 1 from public.beats b where b.id = beat_licenses.beat_id and (b.producer_id = (select auth.uid()) or is_platform_staff()))) with check (exists (select 1 from public.beats b where b.id = beat_licenses.beat_id and (b.producer_id = (select auth.uid()) or is_platform_staff())));
-alter policy beat_events_owner_read on public.beat_events using (exists (select 1 from public.beats b where b.id = beat_events.beat_id and (b.producer_id = (select auth.uid()) or is_platform_staff())));
-alter policy beat_purchases_owner_read on public.beat_license_purchases using ((buyer_id = (select auth.uid())) or exists (select 1 from public.beats b where b.id = beat_license_purchases.beat_id and b.producer_id = (select auth.uid())) or is_platform_staff());
-alter policy beat_deliveries_owner_read on public.beat_deliveries using (exists (select 1 from public.beat_license_purchases p where p.id = beat_deliveries.purchase_id and (p.buyer_id = (select auth.uid()) or is_platform_staff())));
-alter policy producer_accounts_owner_read on public.producer_financial_accounts using ((producer_id = (select auth.uid())) or is_platform_staff());
-alter policy payout_methods_owner_read on public.producer_payout_methods using ((producer_id = (select auth.uid())) or is_platform_staff());
-alter policy payout_requests_owner_read on public.producer_payout_requests using ((producer_id = (select auth.uid())) or is_platform_staff());
-alter policy course_orders_owner_read on public.course_orders using (user_id = (select auth.uid()));
-alter policy course_order_items_owner_read on public.course_order_items using (exists (select 1 from public.course_orders o where o.id = course_order_items.order_id and o.user_id = (select auth.uid())));
-alter policy beat_orders_owner_read on public.beat_orders using (buyer_id = (select auth.uid()));
-alter policy beat_order_items_buyer_read on public.beat_order_items using (buyer_id = (select auth.uid()));
-alter policy digital_product_orders_owner_read on public.digital_product_orders using (buyer_id = (select auth.uid()));
-alter policy digital_product_order_items_buyer_read on public.digital_product_order_items using (buyer_id = (select auth.uid()));
+-- Policy names differ between the historical schema and the current development
+-- branch. Apply each optimization only when the corresponding policy exists.
+do $migration$
+declare
+  policy_change record;
+begin
+  for policy_change in
+    select *
+    from (values
+      ('affiliate_profiles','affiliate_profiles_owner_select',$policy$alter policy affiliate_profiles_owner_select on public.affiliate_profiles using ((user_id = (select auth.uid())) or is_platform_staff())$policy$),
+      ('affiliate_links','affiliate_links_owner_select',$policy$alter policy affiliate_links_owner_select on public.affiliate_links using (exists (select 1 from public.affiliate_profiles p where p.id = affiliate_links.affiliate_id and (p.user_id = (select auth.uid()) or is_platform_staff())))$policy$),
+      ('affiliate_links','affiliate_links_owner_write',$policy$alter policy affiliate_links_owner_write on public.affiliate_links using (exists (select 1 from public.affiliate_profiles p where p.id = affiliate_links.affiliate_id and (p.user_id = (select auth.uid()) or is_platform_staff()))) with check (exists (select 1 from public.affiliate_profiles p where p.id = affiliate_links.affiliate_id and (p.user_id = (select auth.uid()) or is_platform_staff())))$policy$),
+      ('affiliate_links','affiliate_links_owner_insert',$policy$alter policy affiliate_links_owner_insert on public.affiliate_links with check (exists (select 1 from public.affiliate_profiles p where p.id = affiliate_links.affiliate_id and (p.user_id = (select auth.uid()) or is_platform_staff())))$policy$),
+      ('affiliate_links','affiliate_links_owner_update',$policy$alter policy affiliate_links_owner_update on public.affiliate_links using (exists (select 1 from public.affiliate_profiles p where p.id = affiliate_links.affiliate_id and (p.user_id = (select auth.uid()) or is_platform_staff()))) with check (exists (select 1 from public.affiliate_profiles p where p.id = affiliate_links.affiliate_id and (p.user_id = (select auth.uid()) or is_platform_staff())))$policy$),
+      ('affiliate_links','affiliate_links_owner_delete',$policy$alter policy affiliate_links_owner_delete on public.affiliate_links using (exists (select 1 from public.affiliate_profiles p where p.id = affiliate_links.affiliate_id and (p.user_id = (select auth.uid()) or is_platform_staff())))$policy$),
+      ('affiliate_conversions','affiliate_conversions_owner_select',$policy$alter policy affiliate_conversions_owner_select on public.affiliate_conversions using (exists (select 1 from public.affiliate_profiles p where p.id = affiliate_conversions.affiliate_id and (p.user_id = (select auth.uid()) or is_platform_staff())))$policy$),
+      ('affiliate_commissions','affiliate_commissions_owner_select',$policy$alter policy affiliate_commissions_owner_select on public.affiliate_commissions using (exists (select 1 from public.affiliate_profiles p where p.id = affiliate_commissions.affiliate_id and (p.user_id = (select auth.uid()) or is_platform_staff())))$policy$),
+      ('affiliate_withdrawals','affiliate_withdrawals_owner_select',$policy$alter policy affiliate_withdrawals_owner_select on public.affiliate_withdrawals using (exists (select 1 from public.affiliate_profiles p where p.id = affiliate_withdrawals.affiliate_id and (p.user_id = (select auth.uid()) or is_platform_staff())))$policy$),
+      ('affiliate_withdrawals','affiliate_withdrawals_owner_insert',$policy$alter policy affiliate_withdrawals_owner_insert on public.affiliate_withdrawals with check (exists (select 1 from public.affiliate_profiles p where p.id = affiliate_withdrawals.affiliate_id and p.user_id = (select auth.uid())))$policy$),
+      ('lesson_progress','lesson_progress_owner_select',$policy$alter policy lesson_progress_owner_select on public.lesson_progress using (user_id = (select auth.uid()))$policy$),
+      ('lesson_progress','lesson_progress_owner_insert',$policy$alter policy lesson_progress_owner_insert on public.lesson_progress with check (user_id = (select auth.uid()))$policy$),
+      ('lesson_progress','lesson_progress_owner_update',$policy$alter policy lesson_progress_owner_update on public.lesson_progress using (user_id = (select auth.uid())) with check (user_id = (select auth.uid()))$policy$),
+      ('lesson_comments','lesson_comments_authenticated_read',$policy$alter policy lesson_comments_authenticated_read on public.lesson_comments using ((status = 'published') or (author_id = (select auth.uid())))$policy$),
+      ('lesson_comments','lesson_comments_owner_insert',$policy$alter policy lesson_comments_owner_insert on public.lesson_comments with check (author_id = (select auth.uid()))$policy$),
+      ('lesson_comments','lesson_comments_owner_update',$policy$alter policy lesson_comments_owner_update on public.lesson_comments using (author_id = (select auth.uid())) with check (author_id = (select auth.uid()))$policy$),
+      ('enrollments','enrollments_owner_select',$policy$alter policy enrollments_owner_select on public.enrollments using (user_id = (select auth.uid()))$policy$),
+      ('seller_products','seller_products_public_read',$policy$alter policy seller_products_public_read on public.seller_products using ((status = 'published') or is_demo or (seller_id = (select auth.uid())) or is_platform_staff())$policy$),
+      ('seller_products','seller_products_owner_write',$policy$alter policy seller_products_owner_write on public.seller_products using ((seller_id = (select auth.uid())) or is_platform_staff()) with check ((seller_id = (select auth.uid())) or is_platform_staff())$policy$),
+      ('seller_product_files','seller_product_files_owner_read',$policy$alter policy seller_product_files_owner_read on public.seller_product_files using (exists (select 1 from public.seller_products p where p.id = seller_product_files.product_id and (p.seller_id = (select auth.uid()) or is_platform_staff())))$policy$),
+      ('seller_product_files','seller_product_files_owner_write',$policy$alter policy seller_product_files_owner_write on public.seller_product_files using (exists (select 1 from public.seller_products p where p.id = seller_product_files.product_id and (p.seller_id = (select auth.uid()) or is_platform_staff()))) with check (exists (select 1 from public.seller_products p where p.id = seller_product_files.product_id and (p.seller_id = (select auth.uid()) or is_platform_staff())))$policy$),
+      ('beats','beats_public_read',$policy$alter policy beats_public_read on public.beats using ((status = 'published') or is_demo or (producer_id = (select auth.uid())) or is_platform_staff())$policy$),
+      ('beats','beats_owner_write',$policy$alter policy beats_owner_write on public.beats using ((producer_id = (select auth.uid())) or is_platform_staff()) with check ((producer_id = (select auth.uid())) or is_platform_staff())$policy$),
+      ('beat_licenses','beat_licenses_public_read',$policy$alter policy beat_licenses_public_read on public.beat_licenses using (exists (select 1 from public.beats b where b.id = beat_licenses.beat_id and (b.status = 'published' or b.is_demo or b.producer_id = (select auth.uid()) or is_platform_staff())))$policy$),
+      ('beat_licenses','beat_licenses_owner_write',$policy$alter policy beat_licenses_owner_write on public.beat_licenses using (exists (select 1 from public.beats b where b.id = beat_licenses.beat_id and (b.producer_id = (select auth.uid()) or is_platform_staff()))) with check (exists (select 1 from public.beats b where b.id = beat_licenses.beat_id and (b.producer_id = (select auth.uid()) or is_platform_staff())))$policy$),
+      ('beat_events','beat_events_owner_read',$policy$alter policy beat_events_owner_read on public.beat_events using (exists (select 1 from public.beats b where b.id = beat_events.beat_id and (b.producer_id = (select auth.uid()) or is_platform_staff())))$policy$),
+      ('beat_license_purchases','beat_purchases_owner_read',$policy$alter policy beat_purchases_owner_read on public.beat_license_purchases using ((buyer_id = (select auth.uid())) or exists (select 1 from public.beats b where b.id = beat_license_purchases.beat_id and b.producer_id = (select auth.uid())) or is_platform_staff())$policy$),
+      ('beat_deliveries','beat_deliveries_owner_read',$policy$alter policy beat_deliveries_owner_read on public.beat_deliveries using (exists (select 1 from public.beat_license_purchases p where p.id = beat_deliveries.purchase_id and (p.buyer_id = (select auth.uid()) or is_platform_staff())))$policy$),
+      ('producer_financial_accounts','producer_accounts_owner_read',$policy$alter policy producer_accounts_owner_read on public.producer_financial_accounts using ((producer_id = (select auth.uid())) or is_platform_staff())$policy$),
+      ('producer_payout_methods','payout_methods_owner_read',$policy$alter policy payout_methods_owner_read on public.producer_payout_methods using ((producer_id = (select auth.uid())) or is_platform_staff())$policy$),
+      ('producer_payout_requests','payout_requests_owner_read',$policy$alter policy payout_requests_owner_read on public.producer_payout_requests using ((producer_id = (select auth.uid())) or is_platform_staff())$policy$),
+      ('course_orders','course_orders_owner_read',$policy$alter policy course_orders_owner_read on public.course_orders using (user_id = (select auth.uid()))$policy$),
+      ('course_order_items','course_order_items_owner_read',$policy$alter policy course_order_items_owner_read on public.course_order_items using (exists (select 1 from public.course_orders o where o.id = course_order_items.order_id and o.user_id = (select auth.uid())))$policy$),
+      ('beat_orders','beat_orders_owner_read',$policy$alter policy beat_orders_owner_read on public.beat_orders using (buyer_id = (select auth.uid()))$policy$),
+      ('beat_order_items','beat_order_items_buyer_read',$policy$alter policy beat_order_items_buyer_read on public.beat_order_items using (buyer_id = (select auth.uid()))$policy$),
+      ('digital_product_orders','digital_product_orders_owner_read',$policy$alter policy digital_product_orders_owner_read on public.digital_product_orders using (buyer_id = (select auth.uid()))$policy$),
+      ('digital_product_order_items','digital_product_order_items_buyer_read',$policy$alter policy digital_product_order_items_buyer_read on public.digital_product_order_items using (buyer_id = (select auth.uid()))$policy$)
+    ) as changes(table_name, policy_name, statement_sql)
+  loop
+    if exists (
+      select 1
+      from pg_policies
+      where schemaname='public'
+        and tablename=policy_change.table_name
+        and policyname=policy_change.policy_name
+    ) then
+      execute policy_change.statement_sql;
+    end if;
+  end loop;
+end
+$migration$;
