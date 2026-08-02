@@ -1,4 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
+import { getAffiliateReferralSlug } from '@/modules/affiliate/utils/referralSession';
 import type { StudentOrder } from '@/modules/checkout/types/order.types';
 import { getEffectiveUserId } from '@/shared/utils/devIdentity';
 
@@ -50,6 +51,8 @@ const readCheckoutUrl = (data: unknown): string => {
   }
   return data.checkoutUrl;
 };
+
+const referralSlug = () => getAffiliateReferralSlug();
 
 export const checkoutService = {
   async listOrders(): Promise<StudentOrder[]> {
@@ -126,6 +129,7 @@ export const checkoutService = {
     const { data, error } = await supabase.functions.invoke('create-course-checkout', {
       body: {
         courseIds,
+        referralSlug: referralSlug(),
         idempotencyKey: `course_${crypto.randomUUID()}`,
       },
     });
@@ -142,6 +146,7 @@ export const checkoutService = {
         licenseIds,
         couponCode: promotions?.couponCode?.trim() || null,
         affiliateCode: promotions?.affiliateCode?.trim() || null,
+        referralSlug: referralSlug(),
         idempotencyKey: `beat_${crypto.randomUUID()}`,
       },
     });
@@ -153,6 +158,7 @@ export const checkoutService = {
     const { data, error } = await supabase.functions.invoke('create-digital-product-checkout', {
       body: {
         productIds,
+        referralSlug: referralSlug(),
         idempotencyKey: `digital_${crypto.randomUUID()}`,
       },
     });
