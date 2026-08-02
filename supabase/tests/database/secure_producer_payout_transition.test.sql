@@ -198,6 +198,8 @@ select throws_ok(
   'terminal payout cannot be transitioned or refunded twice'
 );
 
+reset role;
+
 insert into public.producer_payout_requests (
   id,
   producer_id,
@@ -213,6 +215,10 @@ insert into public.producer_payout_requests (
   'BRL',
   'requested'
 );
+
+set local role authenticated;
+select set_config('request.jwt.claim.sub', '9f300000-0000-4000-8000-000000000002', true);
+select set_config('request.jwt.claim.role', 'authenticated', true);
 
 select throws_ok(
   $$select public.transition_producer_payout(
