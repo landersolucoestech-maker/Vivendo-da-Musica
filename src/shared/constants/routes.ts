@@ -2,6 +2,7 @@ export const ROUTES = {
   home: '/',
   login: '/login',
   register: '/matricule-se',
+  companyRegister: '/cadastro-empresa',
   forgotPassword: '/esqueceu-senha',
   resetPassword: '/redefinir-senha',
   verifyEmail: '/verificar-email',
@@ -63,6 +64,12 @@ export const ROUTES = {
   affiliateWithdrawals: '/afiliado/saques',
   affiliateMaterials: '/afiliado/materiais',
   affiliateProfile: '/afiliado/perfil',
+
+  company: '/empresa',
+  companyOpportunities: '/empresa/oportunidades',
+  companyCandidates: '/empresa/candidatos',
+  companyMessages: '/empresa/mensagens',
+  companyProfile: '/empresa/perfil',
 
   admin: '/admin',
   adminUsers: '/admin/usuarios',
