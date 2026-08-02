@@ -15,6 +15,7 @@ interface ProductRow {
   price_cents: number;
   currency: string;
   status: ProductStatus;
+  published_at: string | null;
   cover_url: string | null;
   seller_product_files: { file_name: string }[] | null;
 }
@@ -43,7 +44,7 @@ const typeByLabel = new Map<string, ProductType>(
 );
 
 const gradients = [['#8A2BE2', '#6C3AED'], ['#6C3AED', '#24103f'], ['#8A2BE2', '#1A1A1A']] as const;
-const productSelect = 'id,slug,title,description,product_type,price_cents,currency,status,cover_url,seller_product_files(file_name)';
+const productSelect = 'id,slug,title,description,product_type,price_cents,currency,status,published_at,cover_url,seller_product_files(file_name)';
 
 const slugify = (value: string) => value
   .normalize('NFD')
@@ -72,6 +73,7 @@ const mapProduct = (row: ProductRow, index: number): Product => {
     priceCents: row.price_cents,
     currency: row.currency,
     status: row.status,
+    publishedAt: row.published_at,
     gradientFrom,
     gradientTo,
   };
@@ -129,6 +131,7 @@ export const productService = {
   async createProduct(input: ProductMutationInput): Promise<Product> {
     const sellerId = await currentSellerId();
     const slug = `${slugify(input.title)}-${crypto.randomUUID().slice(0, 8)}`;
+    const publishedAt = input.status === 'published' ? new Date().toISOString() : null;
     const { data, error } = await supabase.from('seller_products').insert({
       seller_id: sellerId,
       title: input.title.trim(),
@@ -138,24 +141,29 @@ export const productService = {
       price_cents: Math.max(0, Math.round(input.priceCents)),
       currency: 'BRL',
       status: input.status,
-      published_at: input.status === 'published' ? new Date().toISOString() : null,
+      published_at: publishedAt,
       is_demo: isDevAuthBypassEnabled,
-    }).select('id,slug,title,description,product_type,price_cents,currency,status,cover_url').single();
+    }).select('id,slug,title,description,product_type,price_cents,currency,status,published_at,cover_url').single();
     if (error || !data) throw new Error(error?.message ?? 'Não foi possível criar o produto.');
     return mapProduct({ ...data, seller_product_files: [] } as ProductRow, 0);
   },
 
   async updateProduct(id: string, input: ProductMutationInput): Promise<Product> {
+    const existing = await this.getProductById(id);
+    const publishedAt = input.status === 'published'
+      ? existing?.publishedAt ?? new Date().toISOString()
+      : null;
+
     const { data, error } = await supabase.from('seller_products').update({
       title: input.title.trim(),
       description: input.description.trim(),
       product_type: resolveType(input.category),
       price_cents: Math.max(0, Math.round(input.priceCents)),
       status: input.status,
-      published_at: input.status === 'published' ? new Date().toISOString() : null,
+      published_at: publishedAt,
       updated_at: new Date().toISOString(),
     }).eq('id', id)
-      .select('id,slug,title,description,product_type,price_cents,currency,status,cover_url').single();
+      .select('id,slug,title,description,product_type,price_cents,currency,status,published_at,cover_url').single();
     if (error || !data) throw new Error(error?.message ?? 'Não foi possível atualizar o produto.');
     return mapProduct({ ...data, seller_product_files: [] } as ProductRow, 0);
   },
