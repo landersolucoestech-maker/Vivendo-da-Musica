@@ -3,6 +3,7 @@ import type { Product, ProductLicense, ProductQA, ProductReview } from '@/module
 import { DEV_IDENTITY_IDS, getEffectiveUserId } from '@/shared/utils/devIdentity';
 
 export type ProductType = 'preset' | 'drum_kit' | 'midi' | 'plugin' | 'template' | 'project' | 'ebook' | 'other';
+type ProductStatus = Product['status'];
 
 interface ProductRow {
   id: string;
@@ -12,6 +13,7 @@ interface ProductRow {
   product_type: ProductType;
   price_cents: number;
   currency: string;
+  status: ProductStatus;
   cover_url: string | null;
   seller_product_files: { file_name: string }[] | null;
 }
@@ -39,6 +41,8 @@ const typeByLabel = new Map<string, ProductType>(
 );
 
 const gradients = [['#8A2BE2', '#6C3AED'], ['#6C3AED', '#24103f'], ['#8A2BE2', '#1A1A1A']] as const;
+const productSelect = 'id,slug,title,description,product_type,price_cents,currency,status,cover_url,seller_product_files(file_name)';
+
 const slugify = (value: string) => value
   .normalize('NFD')
   .replace(/[\u0300-\u036f]/g, '')
@@ -61,36 +65,61 @@ const mapProduct = (row: ProductRow, index: number): Product => {
     id: row.id,
     slug: row.slug,
     title: row.title,
+    description: row.description,
     category: labels[row.product_type],
     priceCents: row.price_cents,
     currency: row.currency,
+    status: row.status,
     gradientFrom,
     gradientTo,
   };
 };
 
-const listRows = async (): Promise<ProductRow[]> => {
+const listPublishedRows = async (): Promise<ProductRow[]> => {
   const { data, error } = await supabase
     .from('seller_products')
-    .select('id,slug,title,description,product_type,price_cents,currency,cover_url,seller_product_files(file_name)')
+    .select(productSelect)
     .eq('status', 'published')
     .order('published_at', { ascending: false });
   if (error) throw error;
   return (data ?? []) as ProductRow[];
 };
 
+const listManagedRows = async (): Promise<ProductRow[]> => {
+  const { data, error } = await supabase
+    .from('seller_products')
+    .select(productSelect)
+    .order('updated_at', { ascending: false });
+  if (error) throw error;
+  return (data ?? []) as ProductRow[];
+};
+
 export const productService = {
   async listProducts(): Promise<Product[]> {
-    return (await listRows()).map(mapProduct);
+    return (await listPublishedRows()).map(mapProduct);
+  },
+
+  async listManagedProducts(): Promise<Product[]> {
+    return (await listManagedRows()).map(mapProduct);
   },
 
   async listCategories(): Promise<readonly string[]> {
-    const categories: string[] = (await this.listProducts()).map((product) => String(product.category));
-    return [...new Set<string>(categories)].sort((left, right) => left.localeCompare(right, 'pt-BR'));
+    const categories = Object.values(labels);
+    return [...new Set(categories)].sort((left, right) => left.localeCompare(right, 'pt-BR'));
+  },
+
+  async getProductById(id: string): Promise<Product | undefined> {
+    const { data, error } = await supabase
+      .from('seller_products')
+      .select(productSelect)
+      .eq('id', id)
+      .maybeSingle();
+    if (error) throw error;
+    return data ? mapProduct(data as ProductRow, 0) : undefined;
   },
 
   async getProductBySlug(slug: string): Promise<Product | undefined> {
-    const rows = await listRows();
+    const rows = await listPublishedRows();
     const index = rows.findIndex((row) => row.slug === slug);
     return index < 0 ? undefined : mapProduct(rows[index], index);
   },
@@ -108,7 +137,7 @@ export const productService = {
       currency: 'BRL',
       status: 'draft',
       is_demo: true,
-    }).select('id,slug,title,description,product_type,price_cents,currency,cover_url').single();
+    }).select('id,slug,title,description,product_type,price_cents,currency,status,cover_url').single();
     if (error || !data) throw new Error(error?.message ?? 'Não foi possível criar o produto.');
     return mapProduct({ ...data, seller_product_files: [] } as ProductRow, 0);
   },
@@ -122,13 +151,13 @@ export const productService = {
       price_cents: Math.max(0, Math.round(input.priceCents)),
       updated_at: new Date().toISOString(),
     }).eq('id', id).eq('seller_id', sellerId)
-      .select('id,slug,title,description,product_type,price_cents,currency,cover_url').single();
+      .select('id,slug,title,description,product_type,price_cents,currency,status,cover_url').single();
     if (error || !data) throw new Error(error?.message ?? 'Não foi possível atualizar o produto.');
     return mapProduct({ ...data, seller_product_files: [] } as ProductRow, 0);
   },
 
   async getProductDetailBundle(slug: string) {
-    const rows = await listRows();
+    const rows = await listPublishedRows();
     const index = rows.findIndex((row) => row.slug === slug);
     if (index < 0) return undefined;
     const row = rows[index];
