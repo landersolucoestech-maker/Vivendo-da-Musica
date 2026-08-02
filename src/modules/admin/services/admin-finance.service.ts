@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { isDevAuthBypassEnabled } from '@/shared/utils/devAuthBypass';
 
 export type AdminPayoutStatus = 'requested' | 'processing' | 'paid' | 'failed' | 'canceled';
+export type AdminAffiliateWithdrawalStatus = 'requested' | 'processing' | 'paid' | 'rejected' | 'canceled';
 
 export interface AdminProducerPayout {
   id: string;
@@ -13,6 +14,17 @@ export interface AdminProducerPayout {
   amountCents: number;
   currency: string;
   status: AdminPayoutStatus;
+  requestedAt: string;
+  processedAt: string | null;
+}
+
+export interface AdminAffiliateWithdrawal {
+  id: string;
+  affiliateId: string;
+  affiliateName: string;
+  amountCents: number;
+  paymentMethod: string;
+  status: AdminAffiliateWithdrawalStatus;
   requestedAt: string;
   processedAt: string | null;
 }
@@ -34,6 +46,25 @@ const getAuthorizationToken = async (): Promise<string> => {
   if (error) throw new Error(error.message);
   if (!data.session?.access_token) throw new Error('Sessão administrativa não encontrada.');
   return data.session.access_token;
+};
+
+const callTransitionRpc = async (
+  rpcName: string,
+  body: Record<string, string>,
+  fallback: string,
+): Promise<void> => {
+  const authorizationToken = await getAuthorizationToken();
+  const response = await fetch(`${env.supabaseUrl}/rest/v1/rpc/${rpcName}`, {
+    method: 'POST',
+    headers: {
+      apikey: env.supabasePublishableKey,
+      Authorization: `Bearer ${authorizationToken}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(body),
+  });
+
+  if (!response.ok) throw await parseRpcError(response, fallback);
 };
 
 export const adminFinanceService = {
@@ -82,6 +113,37 @@ export const adminFinanceService = {
     }));
   },
 
+  async listAffiliateWithdrawals(): Promise<AdminAffiliateWithdrawal[]> {
+    const { data: withdrawals, error } = await supabase
+      .from('affiliate_withdrawals')
+      .select('id,affiliate_id,amount_cents,payment_method,status,requested_at,processed_at')
+      .order('requested_at', { ascending: false })
+      .limit(500);
+
+    if (error) throw new Error(error.message);
+
+    const affiliateIds = [...new Set((withdrawals ?? []).map((withdrawal) => withdrawal.affiliate_id))];
+    const profilesResult = affiliateIds.length
+      ? await supabase.from('affiliate_profiles').select('id,display_name').in('id', affiliateIds)
+      : { data: [], error: null };
+
+    if (profilesResult.error) throw new Error(profilesResult.error.message);
+    const affiliateNames = new Map(
+      (profilesResult.data ?? []).map((profile) => [profile.id, profile.display_name]),
+    );
+
+    return (withdrawals ?? []).map((withdrawal) => ({
+      id: withdrawal.id,
+      affiliateId: withdrawal.affiliate_id,
+      affiliateName: affiliateNames.get(withdrawal.affiliate_id) ?? 'Afiliado',
+      amountCents: Number(withdrawal.amount_cents),
+      paymentMethod: withdrawal.payment_method,
+      status: withdrawal.status as AdminAffiliateWithdrawalStatus,
+      requestedAt: withdrawal.requested_at,
+      processedAt: withdrawal.processed_at,
+    }));
+  },
+
   async transitionProducerPayout(
     payoutId: string,
     status: Exclude<AdminPayoutStatus, 'requested'>,
@@ -89,23 +151,24 @@ export const adminFinanceService = {
     const rpcName = isDevAuthBypassEnabled
       ? 'transition_demo_producer_payout'
       : 'transition_producer_payout';
-    const authorizationToken = await getAuthorizationToken();
 
-    const response = await fetch(`${env.supabaseUrl}/rest/v1/rpc/${rpcName}`, {
-      method: 'POST',
-      headers: {
-        apikey: env.supabasePublishableKey,
-        Authorization: `Bearer ${authorizationToken}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        target_request_id: payoutId,
-        target_status: status,
-      }),
-    });
+    await callTransitionRpc(rpcName, {
+      target_request_id: payoutId,
+      target_status: status,
+    }, 'Não foi possível atualizar o repasse.');
+  },
 
-    if (!response.ok) {
-      throw await parseRpcError(response, 'Não foi possível atualizar o repasse.');
-    }
+  async transitionAffiliateWithdrawal(
+    withdrawalId: string,
+    status: Exclude<AdminAffiliateWithdrawalStatus, 'requested'>,
+  ): Promise<void> {
+    const rpcName = isDevAuthBypassEnabled
+      ? 'transition_demo_affiliate_withdrawal'
+      : 'transition_affiliate_withdrawal';
+
+    await callTransitionRpc(rpcName, {
+      target_withdrawal_id: withdrawalId,
+      target_status: status,
+    }, 'Não foi possível atualizar o saque do afiliado.');
   },
 };
