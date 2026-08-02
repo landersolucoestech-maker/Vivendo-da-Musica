@@ -1,3 +1,7 @@
+import { env } from '@/app/config/env';
+import { supabase } from '@/integrations/supabase/client';
+import { isDevAuthBypassEnabled } from '@/shared/utils/devAuthBypass';
+
 export type CourseStatus = 'draft' | 'published' | 'archived';
 export type CourseVisibility = 'public' | 'private' | 'unlisted';
 export type LessonStatus = 'draft' | 'published' | 'archived';
@@ -103,23 +107,30 @@ export interface MaterialInput {
   order_index: number;
 }
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL?.replace(/\/$/, '');
-const publishableKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-
 const assertConfiguration = () => {
-  if (!supabaseUrl || !publishableKey) {
+  if (!env.supabaseUrl || !env.supabasePublishableKey) {
     throw new Error('As variáveis do Supabase DEV não estão configuradas.');
   }
 };
 
+const getAuthorizationToken = async (): Promise<string> => {
+  if (isDevAuthBypassEnabled) return env.supabasePublishableKey;
+
+  const { data, error } = await supabase.auth.getSession();
+  if (error) throw new Error(error.message);
+  if (!data.session?.access_token) throw new Error('Sessão autenticada não encontrada.');
+  return data.session.access_token;
+};
+
 const request = async <T>(path: string, init?: RequestInit): Promise<T> => {
   assertConfiguration();
+  const authorizationToken = await getAuthorizationToken();
 
-  const response = await fetch(`${supabaseUrl}/rest/v1/${path}`, {
+  const response = await fetch(`${env.supabaseUrl}/rest/v1/${path}`, {
     ...init,
     headers: {
-      apikey: publishableKey,
-      Authorization: `Bearer ${publishableKey}`,
+      apikey: env.supabasePublishableKey,
+      Authorization: `Bearer ${authorizationToken}`,
       'Content-Type': 'application/json',
       ...init?.headers,
     },
