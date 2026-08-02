@@ -9,6 +9,7 @@ function requireEnv(key: string): string {
 }
 
 const isDevelopment = import.meta.env.DEV;
+const isHostedDevPreview = import.meta.env.VITE_PREVIEW_MODE === 'true';
 
 export const env = {
   supabaseUrl: requireEnv('VITE_SUPABASE_URL'),
@@ -16,7 +17,7 @@ export const env = {
   appUrl: import.meta.env.VITE_APP_URL ?? 'http://localhost:8080',
   stripePublishableKey: import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY ?? '',
   isDevAuthBypassEnabled:
-    isDevelopment && import.meta.env.VITE_DISABLE_AUTH === 'true',
+    (isDevelopment || isHostedDevPreview) && import.meta.env.VITE_DISABLE_AUTH === 'true',
   useMockData:
     isDevelopment && import.meta.env.VITE_USE_MOCK_DATA === 'true',
 } as const;
