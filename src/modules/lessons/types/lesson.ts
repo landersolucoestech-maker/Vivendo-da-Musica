@@ -17,6 +17,6 @@ export interface Lesson {
   duration: string;
   order_index: number;
   module_id: string;
-  materials: LessonMaterial[];
+  materials?: LessonMaterial[];
   completed?: boolean;
 }
