@@ -2,11 +2,11 @@ import type { UserRole } from '@/modules/auth/types/role';
 import { isDevAuthBypassEnabled } from '@/shared/utils/devAuthBypass';
 
 export const DEV_IDENTITY_IDS: Record<Exclude<UserRole, 'super_admin'>, string> = {
-  student: '11111111-1111-4111-8111-111111111111',
-  instructor: 'c3942032-967a-4cde-b00c-22446584e699',
-  producer: '22222222-2222-4222-8222-222222222222',
-  affiliate: '33333333-3333-4333-8333-333333333333',
-  admin: '44444444-4444-4444-8444-444444444444',
+  student: 'bcfc5aa6-bd0b-4974-8192-a5fe29da741d',
+  instructor: '38e3074a-0bf0-4c0b-b051-c583ce9d0c3b',
+  producer: '97d04c14-17a0-4b51-9275-1468125b615c',
+  affiliate: 'bcfc5aa6-bd0b-4974-8192-a5fe29da741d',
+  admin: '38e3074a-0bf0-4c0b-b051-c583ce9d0c3b',
 };
 
 const PATH_ROLE_RULES: Array<{ prefix: string; role: Exclude<UserRole, 'super_admin'> }> = [
