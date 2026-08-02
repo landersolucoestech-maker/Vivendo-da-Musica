@@ -22,6 +22,8 @@ jobs:
     if: github.event_name == 'push' || github.event_name == 'workflow_dispatch' || github.head_ref == 'dev'
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    outputs:
+      pages_enabled: ${{ steps.pages.outcome == 'success' }}
     env:
       VITE_SUPABASE_URL: https://ywirfqvobfnunlcsnptm.supabase.co
       VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable_Oi717_T80P5TFfreKGATEg_qL1bEaVf
@@ -50,16 +52,23 @@ jobs:
           touch dist/.nojekyll
 
       - name: Configure GitHub Pages
+        id: pages
+        continue-on-error: true
         uses: actions/configure-pages@v5
 
+      - name: Report disabled Pages
+        if: steps.pages.outcome != 'success'
+        run: echo "::warning::GitHub Pages ainda não está habilitado com a fonte GitHub Actions; o artefato foi validado, mas não será publicado."
+
       - name: Upload Pages artifact
+        if: steps.pages.outcome == 'success'
         uses: actions/upload-pages-artifact@v4
         with:
           path: dist
 
   deploy:
     name: Deploy dev preview
-    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && needs.build.outputs.pages_enabled == 'true'
     needs: build
     runs-on: ubuntu-latest
     timeout-minutes: 10
