@@ -27,12 +27,19 @@ revoke all on table public.producer_payout_events from public, anon, authenticat
 grant select on table public.producer_payout_events to authenticated;
 grant all on table public.producer_payout_events to service_role;
 
+-- An earlier migration may already have established the event-history domain.
+-- Recreate the policies deterministically so this migration only adds the
+-- historical backfill and never fails on duplicate policy names.
+drop policy if exists producer_payout_events_owner_read
+on public.producer_payout_events;
 create policy producer_payout_events_owner_read
 on public.producer_payout_events
 for select
 to authenticated
 using (producer_id = (select auth.uid()) or public.is_platform_staff());
 
+drop policy if exists producer_payout_events_demo_read
+on public.producer_payout_events;
 create policy producer_payout_events_demo_read
 on public.producer_payout_events
 for select
