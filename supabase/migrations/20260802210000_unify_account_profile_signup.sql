@@ -39,7 +39,7 @@ begin
   end;
 
   requested_experience_years := case
-    when coalesce(new.raw_user_meta_data ->> 'experience_years', '') ~ '^\d{1,2}$'
+    when coalesce(new.raw_user_meta_data ->> 'experience_years', '') ~ '^[0-9]{1,2}$'
       then least(80, greatest(0, (new.raw_user_meta_data ->> 'experience_years')::integer))
     else 0
   end;
