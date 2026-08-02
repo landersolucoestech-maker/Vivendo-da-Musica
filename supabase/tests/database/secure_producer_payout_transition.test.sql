@@ -17,7 +17,7 @@ select has_function(
 );
 
 select ok(
-  (
+  not (
     select p.prosecdef
     from pg_proc p
     join pg_namespace n on n.oid = p.pronamespace
@@ -25,7 +25,7 @@ select ok(
       and p.proname = 'transition_producer_payout'
       and pg_get_function_identity_arguments(p.oid) = 'target_request_id uuid, target_status text'
   ),
-  'public payout transition RPC is SECURITY DEFINER'
+  'public payout transition RPC is SECURITY INVOKER'
 );
 
 select ok(
@@ -47,12 +47,12 @@ select ok(
 );
 
 select ok(
-  not has_function_privilege(
+  has_function_privilege(
     'authenticated',
     'app_private.transition_producer_payout(uuid,text)',
     'EXECUTE'
   ),
-  'authenticated cannot call the private transition implementation'
+  'authenticated can reach the validated private transition implementation'
 );
 
 insert into public.user_profiles (user_id, full_name, role, is_demo)
