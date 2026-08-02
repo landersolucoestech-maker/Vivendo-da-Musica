@@ -71,6 +71,7 @@ const CheckoutPage = lazy(() => import('@/modules/checkout/pages/CheckoutPage'))
 const ContentPortalPage = lazy(() => import('@/modules/content-portal/pages/ContentPortalPage'));
 const ContentArticleDetailPage = lazy(() => import('@/modules/content-portal/pages/ContentArticleDetailPage'));
 const CommunityLandingPage = lazy(() => import('@/modules/community/pages/CommunityLandingPage'));
+const LegalDocumentPage = lazy(() => import('@/modules/legal/pages/LegalDocumentPage'));
 const PublicPremiumLibraryPage = lazy(() => import('@/modules/library/pages/PublicPremiumLibraryPage'));
 const PublicOpportunitiesPage = lazy(() => import('@/modules/opportunities/pages/PublicOpportunitiesPage'));
 
@@ -143,6 +144,8 @@ const App = () => (
                 <Route path="/verificar-email" element={<VerifyEmail />} />
                 <Route path="/verificado" element={<Verified />} />
                 <Route path="/contato" element={<Contact />} />
+                <Route path={ROUTES.privacyPolicy} element={<LegalDocumentPage />} />
+                <Route path={ROUTES.termsOfUse} element={<LegalDocumentPage />} />
                 <Route path="/acesso-negado" element={<AccessDenied />} />
                 <Route path="/curso-em-breve" element={<ComingSoon />} />
                 <Route path="/pagamento-sucesso" element={<PaymentSuccess />} />
