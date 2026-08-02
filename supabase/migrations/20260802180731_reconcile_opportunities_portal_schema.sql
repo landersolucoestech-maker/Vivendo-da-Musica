@@ -1,61 +1,14 @@
 -- Reconcile the original opportunities enums and required public slug with the
--- current company portal contract. The application uses explicit constrained
--- text values so new workflow stages can be introduced without enum rewrites.
+-- current company portal contract while preserving policy dependencies.
 
-do $$
-declare
-  kind_type text;
-  opportunity_status_type text;
-  application_status_type text;
-begin
-  select columns.udt_name
-  into kind_type
-  from information_schema.columns
-  where columns.table_schema = 'public'
-    and columns.table_name = 'opportunities'
-    and columns.column_name = 'kind';
+alter type public.opportunity_kind add value if not exists 'vaga';
+alter type public.opportunity_kind add value if not exists 'freela';
+alter type public.opportunity_kind add value if not exists 'colaboracao';
+alter type public.opportunity_kind add value if not exists 'edital';
+alter type public.opportunity_kind add value if not exists 'concurso';
 
-  if kind_type = 'opportunity_kind' then
-    alter table public.opportunities
-      alter column kind type text
-      using kind::text;
-  end if;
-
-  select columns.udt_name
-  into opportunity_status_type
-  from information_schema.columns
-  where columns.table_schema = 'public'
-    and columns.table_name = 'opportunities'
-    and columns.column_name = 'status';
-
-  if opportunity_status_type = 'opportunity_status' then
-    alter table public.opportunities
-      alter column status drop default;
-    alter table public.opportunities
-      alter column status type text
-      using status::text;
-    alter table public.opportunities
-      alter column status set default 'open';
-  end if;
-
-  select columns.udt_name
-  into application_status_type
-  from information_schema.columns
-  where columns.table_schema = 'public'
-    and columns.table_name = 'opportunity_applications'
-    and columns.column_name = 'status';
-
-  if application_status_type = 'opportunity_application_status' then
-    alter table public.opportunity_applications
-      alter column status drop default;
-    alter table public.opportunity_applications
-      alter column status type text
-      using status::text;
-    alter table public.opportunity_applications
-      alter column status set default 'submitted';
-  end if;
-end
-$$;
+alter type public.opportunity_application_status add value if not exists 'interview';
+alter type public.opportunity_application_status add value if not exists 'approved';
 
 do $$
 begin
@@ -77,15 +30,15 @@ language plpgsql
 set search_path = public, pg_temp
 as $$
 begin
-  new.kind := case lower(btrim(new.kind))
-    when 'vaga' then 'job'
-    when 'freela' then 'job'
-    when 'colaboracao' then 'collab'
-    when 'colaboração' then 'collab'
-    when 'edital' then 'grant'
-    when 'concurso' then 'contest'
-    else lower(btrim(new.kind))
-  end;
+  if new.kind::text in ('vaga', 'freela') then
+    new.kind := 'job';
+  elsif new.kind::text in ('colaboracao', 'colaboração') then
+    new.kind := 'collab';
+  elsif new.kind::text = 'edital' then
+    new.kind := 'grant';
+  elsif new.kind::text = 'concurso' then
+    new.kind := 'contest';
+  end if;
 
   return new;
 end;
@@ -104,18 +57,18 @@ alter table public.opportunities
   drop constraint if exists opportunities_kind_check;
 alter table public.opportunities
   add constraint opportunities_kind_check
-  check (kind in ('job','collab','sync','grant','contest'));
+  check (kind::text in ('job','collab','sync','grant','contest'));
 
 alter table public.opportunities
   drop constraint if exists opportunities_status_check;
 alter table public.opportunities
   add constraint opportunities_status_check
-  check (status in ('open','closed'));
+  check (status::text in ('open','closed'));
 
 alter table public.opportunity_applications
   drop constraint if exists opportunity_applications_status_check;
 alter table public.opportunity_applications
   add constraint opportunity_applications_status_check
-  check (status in ('submitted','reviewing','shortlisted','interview','approved','rejected','withdrawn'));
+  check (status::text in ('submitted','reviewing','shortlisted','interview','approved','rejected','withdrawn'));
 
 revoke all on function public.normalize_legacy_opportunity_kind() from public, anon, authenticated;
