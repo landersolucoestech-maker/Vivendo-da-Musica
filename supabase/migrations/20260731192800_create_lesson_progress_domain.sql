@@ -47,11 +47,18 @@ to anon
 using (true)
 with check (true);
 
+-- Seed somente quando a identidade e as aulas já existirem. Em reconstruções do zero,
+-- a identidade sintética é criada por migration posterior e não pode violar as FKs.
 insert into public.lesson_progress (user_id, lesson_id, completed, progress_percentage, watched_seconds, last_viewed_at)
-values
-  ('c3942032-967a-4cde-b00c-22446584e699', '95913cf3-a5e3-4b52-a729-b7449ea4f1fb', true, 100, 900, now() - interval '2 days'),
-  ('c3942032-967a-4cde-b00c-22446584e699', '76a0e3b0-12c0-483d-b08d-ebfebf09c57c', true, 100, 1500, now() - interval '1 day'),
-  ('c3942032-967a-4cde-b00c-22446584e699', '2f5edefa-cd11-49c1-b5e5-105c5b850eb7', false, 40, 720, now())
+select seed.user_id, seed.lesson_id, seed.completed, seed.progress_percentage, seed.watched_seconds, seed.last_viewed_at
+from (
+  values
+    ('11111111-1111-4111-8111-111111111111'::uuid, '95913cf3-a5e3-4b52-a729-b7449ea4f1fb'::uuid, true, 100, 900, now() - interval '2 days'),
+    ('11111111-1111-4111-8111-111111111111'::uuid, '76a0e3b0-12c0-483d-b08d-ebfebf09c57c'::uuid, true, 100, 1500, now() - interval '1 day'),
+    ('11111111-1111-4111-8111-111111111111'::uuid, '2f5edefa-cd11-49c1-b5e5-105c5b850eb7'::uuid, false, 40, 720, now())
+) as seed(user_id, lesson_id, completed, progress_percentage, watched_seconds, last_viewed_at)
+where exists (select 1 from public.user_profiles profile where profile.user_id = seed.user_id)
+  and exists (select 1 from public.lessons lesson where lesson.id = seed.lesson_id)
 on conflict (user_id, lesson_id) do update
 set completed = excluded.completed,
     progress_percentage = excluded.progress_percentage,
