@@ -162,7 +162,7 @@ begin
   end if;
 
   if new.certificate_code is null or new.certificate_code !~ '^VDM-[A-F0-9]{16}$' then
-    new.certificate_code := 'VDM-' || upper(left(replace(new.id::text, '-', ''), 16));
+    new.certificate_code := 'VDM-' || upper(left(md5(new.id::text), 16));
   end if;
 
   if new.revoked_at is null then
