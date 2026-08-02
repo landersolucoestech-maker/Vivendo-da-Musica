@@ -100,3 +100,12 @@ jobs:
 
       - name: Verify published application
         run: node scripts/verify-pages-preview.mjs
+
+      - name: Upload preview audit report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dev-preview-audit-${{ github.sha }}
+          path: artifacts/preview-audit
+          if-no-files-found: warn
+          retention-days: 14
