@@ -4,6 +4,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useProductById } from '@/modules/marketplace/hooks/useProductById';
 import { useProductCategories } from '@/modules/marketplace/hooks/useProducts';
 import { marketplaceService } from '@/modules/marketplace/services/marketplace.service';
+import type { Product } from '@/modules/marketplace/types/product';
 import { Button } from '@/shared/components/ui/button';
 import {
   Dialog,
@@ -24,6 +25,8 @@ interface ProductManagementDialogProps {
   onOpenChange: (open: boolean) => void;
 }
 
+type ProductStatus = Product['status'];
+
 const ProductManagementDialog = ({ open, productId, onOpenChange }: ProductManagementDialogProps) => {
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -34,6 +37,7 @@ const ProductManagementDialog = ({ open, productId, onOpenChange }: ProductManag
   const [category, setCategory] = useState('');
   const [price, setPrice] = useState('');
   const [description, setDescription] = useState('');
+  const [status, setStatus] = useState<ProductStatus>('draft');
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -44,6 +48,7 @@ const ProductManagementDialog = ({ open, productId, onOpenChange }: ProductManag
       setCategory(existing.category);
       setPrice(String(existing.priceCents / 100));
       setDescription(existing.description);
+      setStatus(existing.status);
       return;
     }
 
@@ -52,6 +57,7 @@ const ProductManagementDialog = ({ open, productId, onOpenChange }: ProductManag
       setCategory(categories?.[0] ?? '');
       setPrice('');
       setDescription('');
+      setStatus('draft');
     }
   }, [categories, existing, open, productId]);
 
@@ -72,6 +78,7 @@ const ProductManagementDialog = ({ open, productId, onOpenChange }: ProductManag
         category,
         description: description.trim(),
         priceCents: Math.round(normalizedPrice * 100),
+        status,
       };
 
       if (existing) {
@@ -139,9 +146,26 @@ const ProductManagementDialog = ({ open, productId, onOpenChange }: ProductManag
               <Textarea id="product-description" value={description} onChange={(event) => setDescription(event.target.value)} disabled={saving} />
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="product-price">Preço (R$)</Label>
-              <Input id="product-price" type="number" min="0" step="0.01" value={price} onChange={(event) => setPrice(event.target.value)} required disabled={saving} />
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="product-price">Preço (R$)</Label>
+                <Input id="product-price" type="number" min="0" step="0.01" value={price} onChange={(event) => setPrice(event.target.value)} required disabled={saving} />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="product-status">Status</Label>
+                <select
+                  id="product-status"
+                  value={status}
+                  onChange={(event) => setStatus(event.target.value as ProductStatus)}
+                  className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                  disabled={saving}
+                >
+                  <option value="draft">Rascunho</option>
+                  <option value="published">Publicado</option>
+                  <option value="archived">Arquivado</option>
+                </select>
+              </div>
             </div>
           </form>
         )}
