@@ -32,10 +32,54 @@ select ok(
   'authenticated users cannot update payout events'
 );
 
-insert into public.user_profiles (user_id, full_name, role, is_demo)
+-- user_profiles retains its historical FK to auth.users. Build valid auth
+-- identities first and let the provisioning trigger create the base profiles.
+insert into auth.users (
+  id,
+  aud,
+  role,
+  email,
+  raw_app_meta_data,
+  raw_user_meta_data,
+  created_at,
+  updated_at
+)
 values
-  ('9fc00000-0000-4000-8000-000000000001'::uuid, 'Payout Event Producer', 'producer', true),
-  ('9fc00000-0000-4000-8000-000000000002'::uuid, 'Payout Event Admin', 'admin', true);
+  (
+    '9fc00000-0000-4000-8000-000000000001'::uuid,
+    'authenticated',
+    'authenticated',
+    'payout-event-producer@example.test',
+    '{}'::jsonb,
+    '{"full_name":"Payout Event Producer"}'::jsonb,
+    now(),
+    now()
+  ),
+  (
+    '9fc00000-0000-4000-8000-000000000002'::uuid,
+    'authenticated',
+    'authenticated',
+    'payout-event-admin@example.test',
+    '{}'::jsonb,
+    '{"full_name":"Payout Event Admin"}'::jsonb,
+    now(),
+    now()
+  );
+
+update public.user_profiles
+set full_name = case user_id
+      when '9fc00000-0000-4000-8000-000000000001'::uuid then 'Payout Event Producer'
+      else 'Payout Event Admin'
+    end,
+    role = case user_id
+      when '9fc00000-0000-4000-8000-000000000001'::uuid then 'producer'::public.user_role
+      else 'admin'::public.user_role
+    end,
+    is_demo = true
+where user_id in (
+  '9fc00000-0000-4000-8000-000000000001'::uuid,
+  '9fc00000-0000-4000-8000-000000000002'::uuid
+);
 
 insert into public.producer_financial_accounts (
   producer_id,
