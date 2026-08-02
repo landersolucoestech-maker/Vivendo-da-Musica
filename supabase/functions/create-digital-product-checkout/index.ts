@@ -59,7 +59,7 @@ Deno.serve(async (request) => {
   const admin = createClient(url, serviceKey, { auth: { persistSession: false } });
   const registerReferral = async (orderId: string) => {
     if (!referralSlug) return;
-    await admin.schema('app_private').rpc('record_affiliate_checkout_conversion', {
+    await admin.rpc('record_affiliate_checkout_conversion', {
       target_order_id: orderId,
       target_order_kind: 'digital_product',
       target_referral_slug: referralSlug,
