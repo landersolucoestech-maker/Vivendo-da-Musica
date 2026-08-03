@@ -1,7 +1,14 @@
 import { supabase } from '@/integrations/supabase/client';
 import { academyContentService } from '@/modules/courses/services/academyContent.service';
 import type { AcademyContent } from '@/modules/courses/types/academyContent.types';
-import type { CatalogCourse, CourseDisplayExtras, Instructor, MockCourse, Testimonial } from '@/modules/courses/types/course.types';
+import type {
+  CatalogCourse,
+  CourseDisplayExtras,
+  CourseReview,
+  Instructor,
+  MockCourse,
+  Testimonial,
+} from '@/modules/courses/types/course.types';
 import type { CourseModule } from '@/modules/modules-manager/types/courseModule';
 
 export interface Course {
@@ -19,6 +26,32 @@ export interface Course {
   instructor_id: string | null;
 }
 
+interface CourseReviewRow {
+  course_id: string;
+  user_id: string;
+  rating: number;
+  comment: string;
+  created_at: string;
+}
+
+interface EnrollmentRow {
+  course_id: string;
+  user_id: string;
+}
+
+interface ProfileNameRow {
+  user_id: string;
+  full_name: string | null;
+}
+
+interface CourseMetrics {
+  rating: number;
+  reviewCount: number;
+  studentsCount: number;
+  studentIds: Set<string>;
+  reviews: CourseReview[];
+}
+
 const COURSE_SELECT = 'id, title, slug, short_description, description, thumbnail_url, category, original_price_cents, discount_cents, price_cents, currency, instructor_id';
 
 const durationLabel = (minutes: number | null) => {
@@ -26,6 +59,84 @@ const durationLabel = (minutes: number | null) => {
   const hours = Math.floor(safeMinutes / 60);
   const remainingMinutes = safeMinutes % 60;
   return hours > 0 ? `${hours}:${String(remainingMinutes).padStart(2, '0')}:00` : `${remainingMinutes}:00`;
+};
+
+const emptyMetrics = (): CourseMetrics => ({
+  rating: 0,
+  reviewCount: 0,
+  studentsCount: 0,
+  studentIds: new Set<string>(),
+  reviews: [],
+});
+
+const loadCourseMetrics = async (courseIds: string[]): Promise<Map<string, CourseMetrics>> => {
+  const uniqueCourseIds = [...new Set(courseIds.filter(Boolean))];
+  const metricsByCourse = new Map(uniqueCourseIds.map((courseId) => [courseId, emptyMetrics()]));
+  if (uniqueCourseIds.length === 0) return metricsByCourse;
+
+  const { data: reviewData, error: reviewError } = await supabase
+    .from('course_reviews')
+    .select('course_id,user_id,rating,comment,created_at')
+    .in('course_id', uniqueCourseIds)
+    .eq('status', 'published')
+    .order('created_at', { ascending: false });
+  if (reviewError) throw reviewError;
+
+  const reviewRows = (reviewData ?? []) as CourseReviewRow[];
+  const reviewUserIds = [...new Set(reviewRows.map((review) => review.user_id))];
+  const profileNames = new Map<string, string>();
+
+  if (reviewUserIds.length > 0) {
+    const { data: profileData, error: profileError } = await supabase
+      .from('user_profiles')
+      .select('user_id,full_name')
+      .in('user_id', reviewUserIds);
+    if (profileError) throw profileError;
+
+    for (const profile of (profileData ?? []) as ProfileNameRow[]) {
+      profileNames.set(profile.user_id, profile.full_name?.trim() || 'Aluno da plataforma');
+    }
+  }
+
+  const ratingsByCourse = new Map<string, number[]>();
+  for (const review of reviewRows) {
+    const metrics = metricsByCourse.get(review.course_id) ?? emptyMetrics();
+    const ratings = ratingsByCourse.get(review.course_id) ?? [];
+    ratings.push(review.rating);
+    ratingsByCourse.set(review.course_id, ratings);
+    metrics.reviews.push({
+      author: profileNames.get(review.user_id) ?? 'Aluno da plataforma',
+      rating: review.rating,
+      comment: review.comment,
+    });
+    metricsByCourse.set(review.course_id, metrics);
+  }
+
+  const { data: enrollmentData, error: enrollmentError } = await supabase
+    .from('enrollments')
+    .select('course_id,user_id')
+    .in('course_id', uniqueCourseIds)
+    .eq('status', 'active');
+  if (enrollmentError) throw enrollmentError;
+
+  for (const enrollment of (enrollmentData ?? []) as EnrollmentRow[]) {
+    const metrics = metricsByCourse.get(enrollment.course_id) ?? emptyMetrics();
+    metrics.studentIds.add(enrollment.user_id);
+    metricsByCourse.set(enrollment.course_id, metrics);
+  }
+
+  for (const courseId of uniqueCourseIds) {
+    const metrics = metricsByCourse.get(courseId) ?? emptyMetrics();
+    const ratings = ratingsByCourse.get(courseId) ?? [];
+    metrics.reviewCount = ratings.length;
+    metrics.rating = ratings.length > 0
+      ? Math.round((ratings.reduce((total, rating) => total + rating, 0) / ratings.length) * 10) / 10
+      : 0;
+    metrics.studentsCount = metrics.studentIds.size;
+    metricsByCourse.set(courseId, metrics);
+  }
+
+  return metricsByCourse;
 };
 
 export const academyService = {
@@ -98,6 +209,7 @@ export const academyService = {
 
   async listCatalogCourses(): Promise<MockCourse[]> {
     const courses = await this.listPublishedCourses();
+    const metricsByCourse = await loadCourseMetrics(courses.map((course) => course.id));
     const catalog: MockCourse[] = [];
 
     for (const course of courses) {
@@ -124,6 +236,7 @@ export const academyService = {
         (courseTotal, module) => courseTotal + module.lessons.reduce((moduleTotal, lesson) => moduleTotal + lesson.durationMinutes, 0),
         0,
       );
+      const metrics = metricsByCourse.get(course.id) ?? emptyMetrics();
 
       catalog.push({
         id: course.id,
@@ -135,9 +248,9 @@ export const academyService = {
         priceCents: course.price_cents ?? Math.max(0, course.original_price_cents - course.discount_cents),
         originalPriceCents: course.discount_cents > 0 ? course.original_price_cents : undefined,
         currency: course.currency,
-        rating: 0,
-        reviewCount: 0,
-        studentsCount: 0,
+        rating: metrics.rating,
+        reviewCount: metrics.reviewCount,
+        studentsCount: metrics.studentsCount,
         durationHours: Math.round((durationMinutes / 60) * 10) / 10,
         gradientFrom: '#8A2BE2',
         gradientTo: '#6C3AED',
@@ -145,7 +258,7 @@ export const academyService = {
         description: course.description ?? course.short_description ?? '',
         modules: normalizedModules,
         faq: [],
-        reviews: [],
+        reviews: metrics.reviews,
         relatedSlugs: [],
       });
     }
@@ -197,29 +310,49 @@ export const academyService = {
 
     if (error) throw error;
 
-    const instructors: Instructor[] = [];
-    for (const profile of profiles ?? []) {
-      const { count, error: countError } = await supabase
-        .from('courses')
-        .select('id', { count: 'exact', head: true })
-        .eq('instructor_id', profile.user_id)
-        .eq('status', 'published');
+    const { data: courseData, error: courseError } = await supabase
+      .from('courses')
+      .select('id,instructor_id')
+      .eq('status', 'published')
+      .not('instructor_id', 'is', null);
+    if (courseError) throw courseError;
 
-      if (countError) throw countError;
-      instructors.push({
+    const instructorCourses = new Map<string, string[]>();
+    for (const course of courseData ?? []) {
+      if (!course.instructor_id) continue;
+      const courseIds = instructorCourses.get(course.instructor_id) ?? [];
+      courseIds.push(course.id);
+      instructorCourses.set(course.instructor_id, courseIds);
+    }
+
+    const allCourseIds = [...new Set([...instructorCourses.values()].flat())];
+    const metricsByCourse = await loadCourseMetrics(allCourseIds);
+
+    return ((profiles ?? []) as ProfileNameRow[]).map((profile) => {
+      const courseIds = instructorCourses.get(profile.user_id) ?? [];
+      const studentIds = new Set<string>();
+      let ratingTotal = 0;
+      let reviewCount = 0;
+
+      for (const courseId of courseIds) {
+        const metrics = metricsByCourse.get(courseId) ?? emptyMetrics();
+        for (const studentId of metrics.studentIds) studentIds.add(studentId);
+        ratingTotal += metrics.rating * metrics.reviewCount;
+        reviewCount += metrics.reviewCount;
+      }
+
+      return {
         id: profile.user_id,
         name: profile.full_name ?? 'Instrutor',
         specialty: 'Instrutor',
         bio: '',
-        rating: 0,
-        studentsCount: 0,
-        coursesCount: count ?? 0,
+        rating: reviewCount > 0 ? Math.round((ratingTotal / reviewCount) * 10) / 10 : 0,
+        studentsCount: studentIds.size,
+        coursesCount: courseIds.length,
         gradientFrom: '#8A2BE2',
         gradientTo: '#6C3AED',
-      });
-    }
-
-    return instructors;
+      };
+    });
   },
 
   async getInstructorById(id: string): Promise<Instructor | undefined> {
@@ -227,13 +360,30 @@ export const academyService = {
   },
 
   async listTestimonials(): Promise<Testimonial[]> {
-    return [];
+    const courses = await this.listPublishedCourses();
+    const metricsByCourse = await loadCourseMetrics(courses.map((course) => course.id));
+    const testimonials: Testimonial[] = [];
+
+    for (const course of courses) {
+      const metrics = metricsByCourse.get(course.id) ?? emptyMetrics();
+      for (const review of metrics.reviews) {
+        testimonials.push({
+          studentName: review.author,
+          courseSlug: course.slug,
+          courseTitle: course.title,
+          rating: review.rating,
+          text: review.comment,
+        });
+      }
+    }
+
+    return testimonials;
   },
 
   async getCourseExtras(slug: string): Promise<CourseDisplayExtras> {
     const { data: course, error: courseError } = await supabase
       .from('courses')
-      .select('instructor_id')
+      .select('id,instructor_id')
       .eq('slug', slug)
       .maybeSingle();
 
@@ -251,7 +401,17 @@ export const academyService = {
       instructorName = profile?.full_name ?? instructorName;
     }
 
-    return { instructorName, rating: 0, reviewCount: 0, level: 'Iniciante' };
+    const metrics = course?.id
+      ? (await loadCourseMetrics([course.id])).get(course.id) ?? emptyMetrics()
+      : emptyMetrics();
+
+    return {
+      instructorName,
+      rating: metrics.rating,
+      reviewCount: metrics.reviewCount,
+      studentsCount: metrics.studentsCount,
+      level: 'Iniciante',
+    };
   },
 
   async listCourseCards(): Promise<CatalogCourse[]> {
@@ -286,7 +446,7 @@ export const academyService = {
       instructorName: extras.instructorName,
       rating: extras.rating,
       reviewCount: extras.reviewCount,
-      studentsCount: 0,
+      studentsCount: extras.studentsCount,
       priceCents: course.price_cents ?? Math.max(0, course.original_price_cents - course.discount_cents),
       currency: course.currency,
       thumbnailUrl: course.thumbnail_url,
