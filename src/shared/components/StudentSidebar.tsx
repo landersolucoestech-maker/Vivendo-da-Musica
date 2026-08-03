@@ -4,6 +4,7 @@ import {
   BookOpen,
   Briefcase,
   BriefcaseBusiness,
+  ClipboardList,
   Download,
   Heart,
   LayoutDashboard,
@@ -29,6 +30,7 @@ const LEARNING_NAV_ITEMS: SidebarNavItem[] = [
 
 const DISCOVERY_NAV_ITEMS: SidebarNavItem[] = [
   { label: 'Downloads', to: ROUTES.downloads, icon: Download },
+  { label: 'Solicitações de serviço', to: ROUTES.studentServiceRequests, icon: ClipboardList },
   { label: 'Serviços contratados', to: ROUTES.studentServices, icon: BriefcaseBusiness },
   { label: 'Comunidade', to: ROUTES.community, icon: Users },
   { label: 'Oportunidades', to: ROUTES.opportunities, icon: Briefcase },
