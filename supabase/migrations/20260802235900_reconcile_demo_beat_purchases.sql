@@ -88,7 +88,7 @@ select
   item.beat_id,
   item.license_id,
   item.buyer_id,
-  'VDM-DEV-' || upper(left(replace(item.id::text, '-', ''), 12)),
+  'VDM-DEV-' || upper(right(replace(item.id::text, '-', ''), 12)),
   'active',
   coalesce(item.paid_at, item.created_at, now())
 from public.beat_order_items as item
