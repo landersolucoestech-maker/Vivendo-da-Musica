@@ -61,6 +61,7 @@ export interface CourseDisplayExtras {
   instructorName: string;
   rating: number;
   reviewCount: number;
+  studentsCount: number;
   level: 'Iniciante' | 'Intermediário' | 'Avançado';
 }
 
