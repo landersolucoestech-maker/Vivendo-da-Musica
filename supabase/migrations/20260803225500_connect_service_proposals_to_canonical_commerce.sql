@@ -13,7 +13,7 @@ as $$
 declare
   request public.service_requests;
   proposal public.service_proposals;
-  offer_id uuid;
+  canonical_offer_id uuid;
 begin
   select * into request from public.service_requests where id = target_request_id for update;
   select * into proposal from public.service_proposals where id = target_proposal_id and request_id = target_request_id for update;
@@ -43,24 +43,24 @@ begin
       currency = excluded.currency,
       metadata = excluded.metadata,
       updated_at = now()
-  returning id into offer_id;
+  returning id into canonical_offer_id;
 
   insert into public.commerce_offer_prices (
     offer_id, version, amount_cents, currency, status, effective_from, commercial_snapshot, published_at
   )
   select
-    offer_id,
-    coalesce(max(version), 0) + 1,
+    canonical_offer_id,
+    coalesce(max(price.version), 0) + 1,
     proposal.amount_cents,
     proposal.currency,
     'published',
     now(),
     jsonb_build_object('source', 'service_proposal', 'requestId', request.id, 'proposalId', proposal.id, 'scope', proposal.scope, 'deliveryDays', proposal.delivery_days, 'revisions', proposal.revisions, 'deliverables', proposal.deliverables),
     now()
-  from public.commerce_offer_prices
-  where commerce_offer_prices.offer_id = accept_service_proposal_core.offer_id;
+  from public.commerce_offer_prices price
+  where price.offer_id = canonical_offer_id;
 
-  return offer_id;
+  return canonical_offer_id;
 end;
 $$;
 
