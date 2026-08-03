@@ -93,6 +93,7 @@ insert into public.beat_license_purchases (
   beat_id,
   license_id,
   buyer_id,
+  producer_id,
   contract_number,
   status,
   issued_at
@@ -103,6 +104,7 @@ select
   item.beat_id,
   item.license_id,
   item.buyer_id,
+  item.producer_id,
   'VDM-DEV-' || upper(right(replace(item.id::text, '-', ''), 12)),
   'active',
   coalesce(item.paid_at, item.created_at, now())
@@ -124,6 +126,7 @@ on conflict (beat_order_item_id) do nothing;
 insert into public.beat_deliveries (
   purchase_id,
   file_label,
+  file_path,
   storage_bucket,
   storage_path,
   expires_at
@@ -131,6 +134,7 @@ insert into public.beat_deliveries (
 select
   purchase.id,
   'Master WAV',
+  beat.producer_id::text || '/' || purchase.beat_id::text || '/master.wav',
   'beat-masters',
   beat.producer_id::text || '/' || purchase.beat_id::text || '/master.wav',
   now() + interval '30 days'
