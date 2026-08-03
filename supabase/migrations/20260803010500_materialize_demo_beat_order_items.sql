@@ -88,6 +88,7 @@ where orders.id = totals.order_id
   and orders.amount_cents is distinct from totals.amount_cents;
 
 insert into public.beat_license_purchases (
+  order_item_id,
   beat_order_item_id,
   beat_id,
   license_id,
@@ -97,6 +98,7 @@ insert into public.beat_license_purchases (
   issued_at
 )
 select
+  item.id,
   item.id,
   item.beat_id,
   item.license_id,
@@ -115,6 +117,7 @@ where item.status = 'paid'
     select 1
     from public.beat_license_purchases as purchase
     where purchase.beat_order_item_id = item.id
+       or purchase.order_item_id = item.id
   )
 on conflict (beat_order_item_id) do nothing;
 
