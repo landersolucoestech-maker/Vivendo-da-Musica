@@ -37,7 +37,7 @@ select
   license.name,
   'Aluno Demo',
   license.price_cents,
-  license.price_cents,
+  orders.amount_cents,
   orders.currency,
   'paid',
   orders.paid_at,
