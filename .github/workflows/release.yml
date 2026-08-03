@@ -37,7 +37,8 @@ jobs:
           SUPABASE_PROJECT_REF: ${{ vars.SUPABASE_PROJECT_REF }}
           VITE_DISABLE_AUTH: ${{ vars.VITE_DISABLE_AUTH }}
           VITE_USE_MOCK_DATA: ${{ vars.VITE_USE_MOCK_DATA }}
-      - run: npm audit --audit-level=high
+      - name: Validate dependency advisories
+        run: npm run audit:high
       - run: npm run quality
       - run: npx playwright install --with-deps chromium
       - run: npm run test:e2e
