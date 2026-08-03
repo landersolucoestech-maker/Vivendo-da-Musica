@@ -1,4 +1,4 @@
-import { BriefcaseBusiness, LayoutDashboard, Music2, Package, ShoppingBag } from 'lucide-react';
+import { BriefcaseBusiness, ClipboardList, LayoutDashboard, Music2, Package, ShoppingBag, Store } from 'lucide-react';
 
 import SidebarNavList from '@/shared/components/SidebarNavList';
 import { ROUTES } from '@/shared/constants/routes';
@@ -7,7 +7,9 @@ export const PRODUCER_NAV_ITEMS = [
   { label: 'Visão geral', to: ROUTES.producer, icon: LayoutDashboard },
   { label: 'Beats e licenças', to: ROUTES.producerBeats, icon: Music2 },
   { label: 'Produtos digitais', to: ROUTES.producerProducts, icon: Package },
-  { label: 'Serviços', to: ROUTES.producerServices, icon: BriefcaseBusiness },
+  { label: 'Catálogo de serviços', to: ROUTES.producerServiceCatalog, icon: Store },
+  { label: 'Solicitações abertas', to: ROUTES.producerServiceRequests, icon: ClipboardList },
+  { label: 'Contratos de serviço', to: ROUTES.producerServices, icon: BriefcaseBusiness },
   { label: 'Pedidos', to: ROUTES.producerOrders, icon: ShoppingBag },
 ];
 
