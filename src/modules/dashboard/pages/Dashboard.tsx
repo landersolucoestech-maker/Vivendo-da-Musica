@@ -1,62 +1,89 @@
 import { useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Award, Bell, BookOpen, Briefcase, Download, PlayCircle, Users } from 'lucide-react';
+import {
+  ArrowRight,
+  Award,
+  Bell,
+  BookOpen,
+  Briefcase,
+  CalendarDays,
+  CheckCircle2,
+  Download,
+  Layers3,
+  Library,
+  Play,
+  Sparkles,
+  Users,
+} from 'lucide-react';
 
 import StudentLayout from '@/app/layouts/StudentLayout';
 import { useAuthContext } from '@/app/providers/AuthProvider';
 import { useRecentCertificates } from '@/modules/certificates/hooks/useCertificates';
 import { useUnreadNotificationsCount } from '@/modules/dashboard/hooks/useNotifications';
-import RecentActivities from '@/modules/dashboard/components/RecentActivities';
-import UserProfile from '@/modules/dashboard/components/UserProfile';
 import LessonGrid from '@/modules/lessons/components/LessonGrid';
 import { useProgressCalculation } from '@/modules/lessons/hooks/useProgressCalculation';
 import { useRecommendedDownloads } from '@/modules/marketplace/hooks/useDownloads';
 import ModuleProgress from '@/modules/modules-manager/components/ModuleProgress';
 import { useModules } from '@/modules/modules-manager/hooks/useModules';
-import StatCard from '@/shared/components/StatCard';
 import { Button } from '@/shared/components/ui/button';
+import { Progress } from '@/shared/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/shared/components/ui/tabs';
 import { ROUTES } from '@/shared/constants/routes';
 
-const SHORTCUTS = [
-  { label: 'Certificados', to: ROUTES.certificates, icon: Award },
-  { label: 'Downloads', to: ROUTES.downloads, icon: Download },
-  { label: 'Comunidade', to: ROUTES.community, icon: Users },
-  { label: 'Oportunidades', to: ROUTES.opportunities, icon: Briefcase },
+const QUICK_ACTIONS = [
+  {
+    label: 'Meus cursos',
+    description: 'Continue suas trilhas',
+    to: ROUTES.myCourses,
+    icon: BookOpen,
+  },
+  {
+    label: 'Biblioteca',
+    description: 'Acesse conteúdos premium',
+    to: ROUTES.premiumLibrary,
+    icon: Library,
+  },
+  {
+    label: 'Comunidade',
+    description: 'Converse com outros alunos',
+    to: ROUTES.community,
+    icon: Users,
+  },
+  {
+    label: 'Oportunidades',
+    description: 'Encontre vagas e projetos',
+    to: ROUTES.opportunities,
+    icon: Briefcase,
+  },
 ];
 
 const Dashboard = () => {
   const navigate = useNavigate();
   const { user, profile } = useAuthContext();
-
   const { data: modules, isLoading: modulesLoading, error: modulesError } = useModules();
   const modulesWithProgress = useProgressCalculation(modules);
 
   const displayName = profile?.full_name || user?.user_metadata?.full_name || user?.email || 'Estudante';
-  const joinDate = user?.created_at ? new Date(user.created_at).toLocaleDateString('pt-BR') : '';
+  const firstName = displayName.split(' ')[0];
+  const joinDate = user?.created_at
+    ? new Intl.DateTimeFormat('pt-BR', { month: 'short', year: 'numeric' }).format(new Date(user.created_at))
+    : '—';
+
   const overallProgress = modulesWithProgress.length
     ? Math.round(
         modulesWithProgress.reduce((sum, module) => sum + module.progress, 0) /
           modulesWithProgress.length,
       )
     : 0;
+  const normalizedProgress = Math.min(100, Math.max(0, overallProgress));
 
   const completedLessons = modulesWithProgress.reduce(
     (total, module) => total + module.lessons.filter((lesson) => lesson.completed).length,
     0,
   );
   const totalLessons = modulesWithProgress.reduce((total, module) => total + module.lessons.length, 0);
-
-  const profileForCard = {
-    name: displayName,
-    email: user?.email || '',
-    joinDate,
-    progress: overallProgress,
-  };
-
-  const handleLessonClick = (lesson: { id: string }) => {
-    navigate(ROUTES.lesson(lesson.id));
-  };
+  const remainingLessons = Math.max(0, totalLessons - completedLessons);
+  const completedModules = modulesWithProgress.filter((module) => module.progress >= 100).length;
 
   const firstIncompleteLesson = useMemo(() => {
     for (const module of modulesWithProgress) {
@@ -66,162 +93,338 @@ const Dashboard = () => {
     return undefined;
   }, [modulesWithProgress]);
 
+  const activeModule = useMemo(
+    () =>
+      firstIncompleteLesson
+        ? modulesWithProgress.find((module) =>
+            module.lessons.some((lesson) => lesson.id === firstIncompleteLesson.id),
+          )
+        : undefined,
+    [firstIncompleteLesson, modulesWithProgress],
+  );
+
   const { data: unreadNotifications = 0 } = useUnreadNotificationsCount();
   const { data: recentCertificates = [] } = useRecentCertificates(2);
   const { data: recommendedDownloads = [] } = useRecommendedDownloads(2);
 
+  const handleLessonClick = (lesson: { id: string }) => {
+    navigate(ROUTES.lesson(lesson.id));
+  };
+
   return (
     <StudentLayout>
-      <section className="vdm-pattern-dots -mx-4 -mt-6 mb-8 border-b border-white/10 px-4 py-8 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
-        <div className="flex flex-col justify-between gap-6 md:flex-row md:items-end">
-          <div>
-            <p className="vdm-eyebrow">Portal do aluno</p>
-            <h1 className="vdm-page-title mt-2">Olá, {displayName.split(' ')[0]}.</h1>
-            <p className="vdm-page-description">
-              Continue seu aprendizado, acompanhe o progresso e acesse seus materiais.
-            </p>
+      <section className="relative overflow-hidden rounded-[1.75rem] border border-white/10 bg-[#111111] p-5 shadow-[0_24px_70px_rgba(0,0,0,0.32)] sm:p-7 lg:p-8">
+        <div className="pointer-events-none absolute -right-24 -top-28 size-80 rounded-full bg-primary/20 blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-36 left-1/3 size-72 rounded-full bg-violet-700/10 blur-3xl" />
+
+        <div className="relative flex items-start justify-between gap-4">
+          <div className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-primary">
+            <Sparkles className="size-3.5" />
+            Portal do aluno
           </div>
 
           <Link
             to={ROUTES.notifications}
-            aria-label="Notificações"
-            className="vdm-icon-button relative self-start md:self-auto"
+            aria-label="Abrir notificações"
+            className="relative flex size-11 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] text-white/70 transition hover:border-primary/35 hover:bg-primary/10 hover:text-white"
           >
             <Bell className="size-5" />
             {unreadNotifications > 0 && (
-              <span className="absolute -right-1 -top-1 flex size-5 items-center justify-center rounded-full bg-gradient-brand text-[10px] font-bold text-white">
+              <span className="absolute -right-1.5 -top-1.5 flex size-5 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-white ring-4 ring-[#111111]">
                 {unreadNotifications > 9 ? '9+' : unreadNotifications}
               </span>
             )}
           </Link>
         </div>
-      </section>
 
-      <div className="mb-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="Progresso geral" value={`${overallProgress}%`} icon={Award} />
-        <StatCard label="Cursos ativos" value={String(modulesWithProgress.length > 0 ? 1 : 0)} icon={BookOpen} />
-        <StatCard label="Aulas concluídas" value={`${completedLessons}/${totalLessons}`} icon={PlayCircle} />
-        <StatCard label="Certificados" value={String(recentCertificates.length)} icon={Award} />
-      </div>
+        <div className="relative mt-8 grid gap-8 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
+          <div>
+            <h1 className="max-w-3xl font-display text-3xl font-bold tracking-[-0.045em] text-white sm:text-4xl lg:text-5xl">
+              Olá, {firstName}. <span className="text-white/45">Vamos continuar sua evolução?</span>
+            </h1>
+            <p className="mt-4 max-w-2xl text-sm leading-6 text-muted-foreground sm:text-base">
+              Seu aprendizado agora está organizado por prioridade: continue a próxima aula, acompanhe sua trilha e acesse os recursos mais importantes sem ruído visual.
+            </p>
 
-      {firstIncompleteLesson && (
-        <div className="vdm-surface-interactive mb-8 flex flex-col gap-4 overflow-hidden p-5 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-4">
-            <span className="vdm-icon-button border-primary/30 bg-primary/15 text-primary">
-              <PlayCircle className="size-5" />
-            </span>
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">Continuar assistindo</p>
-              <p className="mt-1 font-display text-lg font-semibold text-white">{firstIncompleteLesson.title}</p>
+            <div className="mt-7 flex flex-wrap gap-3">
+              {firstIncompleteLesson ? (
+                <Button asChild className="h-11 rounded-xl px-5">
+                  <Link to={ROUTES.lesson(firstIncompleteLesson.id)}>
+                    <Play className="size-4 fill-current" />
+                    Continuar aprendendo
+                  </Link>
+                </Button>
+              ) : (
+                <Button asChild className="h-11 rounded-xl px-5">
+                  <Link to={ROUTES.academy}>
+                    Explorar cursos
+                    <ArrowRight className="size-4" />
+                  </Link>
+                </Button>
+              )}
+              <Button asChild variant="outline" className="h-11 rounded-xl border-white/12 bg-white/[0.025] px-5">
+                <Link to={ROUTES.myCourses}>Ver meus cursos</Link>
+              </Button>
+            </div>
+
+            <div className="mt-8 grid max-w-2xl grid-cols-3 gap-3">
+              <div className="rounded-2xl border border-white/8 bg-black/20 px-4 py-3">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-white/35">Aulas concluídas</p>
+                <p className="mt-1 font-display text-xl font-bold text-white">{completedLessons}</p>
+              </div>
+              <div className="rounded-2xl border border-white/8 bg-black/20 px-4 py-3">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-white/35">Aulas restantes</p>
+                <p className="mt-1 font-display text-xl font-bold text-white">{remainingLessons}</p>
+              </div>
+              <div className="rounded-2xl border border-white/8 bg-black/20 px-4 py-3">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-white/35">Módulos concluídos</p>
+                <p className="mt-1 font-display text-xl font-bold text-white">{completedModules}</p>
+              </div>
             </div>
           </div>
-          <Button asChild className="w-full sm:w-auto">
-            <Link to={ROUTES.lesson(firstIncompleteLesson.id)}>Continuar aula</Link>
-          </Button>
-        </div>
-      )}
 
-      <section className="mb-8">
-        <div className="mb-4 flex items-center justify-between">
-          <div>
-            <p className="vdm-eyebrow">Acesso rápido</p>
-            <h2 className="mt-1 text-xl font-semibold">Sua área de aprendizado</h2>
+          <div className="flex items-center gap-5 rounded-2xl border border-white/8 bg-black/25 p-4 sm:p-5 lg:min-w-[280px]">
+            <div
+              className="relative flex size-28 shrink-0 items-center justify-center rounded-full p-2"
+              style={{
+                background: `conic-gradient(#8A2BE2 ${normalizedProgress * 3.6}deg, rgba(255,255,255,0.08) 0deg)`,
+              }}
+              aria-label={`Progresso geral: ${normalizedProgress}%`}
+            >
+              <div className="flex size-full flex-col items-center justify-center rounded-full bg-[#111111]">
+                <span className="font-display text-2xl font-bold text-white">{normalizedProgress}%</span>
+                <span className="text-[10px] uppercase tracking-[0.14em] text-white/35">concluído</span>
+              </div>
+            </div>
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-primary">Progresso geral</p>
+              <p className="mt-2 text-sm font-medium text-white">
+                {normalizedProgress >= 100 ? 'Trilha concluída' : 'Sua jornada está em andamento'}
+              </p>
+              <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                {remainingLessons > 0
+                  ? `${remainingLessons} aula${remainingLessons === 1 ? '' : 's'} para avançar.`
+                  : 'Você concluiu todas as aulas liberadas.'}
+              </p>
+            </div>
           </div>
-        </div>
-
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          {SHORTCUTS.map(({ label, to, icon: Icon }) => (
-            <Link key={to} to={to} className="vdm-surface-interactive flex items-center gap-3 p-4">
-              <span className="vdm-icon-button size-10 border-primary/25 bg-primary/10 text-primary">
-                <Icon className="size-5" />
-              </span>
-              <span className="text-sm font-semibold text-white">{label}</span>
-            </Link>
-          ))}
         </div>
       </section>
 
-      <div className="mb-8 grid gap-4 lg:grid-cols-2">
-        <section className="vdm-surface p-5 sm:p-6">
-          <div className="mb-4">
-            <p className="vdm-eyebrow">Conquistas</p>
-            <h2 className="mt-1 text-lg font-semibold">Certificados recentes</h2>
-          </div>
-          <div className="space-y-3">
-            {recentCertificates.length === 0 ? (
-              <p className="text-sm text-muted-foreground">Nenhum certificado emitido até o momento.</p>
-            ) : (
-              recentCertificates.map((certificate) => (
-                <div key={certificate.id} className="flex items-center justify-between gap-4 border-b border-white/8 pb-3 last:border-0 last:pb-0">
-                  <p className="text-sm font-medium text-white">{certificate.courseTitle}</p>
-                  <span className="text-xs text-muted-foreground">
-                    {certificate.status === 'emitido' ? certificate.issuedAt : 'Pendente'}
+      <div className="mt-6 grid gap-6 xl:grid-cols-[minmax(0,1.75fr)_minmax(320px,0.75fr)]">
+        <div className="min-w-0 space-y-6">
+          {firstIncompleteLesson ? (
+            <section className="relative overflow-hidden rounded-2xl border border-primary/20 bg-gradient-to-br from-primary/14 via-[#15111a] to-[#101010] p-5 sm:p-6">
+              <div className="pointer-events-none absolute -right-14 -top-16 size-44 rounded-full bg-primary/20 blur-3xl" />
+              <div className="relative flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
+                <div className="flex min-w-0 items-start gap-4">
+                  <span className="flex size-12 shrink-0 items-center justify-center rounded-2xl border border-primary/25 bg-primary/15 text-primary">
+                    <Play className="size-5 fill-current" />
                   </span>
+                  <div className="min-w-0">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-primary">Retome de onde parou</p>
+                    <p className="mt-1 text-xs text-white/45">{activeModule?.title ?? 'Sua trilha atual'}</p>
+                    <h2 className="mt-2 font-display text-xl font-semibold text-white sm:text-2xl">
+                      {firstIncompleteLesson.title}
+                    </h2>
+                    {activeModule && (
+                      <div className="mt-4 flex max-w-xl items-center gap-3">
+                        <Progress value={activeModule.progress} className="h-1.5 flex-1" />
+                        <span className="text-xs font-semibold text-white">{activeModule.progress}%</span>
+                      </div>
+                    )}
+                  </div>
                 </div>
-              ))
-            )}
-          </div>
-        </section>
-
-        <section className="vdm-surface p-5 sm:p-6">
-          <div className="mb-4">
-            <p className="vdm-eyebrow">Materiais</p>
-            <h2 className="mt-1 text-lg font-semibold">Downloads recomendados</h2>
-          </div>
-          <div className="space-y-3">
-            {recommendedDownloads.length === 0 ? (
-              <p className="text-sm text-muted-foreground">Nenhum material recomendado no momento.</p>
-            ) : (
-              recommendedDownloads.map((download) => (
-                <div key={download.id} className="flex items-center justify-between gap-4 border-b border-white/8 pb-3 last:border-0 last:pb-0">
-                  <p className="text-sm font-medium text-white">{download.title}</p>
-                  <span className="text-xs text-primary">{download.category}</span>
+                <Button asChild className="h-11 shrink-0 rounded-xl px-5">
+                  <Link to={ROUTES.lesson(firstIncompleteLesson.id)}>
+                    Abrir aula
+                    <ArrowRight className="size-4" />
+                  </Link>
+                </Button>
+              </div>
+            </section>
+          ) : (
+            <section className="rounded-2xl border border-emerald-400/20 bg-emerald-400/[0.06] p-6">
+              <div className="flex items-start gap-4">
+                <span className="flex size-11 items-center justify-center rounded-xl border border-emerald-400/25 bg-emerald-400/10 text-emerald-400">
+                  <CheckCircle2 className="size-5" />
+                </span>
+                <div>
+                  <p className="font-display text-lg font-semibold text-white">Você está em dia com suas aulas.</p>
+                  <p className="mt-1 text-sm text-muted-foreground">Explore a Academia para iniciar uma nova trilha.</p>
                 </div>
-              ))
-            )}
-          </div>
-        </section>
-      </div>
+              </div>
+            </section>
+          )}
 
-      <div className="grid grid-cols-1 gap-6 xl:grid-cols-4">
+          <section className="rounded-2xl border border-white/8 bg-[#101010] p-4 shadow-[0_18px_55px_rgba(0,0,0,0.24)] sm:p-6">
+            <div className="flex flex-col gap-4 border-b border-white/8 pb-5 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-primary">Meu aprendizado</p>
+                <h2 className="mt-2 font-display text-2xl font-semibold text-white">Sua trilha organizada</h2>
+                <p className="mt-1 text-sm text-muted-foreground">Aulas e progresso reunidos em uma única área de trabalho.</p>
+              </div>
+              <Link to={ROUTES.myCourses} className="inline-flex items-center gap-2 text-sm font-semibold text-primary hover:text-primary/80">
+                Todos os cursos
+                <ArrowRight className="size-4" />
+              </Link>
+            </div>
+
+            <Tabs defaultValue="aulas" className="mt-5 space-y-5">
+              <TabsList className="h-auto w-full justify-start gap-1 rounded-xl border border-white/8 bg-black/20 p-1 sm:w-auto">
+                <TabsTrigger
+                  value="aulas"
+                  className="flex-1 gap-2 rounded-lg px-4 py-2.5 data-[state=active]:bg-primary data-[state=active]:text-white sm:flex-none"
+                >
+                  <BookOpen className="size-4" />
+                  Aulas
+                </TabsTrigger>
+                <TabsTrigger
+                  value="progresso"
+                  className="flex-1 gap-2 rounded-lg px-4 py-2.5 data-[state=active]:bg-primary data-[state=active]:text-white sm:flex-none"
+                >
+                  <Award className="size-4" />
+                  Progresso
+                </TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="aulas" className="mt-0">
+                {modulesLoading ? (
+                  <div className="flex items-center justify-center rounded-2xl border border-white/8 bg-white/[0.015] py-16">
+                    <div className="size-9 animate-spin rounded-full border-2 border-white/10 border-t-primary" />
+                  </div>
+                ) : modulesError ? (
+                  <div className="rounded-2xl border border-white/8 bg-white/[0.015] py-14 text-center">
+                    <p className="mb-5 text-sm text-muted-foreground">Não foi possível carregar suas aulas agora.</p>
+                    <Button onClick={() => window.location.reload()}>Tentar novamente</Button>
+                  </div>
+                ) : (
+                  <LessonGrid modules={modulesWithProgress} onLessonClick={handleLessonClick} />
+                )}
+              </TabsContent>
+
+              <TabsContent value="progresso" className="mt-0">
+                <ModuleProgress modules={modulesWithProgress} />
+              </TabsContent>
+            </Tabs>
+          </section>
+        </div>
+
         <aside className="space-y-6">
-          <UserProfile user={profileForCard} />
-          <RecentActivities />
-        </aside>
+          <section>
+            <div className="mb-3 flex items-center justify-between">
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-white/35">Atalhos</p>
+                <h2 className="mt-1 font-display text-lg font-semibold text-white">Acesso rápido</h2>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              {QUICK_ACTIONS.map(({ label, description, to, icon: Icon }) => (
+                <Link
+                  key={to}
+                  to={to}
+                  className="group min-h-36 rounded-2xl border border-white/8 bg-[#101010] p-4 transition hover:border-primary/30 hover:bg-primary/[0.06]"
+                >
+                  <span className="flex size-10 items-center justify-center rounded-xl border border-white/8 bg-white/[0.035] text-white/65 transition group-hover:border-primary/25 group-hover:bg-primary/15 group-hover:text-primary">
+                    <Icon className="size-5" />
+                  </span>
+                  <p className="mt-5 text-sm font-semibold text-white">{label}</p>
+                  <p className="mt-1 text-xs leading-5 text-muted-foreground">{description}</p>
+                </Link>
+              ))}
+            </div>
+          </section>
 
-        <main className="xl:col-span-3">
-          <Tabs defaultValue="aulas" className="space-y-6">
-            <TabsList className="h-auto rounded-lg border border-white/10 bg-card p-1">
-              <TabsTrigger value="aulas" className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-white">
-                <BookOpen className="size-4" />
-                Aulas
-              </TabsTrigger>
-              <TabsTrigger value="progresso" className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-white">
-                <Award className="size-4" />
-                Progresso
-              </TabsTrigger>
-            </TabsList>
+          <section className="rounded-2xl border border-white/8 bg-[#101010] p-5">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-primary">Resumo</p>
+                <h2 className="mt-1 font-display text-lg font-semibold text-white">Sua jornada</h2>
+              </div>
+              <span className="flex size-10 items-center justify-center rounded-xl border border-primary/20 bg-primary/10 text-primary">
+                <Layers3 className="size-5" />
+              </span>
+            </div>
 
-            <TabsContent value="aulas" className="space-y-6">
-              {modulesLoading ? (
-                <div className="vdm-surface flex items-center justify-center py-16">
-                  <div className="size-9 animate-spin rounded-full border-2 border-white/10 border-t-primary" />
-                </div>
-              ) : modulesError ? (
-                <div className="vdm-surface py-14 text-center">
-                  <p className="mb-5 text-sm text-muted-foreground">Não foi possível carregar suas aulas agora.</p>
-                  <Button onClick={() => window.location.reload()}>Tentar novamente</Button>
+            <div className="mt-5 divide-y divide-white/8">
+              <div className="flex items-center justify-between py-3 first:pt-0">
+                <span className="text-sm text-muted-foreground">Módulos disponíveis</span>
+                <span className="text-sm font-semibold text-white">{modulesWithProgress.length}</span>
+              </div>
+              <div className="flex items-center justify-between py-3">
+                <span className="text-sm text-muted-foreground">Total de aulas</span>
+                <span className="text-sm font-semibold text-white">{totalLessons}</span>
+              </div>
+              <div className="flex items-center justify-between py-3">
+                <span className="text-sm text-muted-foreground">Certificados recentes</span>
+                <span className="text-sm font-semibold text-white">{recentCertificates.length}</span>
+              </div>
+              <div className="flex items-center justify-between py-3 last:pb-0">
+                <span className="inline-flex items-center gap-2 text-sm text-muted-foreground">
+                  <CalendarDays className="size-4" />
+                  Membro desde
+                </span>
+                <span className="text-sm font-semibold capitalize text-white">{joinDate}</span>
+              </div>
+            </div>
+          </section>
+
+          <section className="rounded-2xl border border-white/8 bg-[#101010] p-5">
+            <div className="flex items-end justify-between gap-4">
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-primary">Conquistas e materiais</p>
+                <h2 className="mt-1 font-display text-lg font-semibold text-white">Atualizações recentes</h2>
+              </div>
+              <Link to={ROUTES.downloads} className="text-xs font-semibold text-primary hover:text-primary/80">
+                Ver tudo
+              </Link>
+            </div>
+
+            <div className="mt-5 space-y-3">
+              {recentCertificates.length === 0 && recommendedDownloads.length === 0 ? (
+                <div className="rounded-xl border border-dashed border-white/10 px-4 py-8 text-center">
+                  <p className="text-sm text-muted-foreground">Nenhuma atualização recente.</p>
                 </div>
               ) : (
-                <LessonGrid modules={modulesWithProgress} onLessonClick={handleLessonClick} />
-              )}
-            </TabsContent>
+                <>
+                  {recentCertificates.map((certificate) => (
+                    <Link
+                      key={certificate.id}
+                      to={ROUTES.certificates}
+                      className="flex items-center gap-3 rounded-xl border border-white/8 bg-white/[0.02] p-3 transition hover:border-primary/25 hover:bg-primary/[0.05]"
+                    >
+                      <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-amber-400/10 text-amber-300">
+                        <Award className="size-4" />
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-xs font-semibold text-white">{certificate.courseTitle}</span>
+                        <span className="mt-0.5 block text-[11px] text-muted-foreground">Certificado</span>
+                      </span>
+                      <ArrowRight className="size-3.5 text-white/25" />
+                    </Link>
+                  ))}
 
-            <TabsContent value="progresso" className="space-y-6">
-              <ModuleProgress modules={modulesWithProgress} />
-            </TabsContent>
-          </Tabs>
-        </main>
+                  {recommendedDownloads.map((download) => (
+                    <Link
+                      key={download.id}
+                      to={ROUTES.downloads}
+                      className="flex items-center gap-3 rounded-xl border border-white/8 bg-white/[0.02] p-3 transition hover:border-primary/25 hover:bg-primary/[0.05]"
+                    >
+                      <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-sky-400/10 text-sky-300">
+                        <Download className="size-4" />
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-xs font-semibold text-white">{download.title}</span>
+                        <span className="mt-0.5 block text-[11px] text-muted-foreground">{download.category}</span>
+                      </span>
+                      <ArrowRight className="size-3.5 text-white/25" />
+                    </Link>
+                  ))}
+                </>
+              )}
+            </div>
+          </section>
+        </aside>
       </div>
     </StudentLayout>
   );
