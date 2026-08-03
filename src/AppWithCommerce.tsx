@@ -48,6 +48,7 @@ const AdminObservabilityPage = lazy(() => import('@/modules/admin/pages/AdminObs
 const AdminSettingsPage = lazy(() => import('@/modules/admin/pages/AdminSettingsPage'));
 const AdminIntegrationsPage = lazy(() => import('@/modules/admin/pages/AdminIntegrationsPage'));
 const AdminFinancePage = lazy(() => import('@/modules/admin/pages/AdminFinancePage'));
+const AdminServicesPage = lazy(() => import('@/modules/admin/pages/AdminServicesPage'));
 const AdminMarketingPage = lazy(() => import('@/modules/admin/pages/AdminMarketingPage'));
 const AdminSupportPage = lazy(() => import('@/modules/admin/pages/AdminSupportPage'));
 const AdminAuditPage = lazy(() => import('@/modules/admin/pages/AdminAuditPage'));
@@ -88,6 +89,7 @@ const LibraryPage = lazy(() => import('@/modules/library/pages/LibraryPage'));
 const CommunityPage = lazy(() => import('@/modules/community/pages/CommunityPage'));
 const OpportunitiesPage = lazy(() => import('@/modules/opportunities/pages/OpportunitiesPage'));
 const StudentServicesPage = lazy(() => import('@/modules/services/pages/StudentServicesPage'));
+const StudentServiceRequestsPage = lazy(() => import('@/modules/services/pages/StudentServiceRequestsPage'));
 
 const InstructorDashboard = lazy(() => import('@/modules/instructor/pages/InstructorDashboard'));
 const InstructorCoursesPage = lazy(() => import('@/modules/instructor/pages/InstructorCoursesPage'));
@@ -96,6 +98,8 @@ const InstructorReportsPage = lazy(() => import('@/modules/instructor/pages/Inst
 const InstructorFinancePage = lazy(() => import('@/modules/instructor/pages/InstructorFinancePage'));
 
 const ProducerServicesPage = lazy(() => import('@/modules/services/pages/ProducerServicesPage'));
+const ProducerServiceCatalogPage = lazy(() => import('@/modules/services/pages/ProducerServiceCatalogPage'));
+const ProducerServiceRequestsPage = lazy(() => import('@/modules/services/pages/ProducerServiceRequestsPage'));
 
 const CompanyDashboardPage = lazy(() => import('@/modules/company/pages/CompanyDashboardPage'));
 const CompanyOpportunitiesPage = lazy(() => import('@/modules/company/pages/CompanyOpportunitiesPage'));
@@ -155,7 +159,7 @@ const AppWithCommerce = () => (
                 <Route path={ROUTES.cart} element={<CartPage />} />
                 <Route path={ROUTES.checkout} element={<CheckoutPage />} />
                 <Route path={ROUTES.validateCertificate} element={<ValidateCertificatePage />} />
-                <Route path="/servicos" element={<PublicServicesPage />} />
+                <Route path={ROUTES.servicesPublic} element={<PublicServicesPage />} />
                 <Route path="/servicos/:serviceSlug" element={<ServiceDetailPage />} />
 
                 <Route path={ROUTES.contentPortal} element={<ContentPortalPage />} />
@@ -175,7 +179,8 @@ const AppWithCommerce = () => (
                 <Route path={ROUTES.library} element={studentRoute(<LibraryPage />)} />
                 <Route path={ROUTES.community} element={studentRoute(<CommunityPage />)} />
                 <Route path={ROUTES.opportunities} element={studentRoute(<OpportunitiesPage />)} />
-                <Route path="/aluno/servicos" element={studentRoute(<StudentServicesPage />)} />
+                <Route path={ROUTES.studentServices} element={studentRoute(<StudentServicesPage />)} />
+                <Route path={ROUTES.studentServiceRequests} element={studentRoute(<StudentServiceRequestsPage />)} />
                 <Route path={ROUTES.orders} element={studentRoute(<OrdersPage />)} />
                 <Route path={ROUTES.favorites} element={studentRoute(<FavoritesPage />)} />
                 <Route path={ROUTES.editProfile} element={studentRoute(<EditProfile />)} />
@@ -187,13 +192,15 @@ const AppWithCommerce = () => (
                 <Route path={ROUTES.instructorCourses} element={instructorRoute(<InstructorCoursesPage />)} />
                 <Route path={ROUTES.instructorAudience} element={instructorRoute(<InstructorAudiencePage />)} />
                 <Route path={ROUTES.instructorReports} element={instructorRoute(<InstructorReportsPage />)} />
-                <Route path="/instrutor/financeiro" element={instructorRoute(<InstructorFinancePage />)} />
+                <Route path={ROUTES.instructorFinance} element={instructorRoute(<InstructorFinancePage />)} />
 
                 <Route path={ROUTES.producer} element={producerRoute(<ProducerDashboardPage />)} />
                 <Route path={ROUTES.producerBeats} element={producerRoute(<ProducerBeatsDashboardPage />)} />
                 <Route path={ROUTES.producerProducts} element={producerRoute(<ProducerProductsPage />)} />
                 <Route path={ROUTES.producerOrders} element={producerRoute(<ProducerOrdersPage />)} />
-                <Route path="/produtor/servicos" element={producerRoute(<ProducerServicesPage />)} />
+                <Route path={ROUTES.producerServices} element={producerRoute(<ProducerServicesPage />)} />
+                <Route path={ROUTES.producerServiceCatalog} element={producerRoute(<ProducerServiceCatalogPage />)} />
+                <Route path={ROUTES.producerServiceRequests} element={producerRoute(<ProducerServiceRequestsPage />)} />
 
                 <Route path={ROUTES.affiliate} element={affiliateRoute(<AffiliatePortalPage />)} />
                 <Route path={ROUTES.affiliateLinks} element={affiliateRoute(<AffiliatePortalPage />)} />
@@ -208,7 +215,7 @@ const AppWithCommerce = () => (
                 <Route path={ROUTES.companyCandidates} element={companyRoute(<CompanyCandidatesPage />)} />
                 <Route path={ROUTES.companyMessages} element={companyRoute(<CompanyMessagesPage />)} />
                 <Route path={ROUTES.companyProfile} element={companyRoute(<CompanyProfilePage />)} />
-                <Route path="/empresa/creditos" element={companyRoute(<CompanyCreditsPage />)} />
+                <Route path={ROUTES.companyCredits} element={companyRoute(<CompanyCreditsPage />)} />
 
                 <Route path={ROUTES.admin} element={adminRoute(<AdminDashboard />)} />
                 <Route path={ROUTES.adminUsers} element={adminRoute(<AdminUsersPage />)} />
@@ -227,6 +234,7 @@ const AppWithCommerce = () => (
                 <Route path={ROUTES.adminSettings} element={adminRoute(<AdminSettingsPage />)} />
                 <Route path={ROUTES.adminIntegrations} element={adminRoute(<AdminIntegrationsPage />)} />
                 <Route path={ROUTES.adminFinance} element={adminRoute(<AdminFinancePage />)} />
+                <Route path={ROUTES.adminServices} element={adminRoute(<AdminServicesPage />)} />
                 <Route path={ROUTES.adminMarketing} element={adminRoute(<AdminMarketingPage />)} />
                 <Route path={ROUTES.adminSupport} element={adminRoute(<AdminSupportPage />)} />
                 <Route path={ROUTES.adminAudit} element={adminRoute(<AdminAuditPage />)} />
