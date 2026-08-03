@@ -52,7 +52,10 @@ jobs:
 
   database:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 35
+    env:
+      SUPABASE_CLI_VERSION: 2.111.0
+      SUPABASE_TELEMETRY_DISABLED: "1"
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -62,18 +65,33 @@ jobs:
         with:
           node-version: 22
 
-      - name: Start local Supabase
-        run: npx supabase start
+      - name: Start local Postgres with retry
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in 1 2 3 4; do
+            echo "Starting local Supabase Postgres — attempt ${attempt}/4"
+            if npx --yes "supabase@${SUPABASE_CLI_VERSION}" db start; then
+              exit 0
+            fi
+
+            npx --yes "supabase@${SUPABASE_CLI_VERSION}" stop --no-backup || true
+            if [ "${attempt}" -eq 4 ]; then
+              echo "Unable to start local Postgres after four attempts."
+              exit 1
+            fi
+            sleep $((attempt * 20))
+          done
 
       - name: Rebuild local database
-        run: npx supabase db reset --local
+        run: npx --yes "supabase@${SUPABASE_CLI_VERSION}" db reset --local
 
       - name: Lint local database
-        run: npx supabase db lint --local
+        run: npx --yes "supabase@${SUPABASE_CLI_VERSION}" db lint --local
 
       - name: Run pgTAP database tests
-        run: npx supabase test db --local
+        run: npx --yes "supabase@${SUPABASE_CLI_VERSION}" test db --local
 
       - name: Stop local Supabase
         if: always()
-        run: npx supabase stop --no-backup
+        run: npx --yes "supabase@${SUPABASE_CLI_VERSION}" stop --no-backup || true
