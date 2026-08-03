@@ -34,6 +34,7 @@ export interface MockCourse {
   reviewCount: number;
   studentsCount: number;
   durationHours: number;
+  thumbnailUrl: string | null;
   gradientFrom: string;
   gradientTo: string;
   shortDescription: string;
