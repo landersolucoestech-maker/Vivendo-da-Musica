@@ -6,7 +6,8 @@ select is(
   (
     select count(*)
     from public.courses as course
-    where course.status = 'published'
+    where course.is_demo = true
+      and course.status = 'published'
       and not exists (
         select 1
         from public.course_modules as module
@@ -14,28 +15,31 @@ select is(
       )
   ),
   0::bigint,
-  'every published course has at least one module'
+  'every published demo course has at least one module'
 );
 
 select is(
   (
     select count(*)
     from public.course_modules as module
-    where not exists (
-      select 1
-      from public.lessons as lesson
-      where lesson.module_id = module.id
-    )
+    join public.courses as course on course.id = module.course_id
+    where course.is_demo = true
+      and not exists (
+        select 1
+        from public.lessons as lesson
+        where lesson.module_id = module.id
+      )
   ),
   0::bigint,
-  'every course module has at least one lesson'
+  'every demo course module has at least one lesson'
 );
 
 select is(
   (
     select count(*)
     from public.courses as course
-    where course.status = 'published'
+    where course.is_demo = true
+      and course.status = 'published'
       and not exists (
         select 1
         from public.course_modules as module
@@ -45,14 +49,15 @@ select is(
       )
   ),
   0::bigint,
-  'every published course has at least one published lesson'
+  'every published demo course has at least one published lesson'
 );
 
 select is(
   (
     select count(*)
     from public.seller_products as product
-    where product.status = 'published'
+    where product.is_demo = true
+      and product.status = 'published'
       and not exists (
         select 1
         from public.seller_product_files as file
@@ -60,14 +65,15 @@ select is(
       )
   ),
   0::bigint,
-  'every published digital product has at least one delivery file'
+  'every published demo digital product has at least one delivery file'
 );
 
 select is(
   (
     select count(*)
     from public.beats as beat
-    where beat.status = 'published'
+    where beat.is_demo = true
+      and beat.status = 'published'
       and not exists (
         select 1
         from public.beat_licenses as license
@@ -76,7 +82,7 @@ select is(
       )
   ),
   0::bigint,
-  'every published beat has at least one available license'
+  'every published demo beat has at least one available license'
 );
 
 select is(
@@ -88,10 +94,11 @@ select is(
       from public.course_order_items
       group by order_id
     ) as items on items.order_id = orders.id
-    where orders.amount_cents <> coalesce(items.total, 0)
+    where orders.is_demo = true
+      and orders.amount_cents <> coalesce(items.total, 0)
   ),
   0::bigint,
-  'course order totals equal their item totals'
+  'demo course order totals equal their item totals'
 );
 
 select is(
@@ -103,10 +110,11 @@ select is(
       from public.digital_product_order_items
       group by order_id
     ) as items on items.order_id = orders.id
-    where orders.amount_cents <> coalesce(items.total, 0)
+    where orders.is_demo = true
+      and orders.amount_cents <> coalesce(items.total, 0)
   ),
   0::bigint,
-  'digital product order totals equal their item totals'
+  'demo digital product order totals equal their item totals'
 );
 
 select is(
@@ -118,28 +126,33 @@ select is(
       from public.beat_order_items
       group by order_id
     ) as items on items.order_id = orders.id
-    where orders.amount_cents <> coalesce(items.total, 0)
+    where orders.is_demo = true
+      and orders.amount_cents <> coalesce(items.total, 0)
   ),
   0::bigint,
-  'beat order totals equal their item totals'
+  'demo beat order totals equal their item totals'
 );
 
 select is(
   (
     select count(*)
     from public.beat_order_items as item
+    join public.beats as beat on beat.id = item.beat_id
     join public.beat_licenses as license on license.id = item.license_id
-    where item.beat_id <> license.beat_id
+    where beat.is_demo = true
+      and item.beat_id <> license.beat_id
   ),
   0::bigint,
-  'every beat order item references a license belonging to the same beat'
+  'every demo beat order item references a license belonging to the same beat'
 );
 
 select is(
   (
     select count(*)
     from public.beat_order_items as item
-    where item.status = 'paid'
+    join public.beats as beat on beat.id = item.beat_id
+    where beat.is_demo = true
+      and item.status::text = 'paid'
       and not exists (
         select 1
         from public.beat_license_purchases as purchase
@@ -147,7 +160,7 @@ select is(
       )
   ),
   0::bigint,
-  'every paid beat item has an issued license purchase'
+  'every paid demo beat item has an issued license purchase'
 );
 
 select is(
@@ -155,7 +168,7 @@ select is(
     select count(*)
     from public.beat_license_purchases as purchase
     join public.beats as beat on beat.id = purchase.beat_id
-    where purchase.status = 'active'
+    where purchase.status::text = 'active'
       and beat.is_demo = true
       and not exists (
         select 1
@@ -175,7 +188,7 @@ select is(
       select count(*)
       from public.opportunity_applications as application
       where application.opportunity_id = opportunity.id
-        and application.status <> 'withdrawn'
+        and application.status::text <> 'withdrawn'
     )
   ),
   0::bigint,
