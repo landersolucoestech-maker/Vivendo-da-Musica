@@ -22,7 +22,7 @@ import { ROUTES } from '@/shared/constants/routes';
 const LEARNING_NAV_ITEMS: SidebarNavItem[] = [
   { label: 'Visão geral', to: ROUTES.dashboard, icon: LayoutDashboard },
   { label: 'Meus cursos', to: ROUTES.myCourses, icon: BookOpen },
-  { label: 'Biblioteca', to: ROUTES.premiumLibrary, icon: Library },
+  { label: 'Biblioteca', to: ROUTES.library, icon: Library },
   { label: 'Certificados', to: ROUTES.certificates, icon: Award },
 ];
 
@@ -55,7 +55,7 @@ const SidebarSection = ({ label, items }: { label: string; items: SidebarNavItem
 );
 
 const StudentSidebar = () => (
-  <aside className="sticky top-16 hidden h-[calc(100vh-4rem)] w-[17.5rem] shrink-0 border-r border-white/8 bg-[#090909]/95 md:block">
+  <aside className="fixed bottom-0 left-0 top-16 z-40 hidden w-64 border-r border-white/8 bg-[#090909]/95 sm:top-20 md:block">
     <div className="flex h-full flex-col overflow-y-auto px-4 py-5">
       <div className="mb-7 rounded-2xl border border-primary/20 bg-gradient-to-br from-primary/15 via-primary/5 to-transparent p-4">
         <div className="flex items-center gap-3">
