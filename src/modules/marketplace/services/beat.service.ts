@@ -33,6 +33,17 @@ export interface UpdateLicenseInput {
   available: boolean;
 }
 
+interface BeatLicenseTemplateRow {
+  license_type: BeatLicense['type'];
+  name: string;
+  price_cents: number;
+  currency: string;
+  deliverables: unknown;
+  usage_rights: unknown;
+  max_copies: number | null;
+  is_exclusive: boolean;
+}
+
 const gradients = [['#8A2BE2', '#6C3AED'], ['#6C3AED', '#24103f'], ['#8A2BE2', '#1A1A1A']] as const;
 const stringArray = (value: unknown) => Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : [];
 const slugify = (value: string) => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
@@ -47,6 +58,28 @@ const currentProducerId = async () => {
 const parseRpcError = async (response: Response, fallback: string) => {
   const payload = await response.json().catch(() => null) as { message?: string } | null;
   return new Error(payload?.message ?? fallback);
+};
+
+const loadActiveLicenseTemplates = async (): Promise<BeatLicenseTemplateRow[]> => {
+  const response = await fetch(
+    `${env.supabaseUrl}/rest/v1/beat_license_templates?select=license_type,name,price_cents,currency,deliverables,usage_rights,max_copies,is_exclusive&active=eq.true&order=sort_order.asc`,
+    {
+      headers: {
+        apikey: env.supabasePublishableKey,
+        Authorization: `Bearer ${env.supabasePublishableKey}`,
+      },
+    },
+  );
+
+  if (!response.ok) {
+    throw await parseRpcError(response, 'Não foi possível carregar os modelos de licença configurados.');
+  }
+
+  const templates = await response.json() as BeatLicenseTemplateRow[];
+  if (!templates.length) {
+    throw new Error('Nenhum modelo de licença ativo foi configurado pelo administrador.');
+  }
+  return templates;
 };
 
 const mapLicense = (row: Record<string, unknown>): BeatLicense => ({
@@ -112,6 +145,7 @@ export const beatService = {
 
   async createBeat(input: CreateBeatInput): Promise<void> {
     const producerId = await currentProducerId();
+    const templates = await loadActiveLicenseTemplates();
     const slug = `${slugify(input.title)}-${crypto.randomUUID().slice(0, 8)}`;
     const { data, error } = await supabase.from('beats').insert({
       producer_id: producerId, slug, title: input.title.trim(), description: input.description?.trim() || null, genre: input.genre.trim(),
@@ -147,12 +181,20 @@ export const beatService = {
         ...copyrightFields,
       }).eq('id', data.id).eq('producer_id', producerId);
       if (updateError) throw updateError;
-      const defaults = [
-        { license_type: 'basic', name: 'Licença Básica', price_cents: 9900, deliverables: ['MP3'], usage_rights: ['Até 5.000 streams'], max_copies: 5000, is_exclusive: false },
-        { license_type: 'premium', name: 'Licença Premium', price_cents: 19900, deliverables: ['MP3', 'WAV'], usage_rights: ['Até 50.000 streams', 'Monetização'], max_copies: 50000, is_exclusive: false },
-        { license_type: 'exclusive', name: 'Licença Exclusiva', price_cents: 149900, deliverables: ['MP3', 'WAV', 'Stems'], usage_rights: ['Uso comercial exclusivo'], max_copies: null, is_exclusive: true },
-      ].map((license) => ({ beat_id: data.id, currency: 'BRL', available: true, ...license }));
-      const { error: licenseError } = await supabase.from('beat_licenses').insert(defaults);
+
+      const licenses = templates.map((template) => ({
+        beat_id: data.id,
+        license_type: template.license_type,
+        name: template.name,
+        price_cents: template.price_cents,
+        currency: template.currency,
+        deliverables: stringArray(template.deliverables),
+        usage_rights: stringArray(template.usage_rights),
+        max_copies: template.max_copies,
+        is_exclusive: template.is_exclusive,
+        available: true,
+      }));
+      const { error: licenseError } = await supabase.from('beat_licenses').insert(licenses);
       if (licenseError) throw licenseError;
     } catch (failure) {
       for (const item of uploaded) await supabase.storage.from(item.bucket).remove([item.path]);
