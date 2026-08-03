@@ -14,8 +14,8 @@ export const AFFILIATE_NAV_ITEMS = [
 ];
 
 const AffiliateSidebar = () => (
-  <aside className="hidden w-64 shrink-0 border-r border-sidebar-border bg-sidebar md:block">
-    <div className="sticky top-16 max-h-[calc(100vh-4rem)] overflow-y-auto p-4">
+  <aside className="fixed bottom-0 left-0 top-16 z-40 hidden w-64 border-r border-sidebar-border bg-sidebar sm:top-20 md:block">
+    <div className="h-full overflow-y-auto p-4">
       <div className="mb-4 border-b border-white/8 px-3 pb-4">
         <p className="vdm-eyebrow">Portal do afiliado</p>
         <p className="mt-1 text-sm text-muted-foreground">Links, resultados e comissões</p>
