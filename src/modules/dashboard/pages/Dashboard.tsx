@@ -36,8 +36,8 @@ const QUICK_ACTIONS = [
   },
   {
     label: 'Biblioteca',
-    description: 'Acesse conteúdos premium',
-    to: ROUTES.premiumLibrary,
+    description: 'Acesse suas aquisições',
+    to: ROUTES.library,
     icon: Library,
   },
   {
