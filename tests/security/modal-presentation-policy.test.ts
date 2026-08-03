@@ -16,6 +16,7 @@ const readProjectFile = (path: string) => readFileSync(resolve(projectRoot, path
 const CENTERED_POSITION = /left-1\/2[^'"\n]*top-1\/2|top-1\/2[^'"\n]*left-1\/2/;
 const CENTERED_TRANSLATION = /-translate-x-1\/2[^'"\n]*-translate-y-1\/2|-translate-y-1\/2[^'"\n]*-translate-x-1\/2/;
 const FORBIDDEN_SLIDE_BEHAVIOR = /slide-(?:in|out)(?:-from|-to)?|translate-[xy]-(?:full|\[100%\])/i;
+const NATIVE_BROWSER_DIALOG = /\b(?:window\.)?(?:alert|confirm|prompt)\s*\(/;
 
 describe('política de apresentação dos modais', () => {
   it.each([
@@ -41,6 +42,17 @@ describe('política de apresentação dos modais', () => {
           ? [relative(projectRoot, path)]
           : [];
       });
+
+    expect(violations).toEqual([]);
+  });
+
+  it('não usa alertas, confirmações ou prompts nativos do navegador', () => {
+    const violations = listSourceFiles(sourceRoot).flatMap((path) => {
+      const source = readFileSync(path, 'utf8');
+      return NATIVE_BROWSER_DIALOG.test(source)
+        ? [relative(projectRoot, path)]
+        : [];
+    });
 
     expect(violations).toEqual([]);
   });
