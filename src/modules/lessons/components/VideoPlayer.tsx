@@ -49,12 +49,26 @@ const getYouTubeVideoId = (url: string) => {
   return match?.[1] ?? null;
 };
 
+const getVimeoVideoId = (url: string) => {
+  const match = url.match(/vimeo\.com\/(?:video\/)?(\d+)/);
+  return match?.[1] ?? null;
+};
+
+const resolveEmbedUrl = (videoUrl: string) => {
+  const youtubeId = getYouTubeVideoId(videoUrl);
+  if (youtubeId) return `https://www.youtube-nocookie.com/embed/${youtubeId}`;
+
+  const vimeoId = getVimeoVideoId(videoUrl);
+  if (vimeoId) return `https://player.vimeo.com/video/${vimeoId}`;
+
+  return null;
+};
+
 const VideoPlayer = ({ lesson }: VideoPlayerProps) => {
   const { toast } = useToast();
   const { data: materials = [], isLoading: materialsLoading, isError: materialsError } = useLessonFiles(lesson.id);
   const videoUrl = lesson.video_url || lesson.videoUrl || '';
-  const videoId = getYouTubeVideoId(videoUrl);
-  const embedUrl = videoId ? `https://www.youtube-nocookie.com/embed/${videoId}` : null;
+  const embedUrl = resolveEmbedUrl(videoUrl);
 
   const handleDownload = (material: LessonMaterial) => {
     try {
@@ -77,7 +91,7 @@ const VideoPlayer = ({ lesson }: VideoPlayerProps) => {
             className="size-full"
             src={embedUrl}
             title={lesson.title}
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; fullscreen; gyroscope; picture-in-picture; web-share"
             referrerPolicy="strict-origin-when-cross-origin"
             allowFullScreen
           />
