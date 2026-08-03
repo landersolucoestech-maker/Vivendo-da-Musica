@@ -43,7 +43,6 @@ export const marketplaceService = {
     const { error } = await supabase.from('beat_events').insert({
       beat_id: beatId,
       event_type: eventType,
-      occurred_at: new Date().toISOString(),
     });
     if (error) throw new Error(error.message);
   },
