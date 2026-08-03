@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { Star, ShoppingCart, FileCheck, ShieldCheck } from "lucide-react";
 import PublicLayout from "@/app/layouts/PublicLayout";
@@ -13,7 +12,6 @@ import { formatPrice } from "@/shared/utils/formatters";
 const ProductDetailPage = () => {
   const { productSlug } = useParams();
   const { addItem } = useCart();
-  const [activeImage, setActiveImage] = useState(0);
   const { data, isLoading } = useProductDetail(productSlug);
 
   if (isLoading) {
@@ -33,7 +31,6 @@ const ProductDetailPage = () => {
   }
 
   const { product, description, reviews, qa, license, includedFiles, related } = data;
-  const previewImages = [product, product, product]; // same gradient, simulates a gallery of 3 angles/previews
   const specifications = [
     { label: 'Categoria', value: product.category },
     { label: 'Licença', value: license },
@@ -43,60 +40,61 @@ const ProductDetailPage = () => {
 
   return (
     <PublicLayout>
-      <div className="grid lg:grid-cols-[1fr_360px] gap-10">
+      <div className="grid gap-10 lg:grid-cols-[1fr_360px]">
         <div>
           <div
-            className="aspect-video rounded-lg flex items-center justify-center mb-3"
-            style={{ background: `linear-gradient(135deg, ${previewImages[activeImage].gradientFrom}, ${previewImages[activeImage].gradientTo})` }}
+            className="relative mb-6 aspect-video overflow-hidden rounded-xl border border-white/10"
+            style={{ background: `linear-gradient(135deg, ${product.gradientFrom}, ${product.gradientTo})` }}
           >
-            <span className="text-white font-extrabold text-2xl uppercase text-center px-6">{product.title}</span>
-          </div>
-          <div className="flex gap-2 mb-6">
-            {previewImages.map((_, i) => (
-              <button
-                key={i}
-                onClick={() => setActiveImage(i)}
-                className={`w-16 h-12 rounded-lg border-2 transition-colors ${i === activeImage ? 'border-brand-medium' : 'border-border'}`}
-                style={{ background: `linear-gradient(135deg, ${product.gradientFrom}, ${product.gradientTo})` }}
+            {product.coverUrl ? (
+              <img
+                src={product.coverUrl}
+                alt={`Capa de ${product.title}`}
+                className="size-full object-cover"
               />
-            ))}
+            ) : (
+              <div className="flex size-full items-center justify-center px-6 text-center">
+                <span className="font-display text-2xl font-extrabold uppercase text-white">{product.title}</span>
+              </div>
+            )}
+            <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
           </div>
 
-          <p className="text-sm text-brand-medium font-medium mb-2">{product.category}</p>
-          <h1 className="text-3xl font-bold mb-3">{product.title}</h1>
-          <p className="text-muted-foreground mb-6">{description}</p>
+          <p className="mb-2 text-sm font-medium text-brand-medium">{product.category}</p>
+          <h1 className="mb-3 text-3xl font-bold">{product.title}</h1>
+          <p className="mb-6 text-muted-foreground">{description}</p>
 
-          <h2 className="text-sm font-semibold text-muted-foreground mb-3">O que está incluso</h2>
-          <ul className="space-y-2 mb-8">
+          <h2 className="mb-3 text-sm font-semibold text-muted-foreground">O que está incluso</h2>
+          <ul className="mb-8 space-y-2">
             {includedFiles.map((file) => (
               <li key={file} className="flex items-center gap-2 text-sm">
-                <FileCheck className="w-4 h-4 text-brand-medium shrink-0" />
+                <FileCheck className="size-4 shrink-0 text-brand-medium" />
                 {file}
               </li>
             ))}
           </ul>
 
-          <h2 className="text-sm font-semibold text-muted-foreground mb-3">Especificações</h2>
-          <div className="grid sm:grid-cols-2 gap-3 mb-8">
+          <h2 className="mb-3 text-sm font-semibold text-muted-foreground">Especificações</h2>
+          <div className="mb-8 grid gap-3 sm:grid-cols-2">
             {specifications.map((spec) => (
               <div key={spec.label} className="rounded-lg border border-border bg-card p-4">
-                <p className="text-xs text-muted-foreground mb-1">{spec.label}</p>
+                <p className="mb-1 text-xs text-muted-foreground">{spec.label}</p>
                 <p className="text-sm font-medium">{spec.value}</p>
               </div>
             ))}
           </div>
 
-          <h2 className="text-lg font-semibold mb-4">Avaliações</h2>
+          <h2 className="mb-4 text-lg font-semibold">Avaliações</h2>
           {reviews.length === 0 ? (
             <EmptyState title="Ainda sem avaliações" description="Seja o primeiro a avaliar este produto." />
           ) : (
-            <div className="space-y-3 mb-8">
+            <div className="mb-8 space-y-3">
               {reviews.map((review) => (
                 <div key={review.author} className="rounded-lg border border-border bg-card p-4">
-                  <div className="flex items-center justify-between mb-1">
+                  <div className="mb-1 flex items-center justify-between">
                     <p className="font-medium">{review.author}</p>
                     <span className="flex items-center gap-1 text-sm text-amber-400">
-                      <Star className="w-4 h-4 fill-amber-400" /> {review.rating}
+                      <Star className="size-4 fill-amber-400" /> {review.rating}
                     </span>
                   </div>
                   <p className="text-sm text-muted-foreground">{review.comment}</p>
@@ -105,14 +103,14 @@ const ProductDetailPage = () => {
             </div>
           )}
 
-          <h2 className="text-lg font-semibold mb-4">Perguntas e respostas</h2>
+          <h2 className="mb-4 text-lg font-semibold">Perguntas e respostas</h2>
           {qa.length === 0 ? (
             <EmptyState title="Nenhuma pergunta ainda" description="Seja o primeiro a perguntar sobre este produto." />
           ) : (
-            <div className="space-y-3 mb-8">
+            <div className="mb-8 space-y-3">
               {qa.map((item) => (
                 <div key={item.question} className="rounded-lg border border-border bg-card p-4">
-                  <p className="font-medium text-sm mb-1">{item.question}</p>
+                  <p className="mb-1 text-sm font-medium">{item.question}</p>
                   <p className="text-sm text-muted-foreground">{item.answer} — <span className="italic">{item.author}</span></p>
                 </div>
               ))}
@@ -121,8 +119,8 @@ const ProductDetailPage = () => {
 
           {related.length > 0 && (
             <>
-              <h2 className="text-lg font-semibold mb-4">Produtos relacionados</h2>
-              <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <h2 className="mb-4 text-lg font-semibold">Produtos relacionados</h2>
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 {related.map((relatedProduct) => <ProductCard key={relatedProduct.id} product={relatedProduct} />)}
               </div>
             </>
@@ -130,22 +128,22 @@ const ProductDetailPage = () => {
         </div>
 
         <div>
-          <div className="rounded-lg border border-border bg-card p-5 sticky top-20">
-            <div className="flex items-center gap-2 mb-3">
+          <div className="sticky top-20 rounded-lg border border-border bg-card p-5">
+            <div className="mb-3 flex items-center gap-2">
               <p className="text-2xl font-bold">{formatPrice(product.priceCents, product.currency)}</p>
               {product.originalPriceCents && (
                 <p className="text-sm text-muted-foreground line-through">{formatPrice(product.originalPriceCents, product.currency)}</p>
               )}
             </div>
-            <p className="text-sm text-muted-foreground flex items-center gap-2 mb-4">
-              <ShieldCheck className="w-4 h-4 text-brand-medium" />
+            <p className="mb-4 flex items-center gap-2 text-sm text-muted-foreground">
+              <ShieldCheck className="size-4 text-brand-medium" />
               Licença {license}
             </p>
             <Button
               className="w-full"
               onClick={() => addItem({ kind: "product", id: product.id, title: product.title, priceCents: product.priceCents, currency: product.currency })}
             >
-              <ShoppingCart className="w-4 h-4 mr-2" />
+              <ShoppingCart className="mr-2 size-4" />
               Adicionar ao carrinho
             </Button>
           </div>
