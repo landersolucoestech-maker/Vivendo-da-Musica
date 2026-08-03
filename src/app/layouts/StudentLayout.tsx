@@ -7,7 +7,7 @@ import { ROUTES } from '@/shared/constants/routes';
 
 const StudentLayout = ({ children }: { children: ReactNode }) => {
   return (
-    <div className="vdm-page min-h-screen overflow-x-hidden">
+    <div className="vdm-page min-h-screen overflow-x-hidden bg-[#070707]">
       <Navigation />
       <div className="pt-16">
         <MobileSidebarMenu
@@ -15,9 +15,11 @@ const StudentLayout = ({ children }: { children: ReactNode }) => {
           items={STUDENT_NAV_ITEMS}
           exactPath={ROUTES.dashboard}
         />
-        <div className="mx-auto flex w-full max-w-[1920px]">
+        <div className="mx-auto flex w-full max-w-[1720px]">
           <StudentSidebar />
-          <main className="min-w-0 flex-1 px-4 py-6 sm:px-6 lg:px-8 lg:py-8">{children}</main>
+          <main className="min-w-0 flex-1 px-4 pb-14 pt-5 sm:px-6 lg:px-8 lg:pt-7 xl:px-10">
+            <div className="mx-auto w-full max-w-[1380px]">{children}</div>
+          </main>
         </div>
       </div>
     </div>
