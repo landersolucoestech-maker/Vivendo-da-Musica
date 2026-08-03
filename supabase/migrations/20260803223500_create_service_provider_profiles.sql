@@ -57,9 +57,9 @@ select
     when profile.role = 'instructor' then 'Instrutor e especialista musical'
     else 'Profissional da música'
   end,
-  profile.bio,
+  null::text,
   profile.avatar_url,
-  profile.city,
+  null::text,
   profile.is_demo,
   true,
   profile.is_demo
@@ -68,9 +68,7 @@ where profile.role in ('producer', 'instructor')
 on conflict (user_id) do update
 set display_name = excluded.display_name,
     headline = excluded.headline,
-    bio = excluded.bio,
     avatar_url = excluded.avatar_url,
-    location = excluded.location,
     verified = excluded.verified,
     active = excluded.active,
     is_demo = excluded.is_demo,
