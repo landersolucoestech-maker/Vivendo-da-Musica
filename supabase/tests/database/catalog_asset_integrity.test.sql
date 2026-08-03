@@ -54,7 +54,7 @@ select is(
   (
     select count(*)
     from public.academy_contents
-    where is_demo = true
+    where id::text like 'ac100000-%'
       and status::text = 'published'
       and (thumbnail_url is null or btrim(thumbnail_url) = '')
   ),
