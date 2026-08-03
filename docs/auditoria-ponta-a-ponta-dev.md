@@ -1,6 +1,6 @@
 # Auditoria ponta a ponta — ambiente `dev`
 
-Data de referência: 2 de agosto de 2026  
+Data de referência: 3 de agosto de 2026  
 Repositório: `landersolucoestech-maker/Vivendo-da-Musica`  
 Branch auditada: `dev`  
 Projeto Supabase de desenvolvimento: `ywirfqvobfnunlcsnptm`
@@ -11,29 +11,29 @@ A auditoria está **concluída no escopo não relacionado à autenticação**.
 
 Foram aprovados no mesmo estado funcional da branch `dev`:
 
-- lint, typecheck, testes unitários e de contrato;
+- lint, typecheck, testes unitários, de contrato e de segurança;
 - build e performance gate;
 - rebuild integral do banco a partir do histórico de migrations;
 - lint do banco;
 - todos os testes pgTAP;
 - build e publicação do preview;
-- 92 testes E2E não relacionados à autenticação, cobrindo páginas públicas, portais internos, desktop, mobile, player, marketplace, checkout e rota 404.
+- **96 testes E2E do preview**, cobrindo páginas públicas, todos os portais, desktop, mobile, player, marketplace, checkout, pop-ups e rota 404;
+- **1 teste E2E separado do guarda de autenticação**, executado com o bypass desativado e aprovado sem modificar a autenticação.
 
-O workflow geral de E2E permanece com uma única falha conhecida: o teste que exige redirecionamento de uma rota administrativa para o login. A execução do preview define `VITE_DISABLE_AUTH=true`, portanto esse teste contradiz deliberadamente a configuração usada para inspeção dos portais. Ele foi mantido intacto porque autenticação está congelada por decisão expressa do proprietário.
+Não há falha funcional conhecida nos fluxos auditados. O preview hospedado permanece configurado para inspeção direta dos portais com identidades demonstrativas.
 
 ## Limite obrigatório
 
-A autenticação ficou integralmente fora desta rodada. Não foram alterados:
+A implementação da autenticação ficou integralmente fora desta rodada. Não foram alterados:
 
 - login, cadastro ou seleção do tipo de conta;
 - confirmação e recuperação de e-mail ou senha;
 - sessões, provedores e configurações do Supabase Auth;
-- rotas protegidas, guardas, redirecionamentos ou autorização por papel;
-- testes de autenticação;
-- variáveis que ativam ou desativam autenticação;
-- provisionamento de usuários ou proteção contra senhas vazadas.
+- guardas de rota, papéis ou regras de autorização;
+- provisionamento de usuários;
+- proteção contra senhas vazadas.
 
-O preview `dev` continua utilizando o bypass que já existia exclusivamente para permitir inspeção direta dos portais. Esse comportamento não representa a configuração de produção.
+A suíte foi apenas separada por contexto: os fluxos demonstrativos são testados com o bypass do preview ativo, enquanto o redirecionamento de rota protegida é testado isoladamente com o bypass desativado.
 
 ## Critério de classificação
 
@@ -46,12 +46,12 @@ O preview `dev` continua utilizando o bypass que já existia exclusivamente para
 
 | Domínio | Situação | Evidência principal |
 |---|---|---|
-| Estrutura do frontend | Conforme | TypeScript, lint, build, testes unitários e performance aprovados. |
+| Estrutura do frontend | Conforme | TypeScript, lint, build, testes unitários, contratos, segurança e performance aprovados. |
 | Rotas públicas | Conforme | Home, Academia, aulas, Marketplace, Conteúdos, Comunidade, Biblioteca, Oportunidades, Contato, páginas legais e rota 404 validadas. |
 | Portais internos no preview | Conforme | Aluno, instrutor, produtor, afiliado, empresa e administrador validados em desktop e mobile. |
 | Academia e cursos | Conforme no `dev` | Cursos publicados possuem miniatura, módulos e aulas publicadas; avaliações, métricas e matrículas são lidas do banco. |
 | Player de aulas | Conforme no `dev` | Rotas públicas resolvem slugs persistidos e URLs Vimeo são incorporadas por `iframe`. |
-| Portal do aluno | Conforme no `dev` | O detalhe do curso usa matrícula, curso, módulos, aulas e progresso reais do Supabase, sem fallback de conteúdo mockado. |
+| Portal do aluno | Conforme no `dev` | Detalhe do curso usa matrícula, curso, módulos, aulas e progresso reais do Supabase, sem fallback de conteúdo mockado. |
 | Marketplace de produtos | Conforme no `dev` | Capas, arquivos, avaliações e perguntas respondidas são carregados do Supabase. |
 | Marketplace de beats | Conforme no `dev` | Beats publicados possuem capa, preview, licenças, eventos, itens de pedido, contratos e entregas coerentes. |
 | Carrinho | Conforme | Estado validado e persistido no `localStorage`, incluindo recarregamento da página. |
@@ -60,38 +60,46 @@ O preview `dev` continua utilizando o bypass que já existia exclusivamente para
 | Portal da empresa | Conforme no `dev` | Empresas, membros, oportunidades, candidatos, pipeline e mensagens possuem integridade referencial e cobertura de rota. |
 | Portal do afiliado | Conforme no `dev` | Links, conversões, comissões, saques e histórico de eventos são consistentes. |
 | Portal do produtor | Conforme no `dev` | Saldos, métodos, solicitações de repasse e histórico de eventos possuem validações de integridade. |
-| Administração | Conforme para inspeção | Todas as rotas renderizam sem falhas de API; suporte usa RPCs isoladas que operam somente sobre registros demonstrativos. |
+| Administração | Conforme para inspeção | Todas as rotas renderizam; cursos, conteúdos, comunidade, suporte e demais módulos foram exercitados. |
+| Pop-ups e confirmações | Conforme | Dialog, AlertDialog e Sheet permanecem centralizados; animações direcionais e diálogos nativos do navegador são bloqueados por teste. |
 | Banco e migrations | Conforme | Rebuild limpo, lint e todos os testes pgTAP aprovados no workflow `Dev Quality`. |
-| RLS e privilégios | Conforme no escopo não-auth | Tabelas públicas possuem RLS e operações demonstrativas expostas ao preview são limitadas a registros `is_demo=true`. |
-| Storage | Conforme | Buckets de entrega são privados; imagens públicas permanecem separadas dos arquivos protegidos. |
+| Integridade dos dados | Conforme | Consultas remotas retornaram zero violações nos domínios acadêmico, comercial, empresarial, afiliado e financeiro. |
+| RLS e privilégios | Conforme no escopo não-auth | Todas as tabelas públicas possuem RLS e políticas; operações do preview são limitadas aos registros demonstrativos aplicáveis. |
+| Storage | Conforme | Buckets de entrega são privados; imagens públicas não podem ser enumeradas por política ampla em `storage.objects`. |
+| Edge Functions demonstrativas | Conforme ao objetivo do `dev` | Checkout e download validam projeto, origem, formato dos dados e idempotência; não representam pagamentos reais. |
 | Autenticação | Excluído | Congelada até autorização expressa para uma rodada própria. |
 
 ## Correções realizadas durante a auditoria
 
-1. Ampliação da auditoria para páginas públicas, todos os portais e viewports móveis, verificando erros JavaScript, falhas HTTP, assets quebrados, redirecionamentos indevidos e overflow horizontal.
-2. Reconciliação do histórico de migrations para que um banco vazio seja reconstruído de forma determinística.
-3. Correção do teste de integridade de conteúdos da academia, que consultava uma coluna inexistente.
-4. Inclusão de reconciliação final para miniaturas, módulos e aulas ausentes em cursos demonstrativos publicados.
-5. Materialização determinística dos itens de pedidos de beats, preservando compatibilidade com colunas legadas e atuais.
-6. Emissão coerente de compras de licença e metadados de entrega para todos os pedidos pagos demonstrativos.
-7. Correção dos totais dos pedidos de beats para corresponderem à soma dos itens.
-8. Correção do registro de eventos de beats para respeitar o contrato atual da tabela `beat_events`.
-9. Correção da rota pública de aulas para resolver curso e aula pelos slugs persistidos no banco.
-10. Remoção do fallback mockado no detalhe do curso do aluno durante o bypass de desenvolvimento.
-11. Correção da incorporação de vídeos Vimeo nas aulas.
-12. Implementação de métricas reais de cursos a partir de matrículas e avaliações publicadas.
-13. Implementação de avaliações e perguntas respondidas para produtos digitais.
-14. Renderização das capas armazenadas em produtos e beats.
-15. Persistência validada do carrinho entre recarregamentos.
-16. Reconciliação de contadores derivados de candidaturas, membros, curtidas e conversões.
-17. Separação entre imagens públicas e arquivos privados de entrega no Storage.
-18. Remoção de privilégios de tabela incompatíveis com clientes PostgREST.
-19. Criação de RPCs específicas para o suporte do preview, limitadas a mensagens demonstrativas e sem acesso aos registros reais.
-20. Criação de teste E2E independente para a página 404, evitando que sua cobertura dependa da execução do teste de autenticação congelado.
+1. Ampliação da suíte para páginas públicas, todos os portais e viewports móveis, verificando erros JavaScript, falhas HTTP, assets quebrados, redirecionamentos indevidos e overflow horizontal.
+2. Separação dos testes E2E do preview e do guarda de autenticação, evitando configurações contraditórias sem modificar o código de autenticação.
+3. Reconciliação do histórico de migrations para reconstrução determinística de um banco vazio.
+4. Correção do teste de integridade de conteúdos da academia que consultava uma coluna inexistente.
+5. Reconciliação final para miniaturas, módulos e aulas ausentes em cursos demonstrativos publicados.
+6. Materialização determinística dos itens de pedidos de beats, preservando compatibilidade com estruturas legadas e atuais.
+7. Emissão coerente de compras de licença e metadados de entrega para todos os pedidos pagos demonstrativos.
+8. Correção dos totais dos pedidos de beats para corresponderem à soma dos itens.
+9. Correção do registro de eventos de beats para respeitar o contrato atual da tabela `beat_events`.
+10. Correção da rota pública de aulas para resolver curso e aula pelos slugs persistidos no banco.
+11. Remoção do fallback mockado no detalhe do curso do aluno durante o bypass de desenvolvimento.
+12. Correção da incorporação de vídeos Vimeo nas aulas.
+13. Implementação de métricas reais de cursos a partir de matrículas e avaliações publicadas.
+14. Implementação de avaliações e perguntas respondidas para produtos digitais.
+15. Renderização das capas armazenadas em produtos e beats.
+16. Persistência validada do carrinho entre recarregamentos.
+17. Reconciliação de contadores derivados de candidaturas, membros, curtidas e conversões.
+18. Separação entre imagens públicas e arquivos privados de entrega no Storage.
+19. Remoção da política que permitia enumerar anonimamente todas as imagens da Academia por `storage.objects`, preservando a entrega direta do bucket público.
+20. Conversão das RPCs de suporte do preview para `SECURITY INVOKER`, com RLS restrita a mensagens `is_demo=true` e permissão anônima somente nas colunas de status necessárias.
+21. Eliminação de `window.confirm` e `window.prompt` nos módulos de empresa, cursos, conteúdos e comunidade.
+22. Conversão das confirmações destrutivas e justificativas de moderação em pop-ups centralizados e acessíveis.
+23. Criação de regras automatizadas que impedem `slide-in`, `slide-out`, diálogos nativos e componentes de modal fora do centro da viewport.
+24. Correção de dependências instáveis em hooks administrativos que poderiam causar rerenderizações e avisos desnecessários.
+25. Criação de teste contratual para preservar o acesso unificado por Aluno, Produtor, Instrutor, Empresa e Afiliado.
 
-## Invariantes automatizadas
+## Invariantes automatizadas e verificadas
 
-A suíte do banco confirma, entre outros pontos:
+A suíte do banco e as consultas remotas confirmam, entre outros pontos:
 
 - curso publicado com miniatura, módulo e aula publicada;
 - produto publicado com arquivo de entrega;
@@ -102,36 +110,56 @@ A suíte do banco confirma, entre outros pontos:
 - progresso acadêmico dentro do intervalo permitido;
 - certificado associado a matrícula ativa;
 - empresa com proprietário ativo;
-- candidato e remetentes pertencentes ao processo seletivo;
+- candidatura associada a perfil profissional existente;
+- remetentes pertencentes ao processo seletivo correspondente;
 - conversão, comissão e link pertencentes ao mesmo afiliado;
-- saques e repasses com histórico de eventos;
-- contadores derivados sincronizados com os registros canônicos;
-- buckets de entrega privados e ausência de leitura anônima dos materiais protegidos.
+- solicitações de repasse vinculadas a método do próprio produtor;
+- contadores derivados sincronizados com registros canônicos;
+- buckets de entrega privados;
+- ausência de leitura anônima dos materiais protegidos;
+- ausência de função pública `SECURITY DEFINER` executável por `anon`;
+- ausência de tabela pública sem RLS ou sem política;
+- suporte do preview restrito a registros demonstrativos.
 
-## Evidência da execução final não-auth
+## Evidência da execução final
 
-A execução E2E auditada apresentou:
+A execução final apresentou:
 
-- **92 testes aprovados**;
-- **1 teste não executado**, duplicado após o teste de autenticação dentro do mesmo arquivo serial;
-- **1 falha**, exclusivamente no teste de proteção administrativa que espera redirecionamento para `/login` enquanto o ambiente está com autenticação desativada;
-- teste independente da rota desconhecida aprovado;
-- todas as páginas públicas, todos os portais internos e todos os casos móveis aprovados;
-- aula pública, Vimeo, detalhe de beat, eventos de beat, curso do aluno e suporte administrativo aprovados.
+- **96 de 96 testes E2E do preview aprovados** em aproximadamente 2,2 minutos;
+- **1 de 1 teste E2E do guarda de autenticação aprovado** em execução separada;
+- lint, typecheck, testes unitários, contratos e segurança aprovados;
+- build e performance gate aprovados;
+- rebuild completo do banco aprovado;
+- lint do banco aprovado;
+- todos os testes pgTAP aprovados;
+- publicação do preview aprovada.
 
-A falha remanescente não foi mascarada, removida nem ajustada. Ela está documentada e pertence integralmente ao escopo de autenticação congelado.
+Foram testados explicitamente:
 
-## Limitações intencionais do ambiente demonstrativo
+- 19 rotas públicas e seus conteúdos principais;
+- 54 rotas de aluno, instrutor, produtor, afiliado, empresa e administração;
+- 9 cenários móveis representativos;
+- fluxo de checkout de produto demonstrativo;
+- player Vimeo e rotas de aula;
+- métricas de curso, avaliações e perguntas de produto;
+- três cenários de centralização de pop-up, incluindo confirmação destrutiva;
+- página 404;
+- proteção de rota administrativa sem bypass.
+
+## Limitações e pendências deliberadas
 
 - O preview ignora autenticação para permitir inspeção direta dos portais.
 - Checkouts de cursos, produtos e beats são simuladores restritos ao projeto `dev`.
 - Pedidos demonstrativos utilizam identidades sintéticas e não movimentam dinheiro real.
 - Arquivos de demonstração podem ser materializados apenas para testar entrega e URL assinada.
-- O conteúdo audiovisual demonstrativo utiliza uma fonte neutra de vídeo incorporado.
-- Índices marcados como não utilizados pelo Advisor não foram removidos apenas com base no baixo volume do banco demonstrativo.
+- O conteúdo audiovisual demonstrativo utiliza fonte neutra incorporada.
+- O Supabase Security Advisor mantém apenas o alerta de proteção contra senhas vazadas desativada, pertencente ao escopo de autenticação congelado.
+- O `npm audit` identifica um advisory alto do React Router e sua dependência indireta. O gate registra uma exceção restrita ao advisory de APIs RSC, que não são usadas nesta SPA Vite; a dependência deve ser reavaliada antes da liberação de produção.
+- Os logs do GitHub Actions alertam que ações baseadas em Node.js 20 estão sendo executadas forçadamente em Node.js 24. A atualização dos actions é uma tarefa de manutenção de CI, não uma falha funcional da aplicação.
+- O banco demonstrativo possui índices ainda sem utilização observada. Eles não foram removidos apenas com base no baixo volume e curto histórico de consultas do ambiente `dev`.
 
-## Encerramento
+## Conclusão
 
-A implementação não relacionada à autenticação está pronta para revisão visual no preview `dev`.
+O projeto está apto para **revisão funcional e visual completa no preview `dev`**, dentro do escopo demonstrativo e sem autenticação real.
 
-A próxima rodada de autenticação deve ser iniciada somente após autorização expressa e deverá tratar, em conjunto, configuração do ambiente, guardas de rota, papéis, sessões e testes E2E correspondentes. Até lá, nenhuma dessas partes deve ser alterada.
+A autenticação permanece bloqueada para alteração até a conclusão da revisão do proprietário. Antes de produção ainda serão obrigatórios: processador real de pagamentos, arquivos definitivos, configuração final dos ambientes, revisão do advisory do React Router, atualização dos GitHub Actions e a rodada exclusiva de autenticação e autorização.
