@@ -64,10 +64,10 @@ export const MOCK_UPCOMING_EVENTS_ADMIN = [
   { title: 'Masterclass Produção com João Millen', date: '22/06/2026', attendees: 94 },
 ];
 
-import type { IntegrationStatus } from "@/modules/admin/types/integration.types";
+import type { IntegrationStatus } from '@/modules/admin/types/integration.types';
 
 export const MOCK_INTEGRATIONS: IntegrationStatus[] = [
-  { name: 'Stripe', description: 'Pagamentos e assinaturas', status: 'desconectado' },
+  { name: 'Stripe', description: 'Pagamentos avulsos e repasses', status: 'desconectado' },
   { name: 'Supabase', description: 'Banco de dados e autenticação', status: 'conectado' },
   { name: 'Resend', description: 'Envio de e-mails transacionais', status: 'desconectado' },
   { name: 'Storage', description: 'Armazenamento de arquivos de aulas e produtos', status: 'conectado' },
@@ -116,25 +116,6 @@ export const MOCK_AUDIT_LOGS = [
 export const MOCK_ACCESS_SESSIONS = [
   { device: 'Chrome — Windows', location: 'São Paulo, BR', lastActive: 'agora', current: true },
   { device: 'Safari — iPhone', location: 'São Paulo, BR', lastActive: 'há 2 dias', current: false },
-];
-
-export const MOCK_SUBSCRIPTION_SUMMARY = {
-  activeSubscribers: 3214,
-  mrrCents: 16040000,
-  churnRatePct: 2.1,
-  trialUsers: 184,
-};
-
-export const MOCK_SUBSCRIPTION_PLANS = [
-  { name: 'Premium Mensal', subscribers: 1842, priceCents: 4990 },
-  { name: 'Premium Anual', subscribers: 1372, priceCents: 3990 },
-];
-
-export const MOCK_SUBSCRIPTIONS_LIST = [
-  { customer: 'Ana Oliveira', plan: 'Premium Anual', status: 'ativa' as const, renewsAt: '12/03/2027' },
-  { customer: 'Lucas Beats', plan: 'Premium Mensal', status: 'ativa' as const, renewsAt: '14/07/2026' },
-  { customer: 'Carla Mendes', plan: 'Premium Mensal', status: 'ativa' as const, renewsAt: '18/07/2026' },
-  { customer: 'Mariana Santos', plan: 'Premium Mensal', status: 'cancelada' as const, renewsAt: '—' },
 ];
 
 export const MOCK_ROLES = [
