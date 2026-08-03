@@ -133,9 +133,13 @@ const MockCourseDetail = ({ course }: { course: MockCourse }) => {
         <div>
           <div className="sticky top-20 rounded-lg border border-border bg-card p-5">
             <div
-              className="mb-4 aspect-video rounded-lg"
+              className="mb-4 aspect-video overflow-hidden rounded-lg"
               style={{ background: `linear-gradient(135deg, ${course.gradientFrom}, ${course.gradientTo})` }}
-            />
+            >
+              {course.thumbnailUrl && (
+                <img src={course.thumbnailUrl} alt={course.title} className="size-full object-cover" />
+              )}
+            </div>
             <div className="mb-4 flex items-center gap-2">
               <p className="text-2xl font-bold">{formatPrice(course.priceCents, course.currency)}</p>
               {course.originalPriceCents && (
