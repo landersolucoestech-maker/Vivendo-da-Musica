@@ -11,7 +11,7 @@ const AdminLayout = ({ children }: { children: ReactNode }) => (
     <div className="pt-16 sm:pt-20">
       <MobileSidebarMenu sectionLabel="Administração" items={ADMIN_NAV_ITEMS} exactPath={ROUTES.admin} />
       <AdminSidebar />
-      <main className="min-h-[calc(100dvh-4rem)] min-w-0 w-full px-4 py-6 sm:min-h-[calc(100dvh-5rem)] sm:px-6 md:pl-64 lg:px-8 lg:py-8">
+      <main className="min-h-[calc(100dvh-4rem)] min-w-0 w-full px-4 py-6 sm:min-h-[calc(100dvh-5rem)] sm:px-6 md:ml-64 md:w-[calc(100%-16rem)] lg:px-8 lg:py-8">
         {children}
       </main>
     </div>
