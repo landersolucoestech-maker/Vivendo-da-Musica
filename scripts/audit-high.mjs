@@ -1,8 +1,50 @@
 import { execFileSync } from 'node:child_process';
+import { readFile, readdir } from 'node:fs/promises';
+import { extname, resolve } from 'node:path';
 
 const allowedAdvisories = new Set([
   'https://github.com/advisories/GHSA-qwww-vcr4-c8h2',
 ]);
+
+const projectRoot = process.cwd();
+const rscMarkers = [
+  /unstable_[A-Za-z0-9_]*RSC/,
+  /RSCStaticRouter/,
+  /createCallServer/,
+  /getRSCStream/,
+  /routeRSCServerRequest/,
+  /react-server-dom/,
+  /["']react-server["']/,
+];
+
+async function listFiles(directory) {
+  const entries = await readdir(directory, { withFileTypes: true });
+  const files = [];
+  for (const entry of entries) {
+    const path = resolve(directory, entry.name);
+    if (entry.isDirectory()) files.push(...await listFiles(path));
+    else if (['.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs', '.json'].includes(extname(path))) files.push(path);
+  }
+  return files;
+}
+
+async function findRscRuntimeUsage() {
+  const candidates = [
+    ...await listFiles(resolve(projectRoot, 'src')),
+    resolve(projectRoot, 'package.json'),
+    resolve(projectRoot, 'vite.config.ts'),
+  ];
+  const violations = [];
+
+  for (const path of candidates) {
+    const source = await readFile(path, 'utf8');
+    if (rscMarkers.some((marker) => marker.test(source))) {
+      violations.push(path.replace(`${projectRoot}/`, ''));
+    }
+  }
+
+  return violations;
+}
 
 let report;
 try {
@@ -47,10 +89,20 @@ for (const [packageName, vulnerability] of Object.entries(report.vulnerabilities
 }
 
 if (allowed.length) {
-  console.warn('Exceção temporária e restrita aplicada: advisory RSC do React Router em SPA Vite sem RSC/server runtime.');
-  for (const item of allowed) {
-    const references = [...item.advisoryUrls, ...item.indirectPackages].join(', ');
-    console.warn(`- ${item.packageName}: ${references}`);
+  const rscUsage = await findRscRuntimeUsage();
+  if (rscUsage.length > 0) {
+    blocked.push({
+      packageName: 'react-router RSC runtime',
+      severity: 'high',
+      advisoryUrls: [...allowedAdvisories],
+      indirectPackages: rscUsage,
+    });
+  } else {
+    console.warn('Exceção temporária e restrita aplicada: advisory RSC do React Router em SPA Vite sem APIs ou runtime RSC.');
+    for (const item of allowed) {
+      const references = [...item.advisoryUrls, ...item.indirectPackages].join(', ');
+      console.warn(`- ${item.packageName}: ${references}`);
+    }
   }
 }
 
