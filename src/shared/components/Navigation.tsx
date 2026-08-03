@@ -12,6 +12,7 @@ import { getPortalRoute } from '@/shared/utils/portalRoute';
 const NAV_LINKS = [
   { label: 'Academia', to: ROUTES.academy },
   { label: 'Marketplace', to: ROUTES.marketplace },
+  { label: 'Serviços', to: ROUTES.servicesPublic },
   { label: 'Conteúdos', to: ROUTES.contentPortal },
   { label: 'Comunidade', to: ROUTES.communityPublic },
   { label: 'Oportunidades', to: ROUTES.opportunitiesPublic },
