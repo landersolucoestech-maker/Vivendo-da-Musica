@@ -12,6 +12,21 @@ export const useCompanyOpportunities = () => useQuery({
   queryFn: () => companyService.listOpportunities(),
 });
 
+export const useCompanyCreditBalance = () => useQuery({
+  queryKey: ['company-credit-balance'],
+  queryFn: () => companyService.getCreditBalance(),
+});
+
+export const useCompanyCreditPacks = () => useQuery({
+  queryKey: ['company-credit-packs'],
+  queryFn: () => companyService.listCreditPacks(),
+});
+
+export const useCompanyCreditEvents = () => useQuery({
+  queryKey: ['company-credit-events'],
+  queryFn: () => companyService.listCreditEvents(),
+});
+
 export const useCompanyCandidates = () => useQuery({
   queryKey: ['company-candidates'],
   queryFn: () => companyService.listCandidates(),
