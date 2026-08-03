@@ -21,6 +21,9 @@ test('digital product proceeds from detail to confirmed checkout', async ({ page
 
   await expect(page.getByRole('heading', { name: 'Carrinho' })).toBeVisible();
   await expect(page.getByText('Pack de Transições e Efeitos')).toBeVisible();
+
+  await page.reload();
+  await expect(page.getByText('Pack de Transições e Efeitos')).toBeVisible();
   await page.getByRole('button', { name: 'Ir para o checkout' }).click();
 
   await expect(page.getByRole('heading', { name: 'Finalizar compra' })).toBeVisible();
