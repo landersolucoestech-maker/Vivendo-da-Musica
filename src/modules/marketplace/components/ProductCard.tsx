@@ -21,8 +21,17 @@ const ProductCard = ({ product }: { product: Product }) => {
           className="relative aspect-square overflow-hidden p-5"
           style={{ background: `linear-gradient(135deg, ${product.gradientFrom}, ${product.gradientTo})` }}
         >
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_20%,rgba(255,255,255,0.2),transparent_32%)]" />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
+          {product.coverUrl ? (
+            <img
+              src={product.coverUrl}
+              alt={`Capa de ${product.title}`}
+              loading="lazy"
+              className="absolute inset-0 size-full object-cover transition duration-300 group-hover:scale-[1.03]"
+            />
+          ) : (
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_20%,rgba(255,255,255,0.2),transparent_32%)]" />
+          )}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/15 to-transparent" />
           <div className="relative flex h-full items-end">
             <div>
               <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-white/70">Produto digital</p>
