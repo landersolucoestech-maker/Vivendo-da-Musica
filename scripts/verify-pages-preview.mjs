@@ -43,6 +43,7 @@ const portalRoutes = [
   { path: 'aluno/cursos/d22c835b-cbfd-4c2a-9b1c-32a2df1c0800', name: 'student-course-detail' },
   { path: 'aluno/certificados', name: 'student-certificates' },
   { path: 'aluno/downloads', name: 'student-downloads' },
+  { path: 'aluno/beats', name: 'student-beats-legacy', expectedFinalPath: 'aluno/downloads' },
   { path: 'aluno/biblioteca-premium', name: 'student-premium-library' },
   { path: 'aluno/comunidade', name: 'student-community' },
   { path: 'aluno/oportunidades', name: 'student-opportunities' },
@@ -143,6 +144,7 @@ try {
     const result = {
       route: route.name,
       path: route.path,
+      expectedFinalPath: route.expectedFinalPath ?? route.path,
       viewport: viewport.label,
       status: 0,
       finalUrl: '',
@@ -241,8 +243,9 @@ try {
 
       const finalPath = normalizePath(new URL(page.url()).pathname);
       const requestedPath = requestedPathFor(route.path);
-      if (!route.expectNotFound && finalPath !== requestedPath) {
-        recordFailure(result, `A rota redirecionou de ${requestedPath} para ${finalPath}.`);
+      const expectedFinalPath = requestedPathFor(route.expectedFinalPath ?? route.path);
+      if (!route.expectNotFound && finalPath !== expectedFinalPath) {
+        recordFailure(result, `A rota ${requestedPath} terminou em ${finalPath}; esperado ${expectedFinalPath}.`);
       }
 
       const bodyLower = snapshot.bodyText.toLocaleLowerCase('pt-BR');
