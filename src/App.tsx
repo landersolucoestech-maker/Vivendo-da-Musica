@@ -72,7 +72,6 @@ const ContentPortalPage = lazy(() => import('@/modules/content-portal/pages/Cont
 const ContentArticleDetailPage = lazy(() => import('@/modules/content-portal/pages/ContentArticleDetailPage'));
 const CommunityLandingPage = lazy(() => import('@/modules/community/pages/CommunityLandingPage'));
 const LegalDocumentPage = lazy(() => import('@/modules/legal/pages/LegalDocumentPage'));
-const PublicPremiumLibraryPage = lazy(() => import('@/modules/library/pages/PublicPremiumLibraryPage'));
 const PublicOpportunitiesPage = lazy(() => import('@/modules/opportunities/pages/PublicOpportunitiesPage'));
 
 const MyCoursesPage = lazy(() => import('@/modules/dashboard/pages/MyCoursesPage'));
@@ -83,7 +82,7 @@ const SupportPage = lazy(() => import('@/modules/dashboard/pages/SupportPage'));
 const StudentSettingsPage = lazy(() => import('@/modules/dashboard/pages/StudentSettingsPage'));
 const CertificatesPage = lazy(() => import('@/modules/certificates/pages/CertificatesPage'));
 const DownloadsPage = lazy(() => import('@/modules/marketplace/pages/DownloadsPage'));
-const PremiumLibraryPage = lazy(() => import('@/modules/library/pages/PremiumLibraryPage'));
+const LibraryPage = lazy(() => import('@/modules/library/pages/LibraryPage'));
 const CommunityPage = lazy(() => import('@/modules/community/pages/CommunityPage'));
 const OpportunitiesPage = lazy(() => import('@/modules/opportunities/pages/OpportunitiesPage'));
 const InstructorDashboard = lazy(() => import('@/modules/instructor/pages/InstructorDashboard'));
@@ -151,7 +150,6 @@ const App = () => (
                 <Route path={ROUTES.contentPortal} element={<ContentPortalPage />} />
                 <Route path="/conteudos/:articleSlug" element={<ContentArticleDetailPage />} />
                 <Route path={ROUTES.communityPublic} element={<CommunityLandingPage />} />
-                <Route path={ROUTES.premiumLibraryPublic} element={<PublicPremiumLibraryPage />} />
                 <Route path={ROUTES.opportunitiesPublic} element={<PublicOpportunitiesPage />} />
 
                 <Route path="/aula/:lessonId" element={<ProtectedRoute><LessonRoute /></ProtectedRoute>} />
@@ -163,7 +161,7 @@ const App = () => (
                 <Route path={ROUTES.certificates} element={studentRoute(<CertificatesPage />)} />
                 <Route path={ROUTES.downloads} element={studentRoute(<DownloadsPage />)} />
                 <Route path="/aluno/beats" element={<Navigate to={ROUTES.downloads} replace />} />
-                <Route path={ROUTES.premiumLibrary} element={studentRoute(<PremiumLibraryPage />)} />
+                <Route path={ROUTES.library} element={studentRoute(<LibraryPage />)} />
                 <Route path={ROUTES.community} element={studentRoute(<CommunityPage />)} />
                 <Route path={ROUTES.opportunities} element={studentRoute(<OpportunitiesPage />)} />
                 <Route path={ROUTES.orders} element={studentRoute(<OrdersPage />)} />
@@ -200,7 +198,6 @@ const App = () => (
                 <Route path={ROUTES.admin} element={adminRoute(<AdminDashboard />)} />
                 <Route path={ROUTES.adminUsers} element={adminRoute(<AdminUsersPage />)} />
                 <Route path={ROUTES.adminStudents} element={adminRoute(<AdminStudentsPage />)} />
-                <Route path={ROUTES.adminSubscriptions} element={<Navigate to={ROUTES.admin} replace />} />
                 <Route path={ROUTES.adminCourses} element={adminRoute(<AdminCoursesPage />)} />
                 <Route path={ROUTES.adminProducts} element={adminRoute(<AdminProductsPage />)} />
                 <Route path={ROUTES.adminProductNew} element={<Navigate to={ROUTES.adminProducts} replace />} />
