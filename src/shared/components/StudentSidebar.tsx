@@ -3,6 +3,7 @@ import {
   Bell,
   BookOpen,
   Briefcase,
+  BriefcaseBusiness,
   Download,
   Heart,
   LayoutDashboard,
@@ -28,6 +29,7 @@ const LEARNING_NAV_ITEMS: SidebarNavItem[] = [
 
 const DISCOVERY_NAV_ITEMS: SidebarNavItem[] = [
   { label: 'Downloads', to: ROUTES.downloads, icon: Download },
+  { label: 'Serviços contratados', to: ROUTES.studentServices, icon: BriefcaseBusiness },
   { label: 'Comunidade', to: ROUTES.community, icon: Users },
   { label: 'Oportunidades', to: ROUTES.opportunities, icon: Briefcase },
 ];
