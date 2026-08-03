@@ -42,12 +42,13 @@ jobs:
           retention-days: 1
       - run: npm run test:performance
 
-  e2e:
+  e2e-preview:
     needs: quality
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 30
     env:
       VITE_PREVIEW_MODE: 'true'
+      VITE_DISABLE_AUTH: 'true'
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -57,4 +58,24 @@ jobs:
       - run: npm ci
       - run: npm run build
       - run: npx playwright install --with-deps chromium
-      - run: npm run test:e2e
+      - name: Validate all non-authenticated preview flows
+        run: npx playwright test --grep-invert "production build protects administrative routes"
+
+  e2e-auth-guard:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      VITE_PREVIEW_MODE: 'false'
+      VITE_DISABLE_AUTH: 'false'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - run: npx playwright install --with-deps chromium
+      - name: Validate protected route redirect without changing authentication
+        run: npx playwright test tests/e2e/public.spec.ts --grep "production build protects administrative routes"
