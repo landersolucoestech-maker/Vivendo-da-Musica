@@ -18,7 +18,7 @@ export interface AdminSupportMessage {
 export const adminSupportService = {
   async listMessages(): Promise<AdminSupportMessage[]> {
     if (isDevAuthBypassEnabled) {
-      const { data, error } = await supabase.rpc('list_demo_contact_messages');
+      const { data, error } = await supabase.rpc('list_public_preview_contact_messages');
       if (error) throw error;
       return (data ?? []) as AdminSupportMessage[];
     }
@@ -34,7 +34,7 @@ export const adminSupportService = {
 
   async updateStatus(id: string, status: SupportMessageStatus): Promise<void> {
     if (isDevAuthBypassEnabled) {
-      const { error } = await supabase.rpc('update_demo_contact_message_status', {
+      const { error } = await supabase.rpc('update_public_preview_contact_message_status', {
         target_message_id: id,
         target_status: status,
       });
