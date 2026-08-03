@@ -74,6 +74,7 @@ const mapProduct = (row: ProductRow, index: number): Product => {
     currency: row.currency,
     status: row.status,
     publishedAt: row.published_at,
+    coverUrl: row.cover_url,
     gradientFrom,
     gradientTo,
   };
@@ -154,6 +155,7 @@ export const productService = {
       ?? (input.status === 'published' ? new Date().toISOString() : null);
 
     const { data, error } = await supabase.from('seller_products').update({
+      title:update({
       title: input.title.trim(),
       description: input.description.trim(),
       product_type: resolveType(input.category),
