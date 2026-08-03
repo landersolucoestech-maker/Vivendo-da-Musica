@@ -19,6 +19,6 @@ const shutdown = () => server.close(() => process.exit(0));
 process.once("SIGINT", shutdown);
 process.once("SIGTERM", shutdown);
 
-// Playwright cannot reliably forward termination signals to child processes on
-// Windows. This server exists only for the short production-bundle smoke gate.
-setTimeout(shutdown, Number(process.env.E2E_SERVER_TTL_MS ?? 30_000));
+// Playwright normally terminates the server after the suite. Keep a generous
+// fallback for platforms that do not reliably forward termination signals.
+setTimeout(shutdown, Number(process.env.E2E_SERVER_TTL_MS ?? 900_000));
