@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { BellRing, Languages, LockKeyhole, Save, ShieldCheck } from 'lucide-react';
+import { BellRing, Languages, Save, ShieldCheck } from 'lucide-react';
 
 import StudentLayout from '@/app/layouts/StudentLayout';
 import { useStudentSettings } from '@/modules/dashboard/hooks/useStudentSettings';
@@ -102,7 +102,7 @@ const StudentSettingsPage = () => {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="xl:col-span-2">
           <CardHeader>
             <span className="vdm-icon-button mb-3 border-primary/25 bg-primary/10 text-primary"><Languages className="size-5" /></span>
             <CardTitle className="text-xl">Idioma e aparência</CardTitle>
@@ -116,20 +116,6 @@ const StudentSettingsPage = () => {
             <div className="vdm-surface p-4">
               <p className="text-xs uppercase tracking-[0.12em] text-muted-foreground">Tema</p>
               <p className="mt-2 text-sm font-semibold text-white">{settings?.theme ?? 'Escuro'}</p>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <span className="vdm-icon-button mb-3 border-primary/25 bg-primary/10 text-primary"><LockKeyhole className="size-5" /></span>
-            <CardTitle className="text-xl">Conta e acesso</CardTitle>
-            <CardDescription>Informações gerais vinculadas ao seu acesso atual.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="vdm-surface p-4">
-              <p className="text-xs uppercase tracking-[0.12em] text-muted-foreground">Plano registrado</p>
-              <p className="mt-2 text-sm font-semibold text-white">{settings?.subscriptionPlan ?? 'Nenhum plano ativo'}</p>
             </div>
           </CardContent>
         </Card>
