@@ -20,6 +20,23 @@ interface ProductRow {
   seller_product_files: { file_name: string }[] | null;
 }
 
+interface ProductReviewRow {
+  user_id: string;
+  rating: number;
+  comment: string;
+}
+
+interface ProductQuestionRow {
+  user_id: string;
+  question: string;
+  answer: string | null;
+}
+
+interface ProfileNameRow {
+  user_id: string;
+  full_name: string | null;
+}
+
 interface ProductMutationInput {
   title: string;
   category: string;
@@ -97,6 +114,59 @@ const listManagedRows = async (): Promise<ProductRow[]> => {
     .order('updated_at', { ascending: false });
   if (error) throw error;
   return (data ?? []) as ProductRow[];
+};
+
+const loadProductFeedback = async (productId: string) => {
+  const { data: reviewData, error: reviewError } = await supabase
+    .from('product_reviews')
+    .select('user_id,rating,comment')
+    .eq('product_id', productId)
+    .eq('status', 'published')
+    .order('created_at', { ascending: false });
+  if (reviewError) throw reviewError;
+
+  const { data: questionData, error: questionError } = await supabase
+    .from('product_questions')
+    .select('user_id,question,answer')
+    .eq('product_id', productId)
+    .eq('status', 'answered')
+    .order('created_at', { ascending: false });
+  if (questionError) throw questionError;
+
+  const reviewRows = (reviewData ?? []) as ProductReviewRow[];
+  const questionRows = (questionData ?? []) as ProductQuestionRow[];
+  const userIds = [...new Set([
+    ...reviewRows.map((review) => review.user_id),
+    ...questionRows.map((question) => question.user_id),
+  ])];
+  const profileNames = new Map<string, string>();
+
+  if (userIds.length > 0) {
+    const { data: profileData, error: profileError } = await supabase
+      .from('user_profiles')
+      .select('user_id,full_name')
+      .in('user_id', userIds);
+    if (profileError) throw profileError;
+
+    for (const profile of (profileData ?? []) as ProfileNameRow[]) {
+      profileNames.set(profile.user_id, profile.full_name?.trim() || 'Usuário da plataforma');
+    }
+  }
+
+  const reviews: ProductReview[] = reviewRows.map((review) => ({
+    author: profileNames.get(review.user_id) ?? 'Usuário da plataforma',
+    rating: review.rating,
+    comment: review.comment,
+  }));
+  const qa: ProductQA[] = questionRows
+    .filter((question) => Boolean(question.answer))
+    .map((question) => ({
+      question: question.question,
+      answer: question.answer ?? '',
+      author: profileNames.get(question.user_id) ?? 'Usuário da plataforma',
+    }));
+
+  return { reviews, qa };
 };
 
 export const productService = {
@@ -178,8 +248,7 @@ export const productService = {
       .filter((candidate) => candidate.id !== row.id && candidate.product_type === row.product_type)
       .slice(0, 4)
       .map(mapProduct);
-    const reviews: ProductReview[] = [];
-    const qa: ProductQA[] = [];
+    const { reviews, qa } = await loadProductFeedback(row.id);
     const license: ProductLicense = 'Padrao';
     const includedFiles = (row.seller_product_files ?? []).map((file) => file.file_name);
     return {
