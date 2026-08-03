@@ -1,4 +1,4 @@
-import { BarChart3, BookOpen, LayoutDashboard, Users } from 'lucide-react';
+import { BarChart3, BookOpen, LayoutDashboard, Users, Wallet } from 'lucide-react';
 
 import SidebarNavList from '@/shared/components/SidebarNavList';
 import { ROUTES } from '@/shared/constants/routes';
@@ -8,6 +8,7 @@ export const INSTRUCTOR_NAV_ITEMS = [
   { label: 'Cursos', to: ROUTES.instructorCourses, icon: BookOpen },
   { label: 'Alunos e avaliações', to: ROUTES.instructorAudience, icon: Users },
   { label: 'Relatórios', to: ROUTES.instructorReports, icon: BarChart3 },
+  { label: 'Financeiro', to: ROUTES.instructorFinance, icon: Wallet },
 ];
 
 const InstructorSidebar = () => (
