@@ -8,16 +8,16 @@ import { ROUTES } from '@/shared/constants/routes';
 const InstructorLayout = ({ children }: { children: ReactNode }) => (
   <div className="vdm-page min-h-screen overflow-x-hidden">
     <Navigation />
-    <div className="pt-16">
+    <div className="pt-16 sm:pt-20">
       <MobileSidebarMenu
         sectionLabel="Portal do Instrutor"
         items={INSTRUCTOR_NAV_ITEMS}
         exactPath={ROUTES.instructor}
       />
-      <div className="mx-auto flex w-full max-w-[1920px]">
-        <InstructorSidebar />
-        <main className="min-w-0 flex-1 px-4 py-6 sm:px-6 lg:px-8 lg:py-8">{children}</main>
-      </div>
+      <InstructorSidebar />
+      <main className="min-h-[calc(100dvh-4rem)] min-w-0 w-full px-4 py-6 sm:min-h-[calc(100dvh-5rem)] sm:px-6 md:pl-64 lg:px-8 lg:py-8">
+        {children}
+      </main>
     </div>
   </div>
 );
