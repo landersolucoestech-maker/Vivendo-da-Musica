@@ -21,6 +21,12 @@ jobs:
   release:
     runs-on: ubuntu-latest
     environment: ${{ inputs.environment }}
+    env:
+      VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
+      VITE_SUPABASE_PUBLISHABLE_KEY: ${{ vars.VITE_SUPABASE_PUBLISHABLE_KEY }}
+      VITE_DISABLE_AUTH: ${{ vars.VITE_DISABLE_AUTH }}
+      VITE_PREVIEW_MODE: 'false'
+      VITE_USE_MOCK_DATA: ${{ vars.VITE_USE_MOCK_DATA }}
     steps:
       - uses: actions/checkout@v6
         with:
@@ -35,18 +41,18 @@ jobs:
         run: node scripts/assert-production-safe.mjs
         env:
           SUPABASE_PROJECT_REF: ${{ vars.SUPABASE_PROJECT_REF }}
-          VITE_DISABLE_AUTH: ${{ vars.VITE_DISABLE_AUTH }}
-          VITE_USE_MOCK_DATA: ${{ vars.VITE_USE_MOCK_DATA }}
       - name: Validate dependency advisories
         run: npm run audit:high
       - run: npm run quality
       - run: npx playwright install --with-deps chromium
-      - run: npm run test:e2e
+      - name: Validate complete staging preview flows
+        if: ${{ inputs.environment == 'staging' && vars.VITE_DISABLE_AUTH == 'true' }}
         env:
-          VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
-          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ vars.VITE_SUPABASE_PUBLISHABLE_KEY }}
-          VITE_DISABLE_AUTH: ${{ vars.VITE_DISABLE_AUTH }}
-          VITE_USE_MOCK_DATA: ${{ vars.VITE_USE_MOCK_DATA }}
+          VITE_PREVIEW_MODE: 'true'
+        run: npx playwright test --grep-invert "production build protects administrative routes"
+      - name: Validate public and protected production flows
+        if: ${{ inputs.environment == 'production' || vars.VITE_DISABLE_AUTH != 'true' }}
+        run: npx playwright test tests/e2e/public.spec.ts
       - name: Link remote Supabase project
         run: npx supabase link --project-ref "$SUPABASE_PROJECT_REF" --password "$SUPABASE_DB_PASSWORD"
         env:
