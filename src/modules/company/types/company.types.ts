@@ -25,6 +25,32 @@ export interface CompanyProfile {
   verificationStatus: 'pending' | 'verified' | 'rejected';
 }
 
+export interface CompanyCreditBalance {
+  availableCredits: number;
+  nextExpirationAt: string | null;
+}
+
+export interface JobCreditPack {
+  id: string;
+  code: string;
+  name: string;
+  description: string;
+  creditQuantity: number;
+  priceCents: number;
+  currency: string;
+  validityDays: number;
+  active: boolean;
+}
+
+export interface CompanyCreditEvent {
+  id: string;
+  type: 'purchase' | 'consume' | 'expire' | 'refund' | 'adjustment';
+  quantity: number;
+  balanceAfter: number;
+  reference: string;
+  createdAt: string;
+}
+
 export interface CompanyOpportunity {
   id: string;
   title: string;
@@ -42,6 +68,8 @@ export interface CompanyOpportunity {
   applicationDeadline: string | null;
   applicationCount: number;
   publishedAt: string | null;
+  postingExpiresAt: string | null;
+  renewalCount: number;
   createdAt: string;
 }
 
