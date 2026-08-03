@@ -44,6 +44,22 @@ interface ProfileNameRow {
   full_name: string | null;
 }
 
+interface NestedLessonRow {
+  id: string;
+  title: string;
+  description: string | null;
+  video_url: string | null;
+  duration_minutes: number | null;
+  order_index: number;
+  module_id: string;
+}
+
+interface CatalogLessonRow {
+  title: string;
+  duration_minutes: number | null;
+  order_index: number;
+}
+
 interface CourseMetrics {
   rating: number;
   reviewCount: number;
@@ -191,7 +207,7 @@ export const academyService = {
       title: module.title,
       description: module.description ?? '',
       progress: 0,
-      lessons: (module.lessons ?? [])
+      lessons: ((module.lessons ?? []) as NestedLessonRow[])
         .slice()
         .sort((first, second) => first.order_index - second.order_index)
         .map((lesson) => ({
@@ -223,7 +239,7 @@ export const academyService = {
 
       const normalizedModules = (modules ?? []).map((module) => ({
         title: module.title,
-        lessons: (module.lessons ?? [])
+        lessons: ((module.lessons ?? []) as CatalogLessonRow[])
           .slice()
           .sort((first, second) => first.order_index - second.order_index)
           .map((lesson) => ({
