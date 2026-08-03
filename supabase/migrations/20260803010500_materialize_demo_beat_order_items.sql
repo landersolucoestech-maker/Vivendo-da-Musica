@@ -36,7 +36,7 @@ select
   beat.title,
   license.name,
   'Aluno Demo',
-  license.price_cents,
+  orders.amount_cents,
   orders.amount_cents,
   orders.currency,
   'paid',
