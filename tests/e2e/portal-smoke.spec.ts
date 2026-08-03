@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 
 test.describe.configure({ mode: "serial" });
 
@@ -86,12 +86,12 @@ const portalRoutes = [
   ["admin security", "/admin/seguranca"],
 ] as const;
 
-async function assertHealthyRoute(page: Parameters<typeof test>[0] extends never ? never : any, path: string, portal: boolean) {
+async function assertHealthyRoute(page: Page, path: string, portal: boolean) {
   const pageErrors: string[] = [];
   const apiFailures: string[] = [];
 
-  page.on("pageerror", (error: Error) => pageErrors.push(error.message));
-  page.on("response", (response: { url(): string; status(): number }) => {
+  page.on("pageerror", (error) => pageErrors.push(error.message));
+  page.on("response", (response) => {
     const url = response.url();
     if (url.includes(".supabase.co/") && !url.includes("/auth/v1/") && response.status() >= 400) {
       apiFailures.push(`${response.status()} ${url}`);
@@ -113,7 +113,8 @@ async function assertHealthyRoute(page: Parameters<typeof test>[0] extends never
   expect(apiFailures).toEqual([]);
 
   if (portal) {
-    await expect(page).toHaveURL(new RegExp(`${path.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}/?$`));
+    const escapedPath = path.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    await expect(page).toHaveURL(new RegExp(`${escapedPath}/?$`));
     expect(snapshot.body).not.toContain("como você deseja entrar?");
     expect(snapshot.body).not.toContain("acesso negado");
   }
