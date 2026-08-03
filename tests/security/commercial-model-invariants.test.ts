@@ -15,12 +15,14 @@ const sourceText = () => walk('src')
   .join('\n');
 
 describe('commercial model invariants', () => {
-  it('does not restore premium content or subscription access', () => {
+  it('does not restore premium content or recurring commercial plans', () => {
     const source = sourceText().toLowerCase();
     expect(source).not.toContain('biblioteca premium');
     expect(source).not.toContain('conteúdo premium');
     expect(source).not.toContain('assinantes premium');
-    expect(source).not.toContain('subscription_plan');
+    expect(source).not.toContain('mock_subscription_plans');
+    expect(source).not.toContain('premium mensal');
+    expect(source).not.toContain('premium anual');
     expect(source).not.toContain('clube vdm');
   });
 
@@ -32,10 +34,19 @@ describe('commercial model invariants', () => {
     expect(service).not.toContain('Licença Premium');
   });
 
-  it('keeps development payment confirmation restricted to the dev project', () => {
-    const checkout = read('supabase/functions/create-commerce-checkout/index.ts');
-    expect(checkout).toContain("provider === 'development' && !isDevProject");
-    expect(checkout).toContain('service_confirm_canonical_payment');
+  it('keeps every development checkout restricted to the dev project', () => {
+    const checkoutPaths = [
+      'supabase/functions/create-course-checkout/index.ts',
+      'supabase/functions/create-beat-checkout/index.ts',
+      'supabase/functions/create-digital-product-checkout/index.ts',
+    ];
+
+    checkoutPaths.forEach((path) => {
+      const checkout = read(path);
+      expect(checkout).toContain("const DEV_REF = 'ywirfqvobfnunlcsnptm'");
+      expect(checkout).toContain('url.includes(DEV_REF)');
+      expect(checkout).toContain("provider: 'development'");
+    });
   });
 
   it('verifies the payment webhook signature before processing events', () => {
@@ -52,13 +63,21 @@ describe('commercial model invariants', () => {
     expect(sidebar).not.toContain('sticky');
   });
 
-  it('exposes the required commerce routes', () => {
+  it('exposes the required commerce routes through the centralized route contract', () => {
     const app = read('src/AppWithCommerce.tsx');
-    expect(app).toContain('path="/servicos"');
-    expect(app).toContain('path="/aluno/servicos"');
-    expect(app).toContain('path="/instrutor/financeiro"');
-    expect(app).toContain('path="/produtor/servicos"');
-    expect(app).toContain('path="/empresa/creditos"');
+    const routes = read('src/shared/constants/routes.ts');
+
+    expect(routes).toContain("servicesPublic: '/servicos'");
+    expect(routes).toContain("studentServices: '/aluno/servicos'");
+    expect(routes).toContain("instructorFinance: '/instrutor/financeiro'");
+    expect(routes).toContain("producerServices: '/produtor/servicos'");
+    expect(routes).toContain("companyCredits: '/empresa/creditos'");
+
+    expect(app).toContain('path={ROUTES.servicesPublic}');
+    expect(app).toContain('path={ROUTES.studentServices}');
+    expect(app).toContain('path={ROUTES.instructorFinance}');
+    expect(app).toContain('path={ROUTES.producerServices}');
+    expect(app).toContain('path={ROUTES.companyCredits}');
   });
 
   it('uses private storage for lessons and service deliveries', () => {
