@@ -21,8 +21,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
         with:
           node-version: 22
           cache: npm
@@ -34,7 +34,7 @@ jobs:
       - run: npm run build
         env:
           VITE_BASE_PATH: /functions/v1/vivendo-preview/
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: vercel-preview-dist
           path: dist
@@ -50,8 +50,8 @@ jobs:
       VITE_PREVIEW_MODE: 'true'
       VITE_DISABLE_AUTH: 'true'
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
         with:
           node-version: 22
           cache: npm
@@ -69,8 +69,8 @@ jobs:
       VITE_PREVIEW_MODE: 'false'
       VITE_DISABLE_AUTH: 'false'
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
         with:
           node-version: 22
           cache: npm
