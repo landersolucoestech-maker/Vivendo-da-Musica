@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { AlertTriangle, BanknoteArrowDown, ReceiptText, RotateCcw, WalletCards } from 'lucide-react';
+import { AlertTriangle, Banknote, ReceiptText, RotateCcw, WalletCards } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import AdminLayout from '@/app/layouts/AdminLayout';
@@ -63,7 +63,7 @@ const AdminFinanceCanonicalPage = () => {
             <StatCard label="Reembolsado" value={formatPrice(data?.summary.refundedCents ?? 0)} icon={RotateCcw} />
             <StatCard label="Chargebacks" value={formatPrice(data?.summary.chargebackCents ?? 0)} icon={AlertTriangle} />
             <StatCard label="Receita da plataforma" value={formatPrice(data?.summary.platformRevenueCents ?? 0)} icon={WalletCards} />
-            <StatCard label="Obrigações a repassar" value={formatPrice(data?.summary.payableCents ?? 0)} icon={BanknoteArrowDown} />
+            <StatCard label="Obrigações a repassar" value={formatPrice(data?.summary.payableCents ?? 0)} icon={Banknote} />
             <StatCard label="Saldo de caixa" value={formatPrice(data?.summary.cashBalanceCents ?? 0)} icon={WalletCards} />
           </div>
 
