@@ -24,6 +24,9 @@ import { slugify } from "@/shared/utils/utils";
 import type { MockCourse } from "@/modules/courses/types/course.types";
 import { formatPriceOrFree as formatPrice } from "@/shared/utils/formatters";
 
+const formatStudentCount = (count: number) =>
+  `${count.toLocaleString('pt-BR')} ${count === 1 ? 'aluno' : 'alunos'}`;
+
 const MockCourseDetail = ({ course }: { course: MockCourse }) => {
   const { addItem } = useCart();
   const { toast } = useToast();
@@ -32,44 +35,44 @@ const MockCourseDetail = ({ course }: { course: MockCourse }) => {
 
   return (
     <PublicLayout>
-      <div className="grid lg:grid-cols-[1fr_360px] gap-10">
+      <div className="grid gap-10 lg:grid-cols-[1fr_360px]">
         <div>
-          <p className="text-sm text-brand-medium font-medium mb-2">{course.category} · {course.level}</p>
-          <h1 className="text-3xl font-bold mb-3">{course.title}</h1>
-          <p className="text-muted-foreground mb-4">{course.description}</p>
+          <p className="mb-2 text-sm font-medium text-brand-medium">{course.category} · {course.level}</p>
+          <h1 className="mb-3 text-3xl font-bold">{course.title}</h1>
+          <p className="mb-4 text-muted-foreground">{course.description}</p>
 
-          <div className="flex items-center gap-4 text-sm text-muted-foreground mb-8 flex-wrap">
+          <div className="mb-8 flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
             <span className="flex items-center gap-1">
-              <Star className="w-4 h-4 text-amber-400 fill-amber-400" />
+              <Star className="size-4 fill-amber-400 text-amber-400" />
               {course.rating} ({course.reviewCount.toLocaleString('pt-BR')})
             </span>
-            <span className="flex items-center gap-1"><Users className="w-4 h-4" />{course.studentsCount.toLocaleString('pt-BR')} alunos</span>
-            <span className="flex items-center gap-1"><Clock className="w-4 h-4" />{course.durationHours}h de conteúdo</span>
+            <span className="flex items-center gap-1"><Users className="size-4" />{formatStudentCount(course.studentsCount)}</span>
+            <span className="flex items-center gap-1"><Clock className="size-4" />{course.durationHours}h de conteúdo</span>
           </div>
 
           {instructor && (
-            <div className="rounded-lg border border-border bg-card p-4 flex items-center gap-3 mb-8">
+            <div className="mb-8 flex items-center gap-3 rounded-lg border border-border bg-card p-4">
               <div
-                className="w-12 h-12 rounded-full shrink-0"
+                className="size-12 shrink-0 rounded-full"
                 style={{ background: `linear-gradient(135deg, ${instructor.gradientFrom}, ${instructor.gradientTo})` }}
               />
               <div>
                 <p className="font-medium">{instructor.name}</p>
-                <p className="text-sm text-muted-foreground">{instructor.specialty} · {instructor.studentsCount.toLocaleString('pt-BR')} alunos</p>
+                <p className="text-sm text-muted-foreground">{instructor.specialty} · {formatStudentCount(instructor.studentsCount)}</p>
               </div>
             </div>
           )}
 
-          <h2 className="text-lg font-semibold mb-4">Conteúdo do curso</h2>
-          <div className="space-y-3 mb-8">
+          <h2 className="mb-4 text-lg font-semibold">Conteúdo do curso</h2>
+          <div className="mb-8 space-y-3">
             {course.modules.map((module, moduleIndex) => (
               <div key={module.title} className="rounded-lg border border-border bg-card p-4">
-                <p className="text-sm font-semibold mb-2">Módulo {moduleIndex + 1}: {module.title}</p>
+                <p className="mb-2 text-sm font-semibold">Módulo {moduleIndex + 1}: {module.title}</p>
                 <div className="space-y-1">
                   {module.lessons.map((lesson) => (
-                    <div key={lesson.title} className="flex items-center justify-between text-sm text-muted-foreground py-1">
+                    <div key={lesson.title} className="flex items-center justify-between py-1 text-sm text-muted-foreground">
                       <span className="flex items-center gap-2">
-                        {lesson.free ? <PlayCircle className="w-4 h-4 text-brand-medium" /> : <Lock className="w-3.5 h-3.5" />}
+                        {lesson.free ? <PlayCircle className="size-4 text-brand-medium" /> : <Lock className="size-3.5" />}
                         {lesson.title}
                       </span>
                       <span>{lesson.durationMinutes} min</span>
@@ -80,35 +83,45 @@ const MockCourseDetail = ({ course }: { course: MockCourse }) => {
             ))}
           </div>
 
-          <h2 className="text-lg font-semibold mb-4">Perguntas frequentes</h2>
-          <Accordion type="single" collapsible className="mb-8">
-            {course.faq.map((item, i) => (
-              <AccordionItem key={item.question} value={`faq-${i}`}>
-                <AccordionTrigger>{item.question}</AccordionTrigger>
-                <AccordionContent className="text-muted-foreground">{item.answer}</AccordionContent>
-              </AccordionItem>
-            ))}
-          </Accordion>
+          {course.faq.length > 0 && (
+            <>
+              <h2 className="mb-4 text-lg font-semibold">Perguntas frequentes</h2>
+              <Accordion type="single" collapsible className="mb-8">
+                {course.faq.map((item, index) => (
+                  <AccordionItem key={item.question} value={`faq-${index}`}>
+                    <AccordionTrigger>{item.question}</AccordionTrigger>
+                    <AccordionContent className="text-muted-foreground">{item.answer}</AccordionContent>
+                  </AccordionItem>
+                ))}
+              </Accordion>
+            </>
+          )}
 
-          <h2 className="text-lg font-semibold mb-4">Avaliações</h2>
-          <div className="space-y-3 mb-8">
-            {course.reviews.map((review) => (
-              <div key={review.author} className="rounded-lg border border-border bg-card p-4">
-                <div className="flex items-center justify-between mb-1">
-                  <p className="font-medium">{review.author}</p>
-                  <span className="flex items-center gap-1 text-sm text-amber-400">
-                    <Star className="w-4 h-4 fill-amber-400" /> {review.rating}
-                  </span>
+          <h2 className="mb-4 text-lg font-semibold">Avaliações</h2>
+          {course.reviews.length === 0 ? (
+            <div className="mb-8">
+              <EmptyState title="Ainda sem avaliações" description="As avaliações publicadas pelos alunos aparecerão aqui." />
+            </div>
+          ) : (
+            <div className="mb-8 space-y-3">
+              {course.reviews.map((review) => (
+                <div key={`${review.author}-${review.comment}`} className="rounded-lg border border-border bg-card p-4">
+                  <div className="mb-1 flex items-center justify-between">
+                    <p className="font-medium">{review.author}</p>
+                    <span className="flex items-center gap-1 text-sm text-amber-400">
+                      <Star className="size-4 fill-amber-400" /> {review.rating}
+                    </span>
+                  </div>
+                  <p className="text-sm text-muted-foreground">{review.comment}</p>
                 </div>
-                <p className="text-sm text-muted-foreground">{review.comment}</p>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
 
           {!!relatedCourses?.length && (
             <>
-              <h2 className="text-lg font-semibold mb-4">Cursos relacionados</h2>
-              <div className="grid sm:grid-cols-2 gap-4">
+              <h2 className="mb-4 text-lg font-semibold">Cursos relacionados</h2>
+              <div className="grid gap-4 sm:grid-cols-2">
                 {relatedCourses.map((related) => (
                   <CourseCard key={related.id} course={academyService.mapMockCourseToCard(related)} />
                 ))}
@@ -118,12 +131,12 @@ const MockCourseDetail = ({ course }: { course: MockCourse }) => {
         </div>
 
         <div>
-          <div className="rounded-lg border border-border bg-card p-5 sticky top-20">
+          <div className="sticky top-20 rounded-lg border border-border bg-card p-5">
             <div
-              className="aspect-video rounded-lg mb-4"
+              className="mb-4 aspect-video rounded-lg"
               style={{ background: `linear-gradient(135deg, ${course.gradientFrom}, ${course.gradientTo})` }}
             />
-            <div className="flex items-center gap-2 mb-4">
+            <div className="mb-4 flex items-center gap-2">
               <p className="text-2xl font-bold">{formatPrice(course.priceCents, course.currency)}</p>
               {course.originalPriceCents && (
                 <p className="text-sm text-muted-foreground line-through">{formatPrice(course.originalPriceCents, course.currency)}</p>
@@ -151,7 +164,7 @@ const RealCourseDetail = ({ slug }: { slug: string }) => {
   const modulesWithProgress = useProgressCalculation(modules);
   const { data: extras } = useCourseExtras(slug);
 
-  const course = courses?.find((c) => c.slug === slug);
+  const course = courses?.find((candidate) => candidate.slug === slug);
 
   if (coursesLoading) {
     return <PublicLayout><LoadingState rows={4} className="h-20 rounded-lg" /></PublicLayout>;
@@ -175,24 +188,24 @@ const RealCourseDetail = ({ slug }: { slug: string }) => {
 
   return (
     <PublicLayout>
-      <div className="grid lg:grid-cols-[1fr_360px] gap-10">
+      <div className="grid gap-10 lg:grid-cols-[1fr_360px]">
         <div>
-          <p className="text-sm text-brand-medium font-medium mb-2">{extras?.level}</p>
-          <h1 className="text-3xl font-bold mb-3">{course.title}</h1>
-          <p className="text-muted-foreground mb-4">{course.description}</p>
+          <p className="mb-2 text-sm font-medium text-brand-medium">{extras?.level}</p>
+          <h1 className="mb-3 text-3xl font-bold">{course.title}</h1>
+          <p className="mb-4 text-muted-foreground">{course.description}</p>
 
-          <div className="flex items-center gap-4 text-sm text-muted-foreground mb-8">
+          <div className="mb-8 flex items-center gap-4 text-sm text-muted-foreground">
             <span className="flex items-center gap-1">
-              <Star className="w-4 h-4 text-amber-400 fill-amber-400" />
+              <Star className="size-4 fill-amber-400 text-amber-400" />
               {extras?.rating} ({extras?.reviewCount})
             </span>
             <span className="flex items-center gap-1">
-              <Users className="w-4 h-4" />
+              <Users className="size-4" />
               {extras?.instructorName}
             </span>
           </div>
 
-          <h2 className="text-lg font-semibold mb-4">Conteúdo do curso</h2>
+          <h2 className="mb-4 text-lg font-semibold">Conteúdo do curso</h2>
           {modulesLoading ? (
             <LoadingState rows={3} className="h-14 rounded-lg" />
           ) : modulesWithProgress.length === 0 ? (
@@ -201,18 +214,18 @@ const RealCourseDetail = ({ slug }: { slug: string }) => {
             <div className="space-y-3">
               {modulesWithProgress.map((module, moduleIndex) => (
                 <div key={module.id} className="rounded-lg border border-border bg-card p-4">
-                  <p className="text-sm font-semibold mb-2">Módulo {moduleIndex + 1}: {module.title}</p>
+                  <p className="mb-2 text-sm font-semibold">Módulo {moduleIndex + 1}: {module.title}</p>
                   <div className="space-y-1">
                     {module.lessons.map((lesson) => (
                       <Link
                         key={lesson.id}
                         to={`/academia/${course.slug}/aulas/${slugify(lesson.title)}`}
-                        className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground py-1.5"
+                        className="flex items-center gap-2 py-1.5 text-sm text-muted-foreground hover:text-foreground"
                       >
                         {lesson.completed ? (
-                          <CheckCircle className="w-4 h-4 text-brand-medium shrink-0" />
+                          <CheckCircle className="size-4 shrink-0 text-brand-medium" />
                         ) : (
-                          <PlayCircle className="w-4 h-4 shrink-0" />
+                          <PlayCircle className="size-4 shrink-0" />
                         )}
                         {lesson.title}
                       </Link>
@@ -225,20 +238,20 @@ const RealCourseDetail = ({ slug }: { slug: string }) => {
         </div>
 
         <div>
-          <div className="rounded-lg border border-border bg-card p-5 sticky top-20">
-            <div className="aspect-video rounded-lg bg-gradient-brand mb-4 overflow-hidden">
+          <div className="sticky top-20 rounded-lg border border-border bg-card p-5">
+            <div className="mb-4 aspect-video overflow-hidden rounded-lg bg-gradient-brand">
               {course.thumbnail_url && (
-                <img src={course.thumbnail_url} alt={course.title} className="w-full h-full object-cover" />
+                <img src={course.thumbnail_url} alt={course.title} className="size-full object-cover" />
               )}
             </div>
-            <p className="text-2xl font-bold mb-4">{formatPrice(course.price_cents, course.currency)}</p>
+            <p className="mb-4 text-2xl font-bold">{formatPrice(course.price_cents, course.currency)}</p>
             {modulesWithProgress.length > 0 ? (
               <Link to={`/aula/${modulesWithProgress[0]?.lessons[0]?.id}`}>
                 <Button className="w-full">Começar curso</Button>
               </Link>
             ) : (
               <Button className="w-full" disabled>
-                <Lock className="w-4 h-4 mr-2" />
+                <Lock className="mr-2 size-4" />
                 Em breve
               </Button>
             )}
