@@ -106,8 +106,9 @@ export const contentService = {
   },
 
   async listCategories(): Promise<readonly string[]> {
-    const categories = (await this.listArticles()).map((article) => article.category);
-    return [...new Set(categories)].sort();
+    const categories: string[] = (await this.listArticles())
+      .map((article) => String(article.category));
+    return [...new Set<string>(categories)].sort((left, right) => left.localeCompare(right, 'pt-BR'));
   },
 
   async listFeaturedArticles(limit = 3): Promise<ContentArticle[]> {
