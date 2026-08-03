@@ -162,7 +162,7 @@ const App = () => (
                 <Route path="/aluno/cursos/:courseId" element={studentRoute(<StudentCourseDashboardPage />)} />
                 <Route path={ROUTES.certificates} element={studentRoute(<CertificatesPage />)} />
                 <Route path={ROUTES.downloads} element={studentRoute(<DownloadsPage />)} />
-                <Route path="/aluno/beats" element={<Navigate to={ROUTES.producerBeats} replace />} />
+                <Route path="/aluno/beats" element={<Navigate to={ROUTES.downloads} replace />} />
                 <Route path={ROUTES.premiumLibrary} element={studentRoute(<PremiumLibraryPage />)} />
                 <Route path={ROUTES.community} element={studentRoute(<CommunityPage />)} />
                 <Route path={ROUTES.opportunities} element={studentRoute(<OpportunitiesPage />)} />
