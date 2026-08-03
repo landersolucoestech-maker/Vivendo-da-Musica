@@ -16,7 +16,7 @@ const StudentLayout = ({ children }: { children: ReactNode }) => {
           exactPath={ROUTES.dashboard}
         />
         <StudentSidebar />
-        <main className="min-h-[calc(100dvh-4rem)] min-w-0 w-full px-4 pb-14 pt-5 sm:min-h-[calc(100dvh-5rem)] sm:px-6 md:pl-64 lg:px-8 lg:pt-7 xl:px-10">
+        <main className="min-h-[calc(100dvh-4rem)] min-w-0 w-full px-4 pb-14 pt-5 sm:min-h-[calc(100dvh-5rem)] sm:px-6 md:ml-64 md:w-[calc(100%-16rem)] lg:px-8 lg:pt-7 xl:px-10">
           {children}
         </main>
       </div>
