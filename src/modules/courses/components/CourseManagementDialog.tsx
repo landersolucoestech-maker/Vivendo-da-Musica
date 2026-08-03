@@ -1,11 +1,12 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { BookOpen, FilePlus2, Pencil, Plus, Trash2 } from 'lucide-react';
+import { BookOpen, FilePlus2, FileVideo2, Pencil, Plus, Trash2, Upload, X } from 'lucide-react';
 
 import {
   courseManagementApi,
   type CourseInput,
   type CourseModuleRecord,
+  type LessonInput,
   type LessonMaterialRecord,
   type LessonRecord,
   type ManagedCourse,
@@ -60,6 +61,18 @@ const inputFromCents = (value: number) => (value / 100).toFixed(2).replace('.', 
 const formatMoney = (value: number) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value / 100);
 
+const formatFileSize = (size: number) => {
+  if (size >= 1024 ** 3) return `${(size / 1024 ** 3).toFixed(1)} GB`;
+  if (size >= 1024 ** 2) return `${(size / 1024 ** 2).toFixed(1)} MB`;
+  if (size >= 1024) return `${Math.ceil(size / 1024)} KB`;
+  return `${size} bytes`;
+};
+
+const storageFileName = (path: string) => {
+  const rawName = path.split('/').at(-1) ?? 'videoaula';
+  return rawName.replace(/^[0-9a-f-]{36}-/i, '');
+};
+
 const slugify = (value: string) =>
   value
     .normalize('NFD')
@@ -81,6 +94,14 @@ const emptyCourseInput: CourseInput = {
   currency: 'BRL',
   status: 'draft',
   visibility: 'private',
+};
+
+const emptyLessonDraft = {
+  title: '',
+  slug: '',
+  description: '',
+  thumbnailUrl: '',
+  durationMinutes: '',
 };
 
 const emptyMaterialDraft = {
@@ -108,14 +129,10 @@ const CourseManagementDialog = ({
   const [editingModuleId, setEditingModuleId] = useState<string | null>(null);
   const [lessonModuleId, setLessonModuleId] = useState<string | null>(null);
   const [editingLessonId, setEditingLessonId] = useState<string | null>(null);
-  const [lessonDraft, setLessonDraft] = useState({
-    title: '',
-    slug: '',
-    description: '',
-    videoUrl: '',
-    thumbnailUrl: '',
-    durationMinutes: '',
-  });
+  const [lessonDraft, setLessonDraft] = useState(emptyLessonDraft);
+  const [lessonVideoFile, setLessonVideoFile] = useState<File | null>(null);
+  const [removeExistingVideo, setRemoveExistingVideo] = useState(false);
+  const [lessonSaving, setLessonSaving] = useState(false);
   const [materialLessonId, setMaterialLessonId] = useState<string | null>(null);
   const [materialDraft, setMaterialDraft] = useState(emptyMaterialDraft);
   const [materialFile, setMaterialFile] = useState<File | null>(null);
@@ -132,6 +149,12 @@ const CourseManagementDialog = ({
 
   const currentCourse = courseQuery.data;
   const readOnly = mode === 'view';
+  const editingLesson = useMemo(
+    () => currentCourse?.course_modules
+      .flatMap((module) => module.lessons)
+      .find((lesson) => lesson.id === editingLessonId),
+    [currentCourse, editingLessonId],
+  );
 
   useEffect(() => {
     if (!open) return;
@@ -179,6 +202,14 @@ const CourseManagementDialog = ({
     await queryClient.invalidateQueries({ queryKey: ['course-cards'] });
     await queryClient.invalidateQueries({ queryKey: ['instructor-courses'] });
     onSaved?.();
+  };
+
+  const resetLessonEditor = () => {
+    setLessonModuleId(null);
+    setEditingLessonId(null);
+    setLessonDraft(emptyLessonDraft);
+    setLessonVideoFile(null);
+    setRemoveExistingVideo(false);
   };
 
   const saveCourse = async (event: FormEvent) => {
@@ -267,41 +298,93 @@ const CourseManagementDialog = ({
       title: lesson?.title ?? '',
       slug: lesson?.slug ?? '',
       description: lesson?.description ?? '',
-      videoUrl: lesson?.video_url ?? '',
       thumbnailUrl: lesson?.thumbnail_url ?? '',
       durationMinutes: lesson?.duration_minutes ? String(lesson.duration_minutes) : '',
     });
+    setLessonVideoFile(null);
+    setRemoveExistingVideo(false);
+  };
+
+  const selectLessonVideo = (file: File | null) => {
+    if (!file) {
+      setLessonVideoFile(null);
+      return;
+    }
+    const validationError = courseManagementApi.validateLessonVideoFile(file);
+    if (validationError) {
+      toast({ title: 'Vídeo inválido', description: validationError, variant: 'destructive' });
+      return;
+    }
+    setLessonVideoFile(file);
+    setRemoveExistingVideo(false);
   };
 
   const saveLesson = async () => {
-    if (!lessonModuleId || !lessonDraft.title.trim()) return;
+    if (!courseId || !lessonModuleId || !lessonDraft.title.trim() || lessonSaving) return;
     const module = currentCourse?.course_modules.find((item) => item.id === lessonModuleId);
     const existing = module?.lessons.find((item) => item.id === editingLessonId);
+    const originalVideoPath = existing?.video_url ?? null;
+    const basePayload: LessonInput = {
+      module_id: lessonModuleId,
+      title: lessonDraft.title.trim(),
+      slug: slugify(lessonDraft.slug || lessonDraft.title),
+      description: lessonDraft.description.trim() || null,
+      video_url: removeExistingVideo ? null : originalVideoPath,
+      thumbnail_url: lessonDraft.thumbnailUrl.trim() || null,
+      duration_minutes: lessonDraft.durationMinutes ? Number(lessonDraft.durationMinutes) : null,
+      order_index: existing?.order_index ?? module?.lessons.length ?? 0,
+      status: existing?.status ?? 'draft',
+    };
+
+    setLessonSaving(true);
+    let createdLessonId: string | null = null;
+    let uploadedVideoPath: string | null = null;
 
     try {
-      const payload = {
-        module_id: lessonModuleId,
-        title: lessonDraft.title.trim(),
-        slug: slugify(lessonDraft.slug || lessonDraft.title),
-        description: lessonDraft.description.trim() || null,
-        video_url: lessonDraft.videoUrl.trim() || null,
-        thumbnail_url: lessonDraft.thumbnailUrl.trim() || null,
-        duration_minutes: lessonDraft.durationMinutes ? Number(lessonDraft.durationMinutes) : null,
-        order_index: existing?.order_index ?? module?.lessons.length ?? 0,
-        status: existing?.status ?? ('draft' as const),
+      let targetLessonId = editingLessonId;
+
+      if (!targetLessonId) {
+        const created = await courseManagementApi.createLesson({ ...basePayload, video_url: null });
+        targetLessonId = created.id;
+        createdLessonId = created.id;
+      }
+
+      if (lessonVideoFile) {
+        const uploaded = await courseManagementApi.uploadLessonVideo(courseId, targetLessonId, lessonVideoFile);
+        uploadedVideoPath = uploaded.path;
+      }
+
+      const finalPayload: LessonInput = {
+        ...basePayload,
+        video_url: uploadedVideoPath ?? basePayload.video_url,
       };
-      if (editingLessonId) await courseManagementApi.updateLesson(editingLessonId, payload);
-      else await courseManagementApi.createLesson(payload);
-      setLessonModuleId(null);
-      setEditingLessonId(null);
+
+      if (editingLessonId || uploadedVideoPath || removeExistingVideo) {
+        await courseManagementApi.updateLesson(targetLessonId, finalPayload);
+      }
+
+      if (originalVideoPath && (uploadedVideoPath || removeExistingVideo)) {
+        await courseManagementApi.removeLessonVideoFile(originalVideoPath);
+      }
+
+      resetLessonEditor();
       await refreshCourse();
-      toast({ title: editingLessonId ? 'Aula atualizada.' : 'Aula adicionada.' });
+      toast({
+        title: editingLessonId ? 'Aula atualizada.' : 'Aula adicionada.',
+        description: uploadedVideoPath
+          ? 'A videoaula foi enviada para o storage privado da plataforma.'
+          : undefined,
+      });
     } catch (error) {
+      if (uploadedVideoPath) await courseManagementApi.removeLessonVideoFile(uploadedVideoPath);
+      if (createdLessonId) await courseManagementApi.deleteLesson(createdLessonId);
       toast({
         title: 'Não foi possível salvar a aula.',
         description: error instanceof Error ? error.message : undefined,
         variant: 'destructive',
       });
+    } finally {
+      setLessonSaving(false);
     }
   };
 
@@ -408,9 +491,9 @@ const CourseManagementDialog = ({
   const title = mode === 'create' ? 'Novo curso' : mode === 'view' ? 'Visualizar curso' : 'Editar curso';
   const pendingDeleteTitle = pendingDelete?.kind === 'module' ? 'Excluir módulo?' : 'Excluir aula?';
   const pendingDeleteDescription = pendingDelete?.kind === 'module'
-    ? `O módulo “${pendingDelete.item.title}” e todas as aulas e materiais vinculados serão excluídos permanentemente.`
+    ? `O módulo “${pendingDelete.item.title}” e todas as aulas, videoaulas e materiais vinculados serão excluídos permanentemente.`
     : pendingDelete
-      ? `A aula “${pendingDelete.item.title}” e todos os materiais vinculados serão excluídos permanentemente.`
+      ? `A aula “${pendingDelete.item.title}”, sua videoaula e todos os materiais vinculados serão excluídos permanentemente.`
       : '';
 
   return (
@@ -420,14 +503,30 @@ const CourseManagementDialog = ({
           <DialogHeader>
             <DialogTitle>{title}</DialogTitle>
             <DialogDescription>
-              O valor é definido somente no curso. Módulos, aulas e materiais são gerenciados neste mesmo modal.
+              O valor é definido somente no curso. Módulos, aulas, videoaulas e materiais são gerenciados neste modal.
             </DialogDescription>
           </DialogHeader>
 
           <form onSubmit={saveCourse} className="space-y-6">
             <section className="grid gap-4 rounded-lg border border-border p-4 md:grid-cols-2">
               <div className="md:col-span-2"><h3 className="font-semibold">Dados gerais</h3></div>
-              <div><Label htmlFor="course-title">Título</Label><Input id="course-title" value={form.title} disabled={readOnly} onChange={(event) => { const value = event.target.value; setForm((current) => ({ ...current, title: value, slug: current.slug ? current.slug : slugify(value) })); }} required /></div>
+              <div>
+                <Label htmlFor="course-title">Título</Label>
+                <Input
+                  id="course-title"
+                  value={form.title}
+                  disabled={readOnly}
+                  onChange={(event) => {
+                    const value = event.target.value;
+                    setForm((current) => ({
+                      ...current,
+                      title: value,
+                      slug: current.slug ? current.slug : slugify(value),
+                    }));
+                  }}
+                  required
+                />
+              </div>
               <div><Label htmlFor="course-slug">Slug</Label><Input id="course-slug" value={form.slug} disabled={readOnly} onChange={(event) => setForm((current) => ({ ...current, slug: event.target.value }))} required /></div>
               <div><Label htmlFor="course-category">Categoria</Label><Input id="course-category" value={form.category ?? ''} disabled={readOnly} onChange={(event) => setForm((current) => ({ ...current, category: event.target.value }))} /></div>
               <div><Label htmlFor="course-thumbnail">Imagem de capa — URL</Label><Input id="course-thumbnail" type="url" value={form.thumbnail_url ?? ''} disabled={readOnly} onChange={(event) => setForm((current) => ({ ...current, thumbnail_url: event.target.value }))} /></div>
@@ -449,9 +548,18 @@ const CourseManagementDialog = ({
 
           {courseId && (
             <section className="space-y-4 rounded-lg border border-border p-4">
-              <div className="flex flex-wrap items-center justify-between gap-3"><div><h3 className="font-semibold">Módulos e aulas</h3><p className="text-sm text-muted-foreground">Cada aula pertence obrigatoriamente a um módulo.</p></div>{!readOnly && <Button type="button" variant="outline" onClick={() => { setEditingModuleId(null); setModuleDraft({ title: '', description: '' }); }}><Plus className="mr-2 h-4 w-4" />Adicionar módulo</Button>}</div>
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div><h3 className="font-semibold">Módulos e aulas</h3><p className="text-sm text-muted-foreground">Cada aula pertence obrigatoriamente a um módulo.</p></div>
+                {!readOnly && <Button type="button" variant="outline" onClick={() => { setEditingModuleId(null); setModuleDraft({ title: '', description: '' }); }}><Plus className="mr-2 h-4 w-4" />Adicionar módulo</Button>}
+              </div>
 
-              {!readOnly && <div className="grid gap-3 rounded-md bg-muted/40 p-3 md:grid-cols-[1fr_2fr_auto]"><Input placeholder="Título do módulo" value={moduleDraft.title} onChange={(event) => setModuleDraft((current) => ({ ...current, title: event.target.value }))} /><Input placeholder="Descrição do módulo" value={moduleDraft.description} onChange={(event) => setModuleDraft((current) => ({ ...current, description: event.target.value }))} /><Button type="button" onClick={saveModule}>{editingModuleId ? 'Atualizar módulo' : 'Salvar módulo'}</Button></div>}
+              {!readOnly && (
+                <div className="grid gap-3 rounded-md bg-muted/40 p-3 md:grid-cols-[1fr_2fr_auto]">
+                  <Input placeholder="Título do módulo" value={moduleDraft.title} onChange={(event) => setModuleDraft((current) => ({ ...current, title: event.target.value }))} />
+                  <Input placeholder="Descrição do módulo" value={moduleDraft.description} onChange={(event) => setModuleDraft((current) => ({ ...current, description: event.target.value }))} />
+                  <Button type="button" onClick={saveModule}>{editingModuleId ? 'Atualizar módulo' : 'Salvar módulo'}</Button>
+                </div>
+              )}
 
               {courseQuery.isLoading && <p className="text-sm text-muted-foreground">Carregando currículo...</p>}
               {!courseQuery.isLoading && !currentCourse?.course_modules.length && <p className="text-sm text-muted-foreground">Nenhum módulo cadastrado.</p>}
@@ -459,19 +567,87 @@ const CourseManagementDialog = ({
               <div className="space-y-4">
                 {currentCourse?.course_modules.map((module, moduleIndex) => (
                   <article key={module.id} className="rounded-lg border border-border p-4">
-                    <div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Módulo {moduleIndex + 1}</p><h4 className="font-semibold">{module.title}</h4>{module.description && <p className="text-sm text-muted-foreground">{module.description}</p>}</div>{!readOnly && <div className="flex gap-2"><Button type="button" size="sm" variant="outline" onClick={() => startModuleEdit(module)}><Pencil className="mr-2 h-4 w-4" />Editar</Button><Button type="button" size="sm" variant="destructive" aria-label={`Excluir módulo ${module.title}`} onClick={() => setPendingDelete({ kind: 'module', item: module })}><Trash2 className="h-4 w-4" /></Button></div>}</div>
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div><p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Módulo {moduleIndex + 1}</p><h4 className="font-semibold">{module.title}</h4>{module.description && <p className="text-sm text-muted-foreground">{module.description}</p>}</div>
+                      {!readOnly && <div className="flex gap-2"><Button type="button" size="sm" variant="outline" onClick={() => startModuleEdit(module)}><Pencil className="mr-2 h-4 w-4" />Editar</Button><Button type="button" size="sm" variant="destructive" aria-label={`Excluir módulo ${module.title}`} onClick={() => setPendingDelete({ kind: 'module', item: module })}><Trash2 className="h-4 w-4" /></Button></div>}
+                    </div>
 
                     <div className="mt-4 space-y-3">
                       <div className="flex items-center justify-between"><h5 className="text-sm font-semibold">Aulas</h5>{!readOnly && <Button type="button" size="sm" variant="outline" onClick={() => startLesson(module.id)}><BookOpen className="mr-2 h-4 w-4" />Adicionar aula</Button>}</div>
 
-                      {lessonModuleId === module.id && !readOnly && <div className="grid gap-3 rounded-md bg-muted/40 p-3 md:grid-cols-2"><div><Label>Título</Label><Input value={lessonDraft.title} onChange={(event) => setLessonDraft((current) => ({ ...current, title: event.target.value, slug: current.slug || slugify(event.target.value) }))} /></div><div><Label>Slug</Label><Input value={lessonDraft.slug} onChange={(event) => setLessonDraft((current) => ({ ...current, slug: event.target.value }))} /></div><div><Label>URL do vídeo</Label><Input type="url" value={lessonDraft.videoUrl} onChange={(event) => setLessonDraft((current) => ({ ...current, videoUrl: event.target.value }))} /></div><div><Label>Imagem de capa — URL</Label><Input type="url" value={lessonDraft.thumbnailUrl} onChange={(event) => setLessonDraft((current) => ({ ...current, thumbnailUrl: event.target.value }))} /></div><div><Label>Duração em minutos</Label><Input type="number" min="0" value={lessonDraft.durationMinutes} onChange={(event) => setLessonDraft((current) => ({ ...current, durationMinutes: event.target.value }))} /></div><div className="md:col-span-2"><Label>Descrição</Label><Textarea value={lessonDraft.description} onChange={(event) => setLessonDraft((current) => ({ ...current, description: event.target.value }))} /></div><div className="flex gap-2 md:col-span-2"><Button type="button" onClick={saveLesson}>{editingLessonId ? 'Atualizar aula' : 'Salvar aula'}</Button><Button type="button" variant="outline" onClick={() => setLessonModuleId(null)}>Cancelar</Button></div></div>}
+                      {lessonModuleId === module.id && !readOnly && (
+                        <div className="grid gap-3 rounded-md bg-muted/40 p-3 md:grid-cols-2">
+                          <div><Label>Título</Label><Input value={lessonDraft.title} onChange={(event) => setLessonDraft((current) => ({ ...current, title: event.target.value, slug: current.slug || slugify(event.target.value) }))} /></div>
+                          <div><Label>Slug</Label><Input value={lessonDraft.slug} onChange={(event) => setLessonDraft((current) => ({ ...current, slug: event.target.value }))} /></div>
+
+                          <div className="space-y-2 md:col-span-2">
+                            <Label htmlFor={`lesson-video-${module.id}`}>Videoaula</Label>
+                            <div className="rounded-lg border border-border bg-background/60 p-4">
+                              <div className="flex items-start gap-3">
+                                <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary"><FileVideo2 className="size-5" /></span>
+                                <div className="min-w-0 flex-1">
+                                  <p className="text-sm font-medium">Upload direto do computador</p>
+                                  <p className="mt-1 text-xs leading-5 text-muted-foreground">Somente MP4, WebM ou MOV, com até 500 MB. Não são aceitos links do YouTube, Vimeo ou de outros serviços externos.</p>
+
+                                  {editingLesson?.video_url && !removeExistingVideo && !lessonVideoFile && (
+                                    <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-md border border-emerald-400/20 bg-emerald-400/5 px-3 py-2 text-xs">
+                                      <span className="truncate text-emerald-300">Vídeo privado atual: {storageFileName(editingLesson.video_url)}</span>
+                                      <Button type="button" size="sm" variant="ghost" className="h-7" onClick={() => setRemoveExistingVideo(true)}><Trash2 className="mr-1 size-3.5" />Remover</Button>
+                                    </div>
+                                  )}
+
+                                  {removeExistingVideo && !lessonVideoFile && (
+                                    <div className="mt-3 flex items-center justify-between gap-2 rounded-md border border-amber-400/20 bg-amber-400/5 px-3 py-2 text-xs text-amber-200">
+                                      <span>O vídeo atual será removido ao salvar.</span>
+                                      <Button type="button" size="sm" variant="ghost" className="h-7" onClick={() => setRemoveExistingVideo(false)}>Desfazer</Button>
+                                    </div>
+                                  )}
+
+                                  {lessonVideoFile && (
+                                    <div className="mt-3 flex items-center justify-between gap-3 rounded-md border border-primary/20 bg-primary/5 px-3 py-2 text-xs">
+                                      <span className="min-w-0 truncate text-primary">{lessonVideoFile.name} · {formatFileSize(lessonVideoFile.size)}</span>
+                                      <Button type="button" size="sm" variant="ghost" className="h-7 shrink-0" onClick={() => setLessonVideoFile(null)} aria-label="Remover vídeo selecionado"><X className="size-3.5" /></Button>
+                                    </div>
+                                  )}
+
+                                  <label className="mt-3 inline-flex cursor-pointer">
+                                    <input id={`lesson-video-${module.id}`} type="file" accept="video/mp4,video/webm,video/quicktime,.mp4,.webm,.mov" className="sr-only" onChange={(event) => { selectLessonVideo(event.target.files?.[0] ?? null); event.currentTarget.value = ''; }} />
+                                    <span className="inline-flex h-9 items-center justify-center rounded-md bg-primary px-3 text-xs font-semibold text-primary-foreground"><Upload className="mr-2 size-4" />{editingLesson?.video_url ? 'Substituir vídeo' : 'Selecionar vídeo'}</span>
+                                  </label>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div><Label>Imagem de capa — URL</Label><Input type="url" value={lessonDraft.thumbnailUrl} onChange={(event) => setLessonDraft((current) => ({ ...current, thumbnailUrl: event.target.value }))} /></div>
+                          <div><Label>Duração em minutos</Label><Input type="number" min="0" value={lessonDraft.durationMinutes} onChange={(event) => setLessonDraft((current) => ({ ...current, durationMinutes: event.target.value }))} /></div>
+                          <div className="md:col-span-2"><Label>Descrição</Label><Textarea value={lessonDraft.description} onChange={(event) => setLessonDraft((current) => ({ ...current, description: event.target.value }))} /></div>
+                          <div className="flex gap-2 md:col-span-2"><Button type="button" disabled={lessonSaving} onClick={() => void saveLesson()}>{lessonSaving ? 'Enviando e salvando...' : editingLessonId ? 'Atualizar aula' : 'Salvar aula'}</Button><Button type="button" variant="outline" disabled={lessonSaving} onClick={resetLessonEditor}>Cancelar</Button></div>
+                        </div>
+                      )}
 
                       {!module.lessons.length && <p className="text-sm text-muted-foreground">Nenhuma aula cadastrada.</p>}
                       {module.lessons.map((lesson, lessonIndex) => (
                         <div key={lesson.id} className="rounded-md border border-border p-3">
-                          <div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-xs text-muted-foreground">Aula {lessonIndex + 1}</p><p className="font-medium">{lesson.title}</p><p className="text-xs text-muted-foreground">/{lesson.slug}{lesson.duration_minutes ? ` · ${lesson.duration_minutes} min` : ''}</p></div>{!readOnly && <div className="flex gap-2"><Button type="button" size="sm" variant="outline" onClick={() => startLesson(module.id, lesson)}><Pencil className="mr-2 h-4 w-4" />Editar</Button><Button type="button" size="sm" variant="outline" onClick={() => startMaterial(lesson.id)}><FilePlus2 className="mr-2 h-4 w-4" />Material</Button><Button type="button" size="sm" variant="destructive" aria-label={`Excluir aula ${lesson.title}`} onClick={() => setPendingDelete({ kind: 'lesson', item: lesson })}><Trash2 className="h-4 w-4" /></Button></div>}</div>
+                          <div className="flex flex-wrap items-start justify-between gap-3">
+                            <div>
+                              <p className="text-xs text-muted-foreground">Aula {lessonIndex + 1}</p>
+                              <p className="font-medium">{lesson.title}</p>
+                              <p className="text-xs text-muted-foreground">/{lesson.slug}{lesson.duration_minutes ? ` · ${lesson.duration_minutes} min` : ''}</p>
+                              <p className={`mt-1 text-xs ${lesson.video_url ? 'text-emerald-300' : 'text-muted-foreground'}`}>{lesson.video_url ? 'Videoaula privada configurada' : 'Sem videoaula'}</p>
+                            </div>
+                            {!readOnly && <div className="flex gap-2"><Button type="button" size="sm" variant="outline" onClick={() => startLesson(module.id, lesson)}><Pencil className="mr-2 h-4 w-4" />Editar</Button><Button type="button" size="sm" variant="outline" onClick={() => startMaterial(lesson.id)}><FilePlus2 className="mr-2 h-4 w-4" />Material</Button><Button type="button" size="sm" variant="destructive" aria-label={`Excluir aula ${lesson.title}`} onClick={() => setPendingDelete({ kind: 'lesson', item: lesson })}><Trash2 className="h-4 w-4" /></Button></div>}
+                          </div>
 
-                          {materialLessonId === lesson.id && !readOnly && <div className="mt-3 grid gap-3 rounded-md bg-muted/40 p-3 md:grid-cols-2"><div><Label>Nome do material</Label><Input value={materialDraft.name} onChange={(event) => setMaterialDraft((current) => ({ ...current, name: event.target.value }))} /></div><div><Label>Tipo</Label><select className="h-10 w-full rounded-md border border-input bg-background px-3" value={materialDraft.type} onChange={(event) => setMaterialDraft((current) => ({ ...current, type: event.target.value as MaterialType }))}><option value="audio_project">Projeto de áudio</option><option value="wav">WAV</option><option value="mp3">MP3</option><option value="pdf">PDF</option><option value="document">Documento</option><option value="archive">Arquivo compactado</option><option value="other">Outro</option></select></div><div className="md:col-span-2"><Label htmlFor={`material-file-${lesson.id}`}>Arquivo</Label><Input id={`material-file-${lesson.id}`} type="file" accept=".pdf,.wav,.mp3,.zip,.txt,.doc,.docx,application/octet-stream" onChange={(event) => { const file = event.target.files?.[0] ?? null; setMaterialFile(file); if (file && !materialDraft.name) setMaterialDraft((current) => ({ ...current, name: file.name })); }} />{materialFile && <p className="mt-1 text-xs text-muted-foreground">{materialFile.name} · {Math.ceil(materialFile.size / 1024)} KB</p>}</div><div className="md:col-span-2"><Label>Descrição</Label><Input value={materialDraft.description} onChange={(event) => setMaterialDraft((current) => ({ ...current, description: event.target.value }))} /></div><div className="flex gap-2 md:col-span-2"><Button type="button" disabled={materialSaving} onClick={saveMaterial}>{materialSaving ? 'Enviando...' : 'Adicionar material'}</Button><Button type="button" variant="outline" disabled={materialSaving} onClick={() => setMaterialLessonId(null)}>Cancelar</Button></div></div>}
+                          {materialLessonId === lesson.id && !readOnly && (
+                            <div className="mt-3 grid gap-3 rounded-md bg-muted/40 p-3 md:grid-cols-2">
+                              <div><Label>Nome do material</Label><Input value={materialDraft.name} onChange={(event) => setMaterialDraft((current) => ({ ...current, name: event.target.value }))} /></div>
+                              <div><Label>Tipo</Label><select className="h-10 w-full rounded-md border border-input bg-background px-3" value={materialDraft.type} onChange={(event) => setMaterialDraft((current) => ({ ...current, type: event.target.value as MaterialType }))}><option value="audio_project">Projeto de áudio</option><option value="wav">WAV</option><option value="mp3">MP3</option><option value="pdf">PDF</option><option value="document">Documento</option><option value="archive">Arquivo compactado</option><option value="other">Outro</option></select></div>
+                              <div className="md:col-span-2"><Label htmlFor={`material-file-${lesson.id}`}>Arquivo</Label><Input id={`material-file-${lesson.id}`} type="file" accept=".pdf,.wav,.mp3,.zip,.txt,.doc,.docx,application/octet-stream" onChange={(event) => { const file = event.target.files?.[0] ?? null; setMaterialFile(file); if (file && !materialDraft.name) setMaterialDraft((current) => ({ ...current, name: file.name })); }} />{materialFile && <p className="mt-1 text-xs text-muted-foreground">{materialFile.name} · {formatFileSize(materialFile.size)}</p>}</div>
+                              <div className="md:col-span-2"><Label>Descrição</Label><Input value={materialDraft.description} onChange={(event) => setMaterialDraft((current) => ({ ...current, description: event.target.value }))} /></div>
+                              <div className="flex gap-2 md:col-span-2"><Button type="button" disabled={materialSaving} onClick={() => void saveMaterial()}>{materialSaving ? 'Enviando...' : 'Adicionar material'}</Button><Button type="button" variant="outline" disabled={materialSaving} onClick={() => setMaterialLessonId(null)}>Cancelar</Button></div>
+                            </div>
+                          )}
 
                           {!!lesson.lesson_materials.length && <div className="mt-3 space-y-2"><p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Materiais adicionais</p>{lesson.lesson_materials.map((material) => <div key={material.id} className="flex items-center justify-between rounded border border-border px-3 py-2 text-sm"><button type="button" className="text-left underline-offset-4 hover:underline" onClick={() => void openMaterial(material)}>{material.name} · {material.material_type}</button>{!readOnly && <Button type="button" size="sm" variant="ghost" aria-label={`Remover material ${material.name}`} onClick={() => void removeMaterial(material.id)}><Trash2 className="h-4 w-4" /></Button>}</div>)}</div>}
                         </div>
