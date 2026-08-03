@@ -20,5 +20,4 @@ export interface StudentSettings {
   };
   language: string;
   theme: 'Sistema' | 'Claro' | 'Escuro';
-  subscriptionPlan: 'Gratuito' | 'Premium' | 'Enterprise';
 }
