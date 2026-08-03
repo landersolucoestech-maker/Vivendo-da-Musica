@@ -11,7 +11,7 @@ select is(
       from public.enrollments as enrollment
       where enrollment.user_id = certificate.user_id
         and enrollment.course_id = certificate.course_id
-        and enrollment.status = 'active'
+        and enrollment.status::text = 'active'
     )
   ),
   0::bigint,
@@ -29,7 +29,7 @@ select is(
       from public.enrollments as enrollment
       where enrollment.user_id = progress.user_id
         and enrollment.course_id = module.course_id
-        and enrollment.status = 'active'
+        and enrollment.status::text = 'active'
     )
   ),
   0::bigint,
@@ -69,8 +69,8 @@ select is(
       from public.company_members as member
       where member.company_id = company.id
         and member.user_id = company.owner_user_id
-        and member.member_role = 'owner'
-        and member.status = 'active'
+        and member.member_role::text = 'owner'
+        and member.status::text = 'active'
     )
   ),
   0::bigint,
@@ -88,7 +88,7 @@ select is(
         from public.company_members as member
         where member.company_id = opportunity.company_id
           and member.user_id = opportunity.created_by
-          and member.status = 'active'
+          and member.status::text = 'active'
       )
   ),
   0::bigint,
@@ -123,7 +123,7 @@ select is(
         from public.company_members as member
         where member.company_id = opportunity.company_id
           and member.user_id = message.sender_id
-          and member.status = 'active'
+          and member.status::text = 'active'
       )
   ),
   0::bigint,
@@ -136,7 +136,7 @@ select is(
     from public.opportunity_application_messages as message
     join public.opportunity_applications as application on application.id = message.application_id
     where message.sender_id = application.applicant_id
-      and message.sender_type <> 'candidate'
+      and message.sender_type::text <> 'candidate'
   ),
   0::bigint,
   'candidate messages use the candidate sender type'
@@ -153,9 +153,9 @@ select is(
       from public.company_members as member
       where member.company_id = opportunity.company_id
         and member.user_id = message.sender_id
-        and member.status = 'active'
+        and member.status::text = 'active'
     )
-      and message.sender_type <> 'company'
+      and message.sender_type::text <> 'company'
   ),
   0::bigint,
   'company messages use the company sender type'
@@ -198,7 +198,7 @@ select is(
   (
     select count(*)
     from public.affiliate_conversions as conversion
-    where conversion.status = 'approved'
+    where conversion.status::text = 'approved'
       and not exists (
         select 1
         from public.affiliate_commissions as commission
@@ -210,7 +210,7 @@ select is(
 );
 
 select is(
-  (select count(*) from public.affiliate_commissions where status = 'available' and available_at is null),
+  (select count(*) from public.affiliate_commissions where status::text = 'available' and available_at is null),
   0::bigint,
   'available affiliate commissions have availability timestamps'
 );
@@ -219,7 +219,7 @@ select is(
   (
     select count(*)
     from public.affiliate_withdrawals
-    where status in ('paid', 'rejected', 'canceled')
+    where status::text in ('paid', 'rejected', 'canceled')
       and processed_at is null
   ),
   0::bigint,
@@ -288,7 +288,7 @@ select is(
   (
     select count(*)
     from public.producer_payout_requests
-    where status in ('paid', 'rejected', 'canceled')
+    where status::text in ('paid', 'rejected', 'canceled')
       and processed_at is null
   ),
   0::bigint,
