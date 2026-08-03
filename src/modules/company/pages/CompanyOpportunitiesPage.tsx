@@ -9,6 +9,16 @@ import type { CompanyOpportunity, CompanyOpportunityInput } from '@/modules/comp
 import EmptyState from '@/shared/components/EmptyState';
 import ErrorState from '@/shared/components/ErrorState';
 import LoadingState from '@/shared/components/LoadingState';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/shared/components/ui/alert-dialog';
 import { Badge } from '@/shared/components/ui/badge';
 import { Button } from '@/shared/components/ui/button';
 import { Card, CardContent } from '@/shared/components/ui/card';
@@ -76,6 +86,7 @@ const CompanyOpportunitiesPage = () => {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [form, setForm] = useState<FormState | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<CompanyOpportunity | null>(null);
   const [busy, setBusy] = useState(false);
   const [filter, setFilter] = useState<'all' | 'open' | 'closed'>('all');
 
@@ -138,14 +149,18 @@ const CompanyOpportunitiesPage = () => {
     }
   };
 
-  const remove = async (item: CompanyOpportunity) => {
-    if (!window.confirm(`Excluir permanentemente a oportunidade “${item.title}”?`)) return;
+  const confirmDelete = async () => {
+    if (!pendingDelete) return;
+    setBusy(true);
     try {
-      await companyService.deleteOpportunity(item.id);
+      await companyService.deleteOpportunity(pendingDelete.id);
       await refresh();
       toast({ title: 'Oportunidade excluída' });
+      setPendingDelete(null);
     } catch (deleteError) {
       toast({ title: 'Não foi possível excluir', description: deleteError instanceof Error ? deleteError.message : 'Tente novamente.', variant: 'destructive' });
+    } finally {
+      setBusy(false);
     }
   };
 
@@ -197,7 +212,7 @@ const CompanyOpportunitiesPage = () => {
                 <div className="mt-5 flex flex-wrap gap-2 border-t border-white/8 pt-4">
                   <Button variant="outline" size="sm" onClick={() => setForm(toForm(item))}><Pencil className="size-4" />Editar</Button>
                   <Button variant="outline" size="sm" onClick={() => void toggleStatus(item)}><Power className="size-4" />{item.status === 'open' ? 'Encerrar' : 'Reabrir'}</Button>
-                  <Button variant="ghost" size="sm" className="text-red-300 hover:text-red-200" onClick={() => void remove(item)}><Trash2 className="size-4" />Excluir</Button>
+                  <Button variant="ghost" size="sm" className="text-red-300 hover:text-red-200" onClick={() => setPendingDelete(item)}><Trash2 className="size-4" />Excluir</Button>
                 </div>
               </CardContent>
             </Card>
@@ -232,6 +247,23 @@ const CompanyOpportunitiesPage = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={!!pendingDelete} onOpenChange={(open) => !open && setPendingDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir oportunidade?</AlertDialogTitle>
+            <AlertDialogDescription>
+              A oportunidade “{pendingDelete?.title}” e seu histórico serão excluídos permanentemente. Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={busy}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction disabled={busy} onClick={(event) => { event.preventDefault(); void confirmDelete(); }}>
+              {busy ? 'Excluindo...' : 'Excluir definitivamente'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </CompanyLayout>
   );
 };
