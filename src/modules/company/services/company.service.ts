@@ -1,14 +1,19 @@
+import { env } from '@/app/config/env';
 import { supabase } from '@/integrations/supabase/client';
 import type {
   CompanyApplicationStatus,
   CompanyCandidate,
   CompanyConversation,
+  CompanyCreditBalance,
+  CompanyCreditEvent,
   CompanyDashboardData,
   CompanyMessage,
   CompanyOpportunity,
   CompanyOpportunityInput,
   CompanyProfile,
+  JobCreditPack,
 } from '@/modules/company/types/company.types';
+import { getEffectiveUserId } from '@/shared/utils/devIdentity';
 import { isDevAuthBypassEnabled } from '@/shared/utils/devAuthBypass';
 
 const table = supabase.from as unknown as (name: string) => any;
@@ -41,8 +46,36 @@ interface CandidateProfileRow {
 
 const getUserId = async () => {
   const { data, error } = await supabase.auth.getUser();
-  if (error || !data.user) throw new Error('Entre com uma conta empresarial para acessar este portal.');
-  return data.user.id;
+  if (error && !isDevAuthBypassEnabled) {
+    throw new Error('Entre com uma conta empresarial para acessar este portal.');
+  }
+  return getEffectiveUserId(data.user?.id ?? null);
+};
+
+const getAuthorizationHeaders = async () => {
+  const { data, error } = await supabase.auth.getSession();
+  if (error && !isDevAuthBypassEnabled) throw new Error(error.message);
+  const token = data.session?.access_token ?? env.supabasePublishableKey;
+  return {
+    apikey: env.supabasePublishableKey,
+    Authorization: `Bearer ${token}`,
+    'Content-Type': 'application/json',
+  };
+};
+
+const callRpc = async <T>(name: string, body: Record<string, unknown>): Promise<T> => {
+  const response = await fetch(`${env.supabaseUrl}/rest/v1/rpc/${name}`, {
+    method: 'POST',
+    headers: await getAuthorizationHeaders(),
+    body: JSON.stringify(body),
+  });
+
+  if (!response.ok) {
+    const payload = await response.json().catch(() => null) as { message?: string; error?: string } | null;
+    throw new Error(payload?.message ?? payload?.error ?? 'Não foi possível concluir a operação.');
+  }
+
+  return response.json() as Promise<T>;
 };
 
 const mapProfile = (row: any): CompanyProfile => ({
@@ -77,6 +110,8 @@ const mapOpportunity = (row: any): CompanyOpportunity => ({
   applicationDeadline: row.application_deadline,
   applicationCount: row.application_count,
   publishedAt: row.published_at,
+  postingExpiresAt: row.posting_expires_at ?? null,
+  renewalCount: Number(row.renewal_count ?? 0),
   createdAt: row.created_at,
 });
 
@@ -100,7 +135,7 @@ const loadContext = async (): Promise<CompanyContext> => {
 
 const listOpportunitiesForContext = async (context: CompanyContext): Promise<CompanyOpportunity[]> => {
   const { data, error } = await table('opportunities')
-    .select('id, title, kind, location, engagement_type, status, description, requirements, benefits, salary_min_cents, salary_max_cents, currency, work_mode, application_deadline, application_count, published_at, created_at')
+    .select('id, title, kind, location, engagement_type, status, description, requirements, benefits, salary_min_cents, salary_max_cents, currency, work_mode, application_deadline, application_count, published_at, posting_expires_at, renewal_count, created_at')
     .eq('company_id', context.companyId)
     .order('created_at', { ascending: false });
   if (error) throw new Error(`Não foi possível carregar as oportunidades: ${error.message}`);
@@ -212,52 +247,115 @@ export const companyService = {
     if (error) throw new Error(`Não foi possível salvar o perfil: ${error.message}`);
   },
 
+  async listCreditPacks(): Promise<JobCreditPack[]> {
+    const { data, error } = await table('job_credit_packs')
+      .select('id, code, name, description, credit_quantity, price_cents, currency, validity_days, active')
+      .eq('active', true)
+      .order('sort_order', { ascending: true });
+    if (error) throw new Error(`Não foi possível carregar os pacotes de vagas: ${error.message}`);
+    return (data ?? []).map((pack: any) => ({
+      id: pack.id,
+      code: pack.code,
+      name: pack.name,
+      description: pack.description ?? '',
+      creditQuantity: pack.credit_quantity,
+      priceCents: pack.price_cents,
+      currency: pack.currency,
+      validityDays: pack.validity_days,
+      active: pack.active,
+    }));
+  },
+
+  async getCreditBalance(): Promise<CompanyCreditBalance> {
+    const context = await loadContext();
+    const { data, error } = await table('company_credit_balances')
+      .select('available_credits, next_expiration_at')
+      .eq('company_id', context.companyId)
+      .maybeSingle();
+    if (error) throw new Error(`Não foi possível carregar o saldo de vagas: ${error.message}`);
+    return {
+      availableCredits: Number(data?.available_credits ?? 0),
+      nextExpirationAt: data?.next_expiration_at ?? null,
+    };
+  },
+
+  async listCreditEvents(): Promise<CompanyCreditEvent[]> {
+    const context = await loadContext();
+    const { data, error } = await table('company_credit_events')
+      .select('id, event_type, quantity, balance_after, reference, created_at')
+      .eq('company_id', context.companyId)
+      .order('created_at', { ascending: false })
+      .limit(100);
+    if (error) throw new Error(`Não foi possível carregar o histórico de créditos: ${error.message}`);
+    return (data ?? []).map((event: any) => ({
+      id: event.id,
+      type: event.event_type,
+      quantity: event.quantity,
+      balanceAfter: event.balance_after,
+      reference: event.reference ?? '',
+      createdAt: event.created_at,
+    }));
+  },
+
   async listOpportunities(): Promise<CompanyOpportunity[]> {
     return listOpportunitiesForContext(await loadContext());
   },
 
   async saveOpportunity(input: CompanyOpportunityInput): Promise<void> {
     const context = await loadContext();
-    const payload = {
-      company_id: context.companyId,
-      created_by: context.userId,
-      organization_name: context.profile.displayName,
-      title: input.title.trim(),
-      kind: input.kind,
-      location: input.location.trim(),
-      engagement_type: input.engagementType.trim(),
-      description: input.description.trim(),
-      requirements: input.requirements.map((item) => item.trim()).filter(Boolean),
-      benefits: input.benefits.map((item) => item.trim()).filter(Boolean),
-      salary_min_cents: input.salaryMinCents,
-      salary_max_cents: input.salaryMaxCents,
-      currency: 'BRL',
-      work_mode: input.workMode,
-      application_deadline: input.applicationDeadline || null,
-      is_demo: isDevAuthBypassEnabled,
-    };
+    const normalizedRequirements = input.requirements.map((item) => item.trim()).filter(Boolean);
+    const normalizedBenefits = input.benefits.map((item) => item.trim()).filter(Boolean);
 
     if (input.id) {
-      const { error } = await table('opportunities').update(payload).eq('id', input.id).eq('company_id', context.companyId);
+      const { error } = await table('opportunities').update({
+        title: input.title.trim(),
+        kind: input.kind,
+        location: input.location.trim(),
+        engagement_type: input.engagementType.trim(),
+        description: input.description.trim(),
+        requirements: normalizedRequirements,
+        benefits: normalizedBenefits,
+        salary_min_cents: input.salaryMinCents,
+        salary_max_cents: input.salaryMaxCents,
+        currency: 'BRL',
+        work_mode: input.workMode,
+        application_deadline: input.applicationDeadline || null,
+      }).eq('id', input.id).eq('company_id', context.companyId);
       if (error) throw new Error(`Não foi possível atualizar a oportunidade: ${error.message}`);
       return;
     }
 
-    const { error } = await table('opportunities').insert({
-      ...payload,
-      status: 'open',
-      published_at: new Date().toISOString(),
+    await callRpc<CompanyOpportunity>('publish_company_opportunity_with_credit', {
+      target_company_id: context.companyId,
+      target_kind: input.kind,
+      target_title: input.title.trim(),
+      target_location: input.location.trim(),
+      target_engagement_type: input.engagementType.trim(),
+      target_work_mode: input.workMode,
+      target_description: input.description.trim(),
+      target_requirements: normalizedRequirements,
+      target_benefits: normalizedBenefits,
+      target_salary_min_cents: input.salaryMinCents,
+      target_salary_max_cents: input.salaryMaxCents,
+      target_currency: 'BRL',
+      target_application_deadline: input.applicationDeadline || null,
     });
-    if (error) throw new Error(`Não foi possível publicar a oportunidade: ${error.message}`);
   },
 
   async setOpportunityStatus(id: string, status: 'open' | 'closed'): Promise<void> {
     const context = await loadContext();
+    if (status === 'open') {
+      await callRpc<CompanyOpportunity>('renew_company_opportunity_with_credit', {
+        target_opportunity_id: id,
+      });
+      return;
+    }
+
     const { error } = await table('opportunities')
-      .update({ status, published_at: status === 'open' ? new Date().toISOString() : null })
+      .update({ status: 'closed' })
       .eq('id', id)
       .eq('company_id', context.companyId);
-    if (error) throw new Error(`Não foi possível alterar a situação da oportunidade: ${error.message}`);
+    if (error) throw new Error(`Não foi possível encerrar a oportunidade: ${error.message}`);
   },
 
   async deleteOpportunity(id: string): Promise<void> {
