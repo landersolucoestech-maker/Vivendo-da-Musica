@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-test('course detail renders published review and active student metrics', async ({ page }) => {
+test('course detail renders published review, active student metrics and stored thumbnail', async ({ page }) => {
   await page.goto('/academia/beatmaking-trap-funk-e-drill');
 
   await expect(page.getByRole('heading', { name: 'Beatmaking: Trap, Funk e Drill' })).toBeVisible();
@@ -8,4 +8,8 @@ test('course detail renders published review and active student metrics', async 
   await expect(page.getByText('1 aluno', { exact: true })).toBeVisible();
   await expect(page.getByText('A parte de groove e 808 foi direta ao ponto e muito prática.')).toBeVisible();
   await expect(page.getByText('Aluno de Desenvolvimento')).toBeVisible();
+
+  const cover = page.getByRole('img', { name: 'Beatmaking: Trap, Funk e Drill' });
+  await expect(cover).toBeVisible();
+  await expect.poll(async () => cover.evaluate((image: HTMLImageElement) => image.naturalWidth)).toBeGreaterThan(0);
 });
