@@ -11,7 +11,7 @@ test('marketplace cards render stored product covers', async ({ page }) => {
 test('product detail renders the stored cover instead of a simulated gallery', async ({ page }) => {
   await page.goto('/marketplace/pack-transicoes-e-efeitos');
 
-  const cover = page.getByRole('img', { name: 'Capa de Pack Transições e Efeitos' });
+  const cover = page.getByRole('img', { name: 'Capa de Pack de Transições e Efeitos' });
   await expect(cover).toBeVisible();
   await expect.poll(async () => cover.evaluate((image: HTMLImageElement) => image.naturalWidth)).toBeGreaterThan(0);
 });
