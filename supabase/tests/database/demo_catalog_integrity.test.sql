@@ -1,6 +1,6 @@
 begin;
 
-select plan(11);
+select plan(15);
 
 select is(
   (
@@ -165,6 +165,63 @@ select is(
   ),
   0::bigint,
   'every active demo beat purchase has a delivery record'
+);
+
+select is(
+  (
+    select count(*)
+    from public.opportunities as opportunity
+    where opportunity.application_count <> (
+      select count(*)
+      from public.opportunity_applications as application
+      where application.opportunity_id = opportunity.id
+        and application.status <> 'withdrawn'
+    )
+  ),
+  0::bigint,
+  'opportunity application counters match active application records'
+);
+
+select is(
+  (
+    select count(*)
+    from public.community_groups as community_group
+    where community_group.member_count <> (
+      select count(*)
+      from public.community_group_members as member
+      where member.group_id = community_group.id
+    )
+  ),
+  0::bigint,
+  'community group member counters match membership records'
+);
+
+select is(
+  (
+    select count(*)
+    from public.community_posts as post
+    where post.like_count <> (
+      select count(*)
+      from public.community_post_likes as post_like
+      where post_like.post_id = post.id
+    )
+  ),
+  0::bigint,
+  'community post like counters match like records'
+);
+
+select is(
+  (
+    select count(*)
+    from public.affiliate_links as link
+    where link.conversions_count <> (
+      select count(*)
+      from public.affiliate_conversions as conversion
+      where conversion.affiliate_link_id = link.id
+    )
+  ),
+  0::bigint,
+  'affiliate link conversion counters match conversion records'
 );
 
 select * from finish();
