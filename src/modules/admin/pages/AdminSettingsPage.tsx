@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useState } from 'react';
+
 import AdminLayout from '@/app/layouts/AdminLayout';
+import CommercialConfigurationPanel from '@/modules/admin/components/CommercialConfigurationPanel';
+import { adminControlService, type FeatureFlag } from '@/modules/admin/services/adminControl.service';
+import { Button } from '@/shared/components/ui/button';
 import { Input } from '@/shared/components/ui/input';
 import { Label } from '@/shared/components/ui/label';
-import { Button } from '@/shared/components/ui/button';
 import { Switch } from '@/shared/components/ui/switch';
 import { useToast } from '@/shared/hooks/use-toast';
-import { adminControlService, type FeatureFlag } from '@/modules/admin/services/adminControl.service';
 
 const AdminSettingsPage = () => {
   const { toast } = useToast();
@@ -70,46 +72,54 @@ const AdminSettingsPage = () => {
 
   return (
     <AdminLayout>
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold">Configurações</h1>
-        <p className="mt-1 text-muted-foreground">Informações gerais e recursos da plataforma.</p>
+      <div className="mb-8">
+        <p className="vdm-eyebrow">Governança da plataforma</p>
+        <h1 className="vdm-page-title mt-2">Configurações</h1>
+        <p className="vdm-page-description">
+          Informações gerais, recursos e parâmetros comerciais versionados da plataforma.
+        </p>
       </div>
 
-      <div className="max-w-2xl space-y-8">
-        <section className="space-y-4 rounded-lg border border-border bg-card p-5">
-          <div>
-            <Label htmlFor="platform-name">Nome da plataforma</Label>
-            <Input id="platform-name" value={name} onChange={(event) => setName(event.target.value)} />
-          </div>
-          <div>
-            <Label htmlFor="support-email">E-mail de suporte</Label>
-            <Input id="support-email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} />
-          </div>
-          <Button disabled={busy || !name.trim() || !email.trim()} onClick={() => void save()}>
-            {busy ? 'Salvando...' : 'Salvar'}
-          </Button>
-        </section>
+      <div className="space-y-12">
+        <div className="grid gap-6 xl:grid-cols-2">
+          <section className="space-y-4 rounded-lg border border-border bg-card p-5">
+            <h2 className="font-semibold">Informações gerais</h2>
+            <div>
+              <Label htmlFor="platform-name">Nome da plataforma</Label>
+              <Input id="platform-name" value={name} onChange={(event) => setName(event.target.value)} />
+            </div>
+            <div>
+              <Label htmlFor="support-email">E-mail de suporte</Label>
+              <Input id="support-email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} />
+            </div>
+            <Button disabled={busy || !name.trim() || !email.trim()} onClick={() => void save()}>
+              {busy ? 'Salvando...' : 'Salvar informações gerais'}
+            </Button>
+          </section>
 
-        <section className="rounded-lg border border-border bg-card p-5">
-          <h2 className="mb-4 font-semibold">Feature flags</h2>
-          <div className="space-y-4">
-            {flags.map((flag) => (
-              <div key={flag.key} className="flex items-center justify-between gap-4">
-                <div>
-                  <p className="text-sm font-medium">{flag.key}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {flag.description} · distribuição para {flag.rolloutPercentage}%
-                  </p>
+          <section className="rounded-lg border border-border bg-card p-5">
+            <h2 className="mb-4 font-semibold">Feature flags</h2>
+            <div className="space-y-4">
+              {flags.map((flag) => (
+                <div key={flag.key} className="flex items-center justify-between gap-4 rounded-lg border border-white/8 p-3">
+                  <div>
+                    <p className="text-sm font-medium">{flag.key}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {flag.description} · distribuição para {flag.rolloutPercentage}%
+                    </p>
+                  </div>
+                  <Switch
+                    checked={flag.enabled}
+                    onCheckedChange={() => void toggle(flag)}
+                    aria-label={`Alternar ${flag.key}`}
+                  />
                 </div>
-                <Switch
-                  checked={flag.enabled}
-                  onCheckedChange={() => void toggle(flag)}
-                  aria-label={`Alternar ${flag.key}`}
-                />
-              </div>
-            ))}
-          </div>
-        </section>
+              ))}
+            </div>
+          </section>
+        </div>
+
+        <CommercialConfigurationPanel />
       </div>
     </AdminLayout>
   );
