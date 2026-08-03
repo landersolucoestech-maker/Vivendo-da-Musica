@@ -9,6 +9,7 @@ export interface Product {
   currency: string;
   status: 'draft' | 'published' | 'archived';
   publishedAt: string | null;
+  coverUrl?: string | null;
   gradientFrom: string;
   gradientTo: string;
 }
