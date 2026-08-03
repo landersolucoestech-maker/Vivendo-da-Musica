@@ -114,7 +114,6 @@ const VideoPlayer = ({ lesson }: VideoPlayerProps) => {
               disablePictureInPicture
               playsInline
               preload="metadata"
-              referrerPolicy="no-referrer"
               onContextMenu={(event) => event.preventDefault()}
             >
               Seu navegador não suporta a reprodução deste vídeo.
