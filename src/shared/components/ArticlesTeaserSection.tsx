@@ -1,4 +1,4 @@
-import { ArrowUpRight, Clock, LockKeyhole } from 'lucide-react';
+import { ArrowUpRight, Clock } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 import { useFeaturedArticles } from '@/modules/content-portal/hooks/useArticles';
@@ -37,7 +37,6 @@ const ArticlesTeaserSection = () => {
                 <span className="text-xs font-semibold uppercase tracking-[0.14em] text-primary">
                   {article.category}
                 </span>
-                {article.isPremium && <LockKeyhole className="size-4 text-primary" aria-label="Conteúdo restrito" />}
               </div>
 
               <h3 className="mt-6 font-display text-xl font-semibold leading-snug text-white transition group-hover:text-[#caa7ff]">
