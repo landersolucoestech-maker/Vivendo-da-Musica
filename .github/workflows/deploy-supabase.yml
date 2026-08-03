@@ -1,0 +1,76 @@
+name: Deploy Supabase
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Ambiente de destino
+        required: true
+        type: choice
+        options:
+          - dev
+          - staging
+          - production
+      apply_migrations:
+        description: Aplicar migrations antes das funções
+        required: true
+        default: true
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: supabase-${{ inputs.environment }}
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Validate target secrets
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+        run: |
+          test -n "$SUPABASE_ACCESS_TOKEN"
+          test -n "$SUPABASE_PROJECT_REF"
+          if [ "${{ inputs.apply_migrations }}" = "true" ]; then test -n "$SUPABASE_DB_PASSWORD"; fi
+          if [ "${{ inputs.environment }}" = "production" ] && [ "$SUPABASE_PROJECT_REF" = "ywirfqvobfnunlcsnptm" ]; then
+            echo "O projeto de desenvolvimento não pode ser usado em produção."
+            exit 1
+          fi
+
+      - name: Link Supabase project
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+        run: npx supabase link --project-ref "$SUPABASE_PROJECT_REF" --password "$SUPABASE_DB_PASSWORD"
+
+      - name: Apply database migrations
+        if: ${{ inputs.apply_migrations }}
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+        run: npx supabase db push --include-all --password "$SUPABASE_DB_PASSWORD"
+
+      - name: Deploy Edge Functions
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+        run: node scripts/deploy-supabase-functions.mjs
