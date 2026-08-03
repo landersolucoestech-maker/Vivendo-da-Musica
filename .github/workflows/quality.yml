@@ -46,6 +46,8 @@ jobs:
     needs: quality
     runs-on: ubuntu-latest
     timeout-minutes: 25
+    env:
+      VITE_PREVIEW_MODE: 'true'
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
