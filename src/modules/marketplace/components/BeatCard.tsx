@@ -15,12 +15,21 @@ const BeatCard = ({ beat }: { beat: Beat }) => {
 
   return (
     <div className="overflow-hidden rounded-lg border border-border bg-card transition-colors hover:border-brand-medium/50">
-      <Link to={href} className="block">
+      <Link to={href} className="group relative block overflow-hidden">
         <div
-          className="flex aspect-square items-center justify-center p-4"
+          className="relative flex aspect-square items-center justify-center overflow-hidden p-4"
           style={{ background: `linear-gradient(135deg, ${beat.gradientFrom}, ${beat.gradientTo})` }}
         >
-          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white/15 text-white backdrop-blur">
+          {beat.coverUrl && (
+            <img
+              src={beat.coverUrl}
+              alt={`Capa de ${beat.title}`}
+              loading="lazy"
+              className="absolute inset-0 size-full object-cover transition duration-300 group-hover:scale-[1.03]"
+            />
+          )}
+          <div className="absolute inset-0 bg-black/20 transition group-hover:bg-black/10" />
+          <div className="relative flex h-12 w-12 items-center justify-center rounded-full bg-black/45 text-white backdrop-blur">
             <Play className="h-5 w-5 fill-white" />
           </div>
         </div>
@@ -50,22 +59,23 @@ const BeatCard = ({ beat }: { beat: Beat }) => {
             </p>
           </div>
           <div className="flex gap-2">
-          <FavoriteButton type="produto" targetId={beat.id} />
-          <Button
-            size="icon"
-            variant="outline"
-            className="shrink-0"
-            disabled={!startingLicense}
-            onClick={() => startingLicense && addItem({
-              kind: "beat_license",
-              id: startingLicense.id,
-              title: `${beat.title} - ${startingLicense.name}`,
-              priceCents: startingLicense.priceCents,
-              currency: startingLicense.currency,
-            })}
-          >
-            <ShoppingCart className="h-4 w-4" />
-          </Button>
+            <FavoriteButton type="produto" targetId={beat.id} />
+            <Button
+              size="icon"
+              variant="outline"
+              className="shrink-0"
+              aria-label={`Adicionar licença de ${beat.title} ao carrinho`}
+              disabled={!startingLicense}
+              onClick={() => startingLicense && addItem({
+                kind: "beat_license",
+                id: startingLicense.id,
+                title: `${beat.title} - ${startingLicense.name}`,
+                priceCents: startingLicense.priceCents,
+                currency: startingLicense.currency,
+              })}
+            >
+              <ShoppingCart className="h-4 w-4" />
+            </Button>
           </div>
         </div>
       </div>
