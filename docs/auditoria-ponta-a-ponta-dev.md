@@ -16,8 +16,8 @@ Foram aprovados no mesmo estado funcional da branch `dev`:
 - rebuild integral do banco a partir do histórico de migrations;
 - lint do banco;
 - todos os testes pgTAP;
-- build e publicação do preview;
-- **96 testes E2E do preview**, cobrindo páginas públicas, todos os portais, desktop, mobile, player, marketplace, checkout, pop-ups e rota 404;
+- build do preview e status de publicação aprovado;
+- **97 testes E2E do preview**, cobrindo páginas públicas, todos os portais, desktop, mobile, player, marketplace, checkout, pop-ups, redirecionamentos legados e rota 404;
 - **1 teste E2E separado do guarda de autenticação**, executado com o bypass desativado e aprovado sem modificar a autenticação.
 
 Não há falha funcional conhecida nos fluxos auditados. O preview hospedado permanece configurado para inspeção direta dos portais com identidades demonstrativas.
@@ -67,6 +67,7 @@ A suíte foi apenas separada por contexto: os fluxos demonstrativos são testado
 | RLS e privilégios | Conforme no escopo não-auth | Todas as tabelas públicas possuem RLS e políticas; operações do preview são limitadas aos registros demonstrativos aplicáveis. |
 | Storage | Conforme | Buckets de entrega são privados; imagens públicas não podem ser enumeradas por política ampla em `storage.objects`. |
 | Edge Functions demonstrativas | Conforme ao objetivo do `dev` | Checkout e download validam projeto, origem, formato dos dados e idempotência; não representam pagamentos reais. |
+| CI e release | Conforme ao estágio atual | Workflows usam actions compatíveis com runtime Node.js 24; preview e guarda de autenticação são testados separadamente; produção continua bloqueada por gate enquanto houver componentes exclusivos do `dev`. |
 | Autenticação | Excluído | Congelada até autorização expressa para uma rodada própria. |
 
 ## Correções realizadas durante a auditoria
@@ -96,6 +97,13 @@ A suíte foi apenas separada por contexto: os fluxos demonstrativos são testado
 23. Criação de regras automatizadas que impedem `slide-in`, `slide-out`, diálogos nativos e componentes de modal fora do centro da viewport.
 24. Correção de dependências instáveis em hooks administrativos que poderiam causar rerenderizações e avisos desnecessários.
 25. Criação de teste contratual para preservar o acesso unificado por Aluno, Produtor, Instrutor, Empresa e Afiliado.
+26. Correção da rota legada `/aluno/beats`, que encaminhava o aluno ao portal do produtor; ela agora termina em `/aluno/downloads`.
+27. Ampliação do verificador publicado no GitHub Pages para validar redirecionamentos esperados, incluindo a rota legada do aluno.
+28. Migração dos workflows para versões de actions compatíveis com runtime Node.js 24.
+29. Separação da validação de release por ambiente: staging demonstrativo, staging com autenticação e produção possuem comandos distintos.
+30. Criação de testes que comprovam que produção permanece bloqueada com projeto Supabase `dev`, bypass, mocks ou componentes demonstrativos exclusivos.
+31. Fortalecimento da exceção temporária do advisory do React Router: o gate agora bloqueia a build caso qualquer API, pacote ou runtime RSC apareça no projeto.
+32. Criação de roteiro completo de homologação manual para revisão funcional, visual e textual pelo proprietário.
 
 ## Invariantes automatizadas e verificadas
 
@@ -119,25 +127,29 @@ A suíte do banco e as consultas remotas confirmam, entre outros pontos:
 - ausência de leitura anônima dos materiais protegidos;
 - ausência de função pública `SECURITY DEFINER` executável por `anon`;
 - ausência de tabela pública sem RLS ou sem política;
-- suporte do preview restrito a registros demonstrativos.
+- suporte do preview restrito a registros demonstrativos;
+- ausência de APIs e runtime React Server Components na SPA;
+- impossibilidade de liberar produção com configurações exclusivas do ambiente demonstrativo.
 
 ## Evidência da execução final
 
 A execução final apresentou:
 
-- **96 de 96 testes E2E do preview aprovados** em aproximadamente 2,2 minutos;
+- **97 de 97 testes E2E do preview aprovados** em aproximadamente 1,9 minuto;
 - **1 de 1 teste E2E do guarda de autenticação aprovado** em execução separada;
 - lint, typecheck, testes unitários, contratos e segurança aprovados;
+- gate de dependências aprovado, incluindo comprovação de ausência de runtime RSC;
 - build e performance gate aprovados;
 - rebuild completo do banco aprovado;
 - lint do banco aprovado;
 - todos os testes pgTAP aprovados;
-- publicação do preview aprovada.
+- build do preview e status de publicação aprovados.
 
 Foram testados explicitamente:
 
 - 19 rotas públicas e seus conteúdos principais;
 - 54 rotas de aluno, instrutor, produtor, afiliado, empresa e administração;
+- rota legada `/aluno/beats` e seu destino correto;
 - 9 cenários móveis representativos;
 - fluxo de checkout de produto demonstrativo;
 - player Vimeo e rotas de aula;
@@ -154,12 +166,11 @@ Foram testados explicitamente:
 - Arquivos de demonstração podem ser materializados apenas para testar entrega e URL assinada.
 - O conteúdo audiovisual demonstrativo utiliza fonte neutra incorporada.
 - O Supabase Security Advisor mantém apenas o alerta de proteção contra senhas vazadas desativada, pertencente ao escopo de autenticação congelado.
-- O `npm audit` identifica um advisory alto do React Router e sua dependência indireta. O gate registra uma exceção restrita ao advisory de APIs RSC, que não são usadas nesta SPA Vite; a dependência deve ser reavaliada antes da liberação de produção.
-- Os logs do GitHub Actions alertam que ações baseadas em Node.js 20 estão sendo executadas forçadamente em Node.js 24. A atualização dos actions é uma tarefa de manutenção de CI, não uma falha funcional da aplicação.
+- O `npm audit` identifica um advisory alto do React Router e sua dependência indireta. O gate admite somente esse advisory de APIs RSC enquanto comprovar que a SPA não importa APIs, pacotes nem runtime RSC; qualquer utilização futura bloqueia a build. A atualização principal do React Router permanece para uma rodada controlada antes da produção.
 - O banco demonstrativo possui índices ainda sem utilização observada. Eles não foram removidos apenas com base no baixo volume e curto histórico de consultas do ambiente `dev`.
 
 ## Conclusão
 
 O projeto está apto para **revisão funcional e visual completa no preview `dev`**, dentro do escopo demonstrativo e sem autenticação real.
 
-A autenticação permanece bloqueada para alteração até a conclusão da revisão do proprietário. Antes de produção ainda serão obrigatórios: processador real de pagamentos, arquivos definitivos, configuração final dos ambientes, revisão do advisory do React Router, atualização dos GitHub Actions e a rodada exclusiva de autenticação e autorização.
+A autenticação permanece bloqueada para alteração até a conclusão da revisão do proprietário. Antes de produção ainda serão obrigatórios: processador real de pagamentos, arquivos definitivos, configuração final dos ambientes, atualização principal controlada do React Router e a rodada exclusiva de autenticação e autorização.
