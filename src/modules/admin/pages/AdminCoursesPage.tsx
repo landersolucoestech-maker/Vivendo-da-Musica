@@ -30,7 +30,7 @@ const AdminCoursesPage = () => {
     queryFn: courseManagementApi.listCourses,
   });
 
-  const rows = coursesQuery.data ?? [];
+  const rows = useMemo(() => coursesQuery.data ?? [], [coursesQuery.data]);
   const filtered = useMemo(
     () => rows.filter((course) => {
       const matchesStatus = status === 'Todos' || course.status === status;
