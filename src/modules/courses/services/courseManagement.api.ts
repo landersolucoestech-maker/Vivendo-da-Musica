@@ -108,7 +108,18 @@ export interface MaterialInput {
   order_index: number;
 }
 
+export interface LessonVideoUploadResult {
+  path: string;
+  mimeType: string;
+  sizeBytes: number;
+  originalName: string;
+}
+
 const MATERIAL_BUCKET = 'lesson-materials';
+const VIDEO_BUCKET = 'lesson-videos';
+const MAX_VIDEO_SIZE_BYTES = 500 * 1024 * 1024;
+const VIDEO_MIME_TYPES = new Set(['video/mp4', 'video/webm', 'video/quicktime']);
+const VIDEO_FILE_EXTENSION = /\.(mp4|webm|mov)$/i;
 
 const assertConfiguration = () => {
   if (!env.supabaseUrl || !env.supabasePublishableKey) {
@@ -161,12 +172,21 @@ const safeFileName = (value: string) => value
   .replace(/-+/g, '-')
   .replace(/^-|-$/g, '');
 
-const removeMaterialFiles = async (paths: string[]) => {
-  const validPaths = paths.filter((path) => path && !/^https?:\/\//i.test(path));
+const isStoragePath = (value: string | null | undefined) =>
+  Boolean(value && !/^https?:\/\//i.test(value));
+
+const removeStorageFiles = async (bucket: string, paths: string[], warning: string) => {
+  const validPaths = paths.filter((path) => isStoragePath(path));
   if (!validPaths.length) return;
-  const { error } = await supabase.storage.from(MATERIAL_BUCKET).remove(validPaths);
-  if (error) console.warn('Falha ao remover arquivos de materiais órfãos.', error);
+  const { error } = await supabase.storage.from(bucket).remove(validPaths);
+  if (error) console.warn(warning, error);
 };
+
+const removeMaterialFiles = (paths: string[]) =>
+  removeStorageFiles(MATERIAL_BUCKET, paths, 'Falha ao remover arquivos de materiais órfãos.');
+
+const removeVideoFiles = (paths: string[]) =>
+  removeStorageFiles(VIDEO_BUCKET, paths, 'Falha ao remover vídeos de aulas órfãos.');
 
 const normalizeCourse = (course: ManagedCourse): ManagedCourse => ({
   ...course,
@@ -210,6 +230,14 @@ const courseSelection = [
 ].join(',');
 
 export const courseManagementApi = {
+  validateLessonVideoFile(file: File): string | null {
+    const supportedType = VIDEO_MIME_TYPES.has(file.type) || VIDEO_FILE_EXTENSION.test(file.name);
+    if (!supportedType) return 'Selecione um vídeo MP4, WebM ou QuickTime.';
+    if (file.size <= 0) return 'O arquivo de vídeo está vazio.';
+    if (file.size > MAX_VIDEO_SIZE_BYTES) return 'O vídeo deve ter no máximo 500 MB.';
+    return null;
+  },
+
   async listCourses(): Promise<ManagedCourse[]> {
     const courses = await request<ManagedCourse[]>(
       `courses?select=${encodeURIComponent(courseSelection)}&order=created_at.desc`,
@@ -268,14 +296,21 @@ export const courseManagementApi = {
   },
 
   async deleteModule(id: string): Promise<void> {
-    const modules = await request<Array<{ lessons: Array<{ lesson_materials: Array<{ file_url: string }> }> }>>(
-      `course_modules?id=eq.${encodeURIComponent(id)}&select=lessons(lesson_materials(file_url))&limit=1`,
+    const modules = await request<Array<{
+      lessons: Array<{
+        video_url: string | null;
+        lesson_materials: Array<{ file_url: string }>;
+      }>;
+    }>>(
+      `course_modules?id=eq.${encodeURIComponent(id)}&select=lessons(video_url,lesson_materials(file_url))&limit=1`,
     );
-    const paths = (modules[0]?.lessons ?? []).flatMap((lesson) =>
+    const lessons = modules[0]?.lessons ?? [];
+    const materialPaths = lessons.flatMap((lesson) =>
       (lesson.lesson_materials ?? []).map((material) => material.file_url),
     );
+    const videoPaths = lessons.flatMap((lesson) => lesson.video_url ? [lesson.video_url] : []);
     await request<void>(`course_modules?id=eq.${encodeURIComponent(id)}`, { method: 'DELETE' });
-    await removeMaterialFiles(paths);
+    await Promise.all([removeMaterialFiles(materialPaths), removeVideoFiles(videoPaths)]);
   },
 
   async createLesson(input: LessonInput): Promise<LessonRecord> {
@@ -297,12 +332,55 @@ export const courseManagementApi = {
   },
 
   async deleteLesson(id: string): Promise<void> {
-    const lessons = await request<Array<{ lesson_materials: Array<{ file_url: string }> }>>(
-      `lessons?id=eq.${encodeURIComponent(id)}&select=lesson_materials(file_url)&limit=1`,
+    const lessons = await request<Array<{
+      video_url: string | null;
+      lesson_materials: Array<{ file_url: string }>;
+    }>>(
+      `lessons?id=eq.${encodeURIComponent(id)}&select=video_url,lesson_materials(file_url)&limit=1`,
     );
-    const paths = (lessons[0]?.lesson_materials ?? []).map((material) => material.file_url);
+    const lesson = lessons[0];
+    const materialPaths = (lesson?.lesson_materials ?? []).map((material) => material.file_url);
+    const videoPaths = lesson?.video_url ? [lesson.video_url] : [];
     await request<void>(`lessons?id=eq.${encodeURIComponent(id)}`, { method: 'DELETE' });
-    await removeMaterialFiles(paths);
+    await Promise.all([removeMaterialFiles(materialPaths), removeVideoFiles(videoPaths)]);
+  },
+
+  async uploadLessonVideo(courseId: string, lessonId: string, file: File): Promise<LessonVideoUploadResult> {
+    const validationError = this.validateLessonVideoFile(file);
+    if (validationError) throw new Error(validationError);
+
+    const fileName = safeFileName(file.name) || 'videoaula.mp4';
+    const path = `${courseId}/${lessonId}/${crypto.randomUUID()}-${fileName}`;
+    const { error } = await supabase.storage.from(VIDEO_BUCKET).upload(path, file, {
+      upsert: false,
+      cacheControl: '3600',
+      contentType: file.type || 'video/mp4',
+    });
+    if (error) throw new Error(error.message);
+
+    return {
+      path,
+      mimeType: file.type || 'video/mp4',
+      sizeBytes: file.size,
+      originalName: file.name,
+    };
+  },
+
+  async removeLessonVideoFile(path: string): Promise<void> {
+    await removeVideoFiles([path]);
+  },
+
+  async createSignedLessonVideoUrl(path: string, expiresInSeconds = 7200): Promise<string> {
+    if (!isStoragePath(path)) {
+      throw new Error('A videoaula deve estar armazenada no storage privado da plataforma.');
+    }
+    const { data, error } = await supabase.storage
+      .from(VIDEO_BUCKET)
+      .createSignedUrl(path, expiresInSeconds);
+    if (error || !data?.signedUrl) {
+      throw new Error(error?.message ?? 'Não foi possível liberar a reprodução da videoaula.');
+    }
+    return data.signedUrl;
   },
 
   async uploadMaterialFile(courseId: string, lessonId: string, file: File) {
