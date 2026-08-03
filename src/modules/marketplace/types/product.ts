@@ -28,7 +28,7 @@ export interface ProductQA {
 
 export type ProductLicense = 'Padrao' | 'Estendida' | 'Exclusiva';
 
-export type BeatLicenseType = 'basic' | 'premium' | 'unlimited' | 'exclusive';
+export type BeatLicenseType = 'basic' | 'pro' | 'unlimited' | 'exclusive';
 
 export interface BeatLicense {
   id: string;
