@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import {
   ArrowRight,
   Award,
@@ -20,14 +20,11 @@ import StudentLayout from '@/app/layouts/StudentLayout';
 import { useAuthContext } from '@/app/providers/AuthProvider';
 import { useRecentCertificates } from '@/modules/certificates/hooks/useCertificates';
 import { useUnreadNotificationsCount } from '@/modules/dashboard/hooks/useNotifications';
-import LessonGrid from '@/modules/lessons/components/LessonGrid';
 import { useProgressCalculation } from '@/modules/lessons/hooks/useProgressCalculation';
 import { useRecommendedDownloads } from '@/modules/marketplace/hooks/useDownloads';
-import ModuleProgress from '@/modules/modules-manager/components/ModuleProgress';
 import { useModules } from '@/modules/modules-manager/hooks/useModules';
 import { Button } from '@/shared/components/ui/button';
 import { Progress } from '@/shared/components/ui/progress';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/shared/components/ui/tabs';
 import { ROUTES } from '@/shared/constants/routes';
 
 const QUICK_ACTIONS = [
@@ -58,9 +55,8 @@ const QUICK_ACTIONS = [
 ];
 
 const Dashboard = () => {
-  const navigate = useNavigate();
   const { user, profile } = useAuthContext();
-  const { data: modules, isLoading: modulesLoading, error: modulesError } = useModules();
+  const { data: modules } = useModules();
   const modulesWithProgress = useProgressCalculation(modules);
 
   const displayName = profile?.full_name || user?.user_metadata?.full_name || user?.email || 'Estudante';
@@ -107,10 +103,6 @@ const Dashboard = () => {
   const { data: recentCertificates = [] } = useRecentCertificates(2);
   const { data: recommendedDownloads = [] } = useRecommendedDownloads(2);
 
-  const handleLessonClick = (lesson: { id: string }) => {
-    navigate(ROUTES.lesson(lesson.id));
-  };
-
   return (
     <StudentLayout>
       <section className="relative overflow-hidden rounded-[1.75rem] border border-white/10 bg-[#111111] p-5 shadow-[0_24px_70px_rgba(0,0,0,0.32)] sm:p-7 lg:p-8">
@@ -143,7 +135,7 @@ const Dashboard = () => {
               Olá, {firstName}. <span className="text-white/45">Vamos continuar sua evolução?</span>
             </h1>
             <p className="mt-4 max-w-2xl text-sm leading-6 text-muted-foreground sm:text-base">
-              Seu aprendizado agora está organizado por prioridade: continue a próxima aula, acompanhe sua trilha e acesse os recursos mais importantes sem ruído visual.
+              Acompanhe suas prioridades, retome a próxima aula e acesse rapidamente os recursos mais importantes.
             </p>
 
             <div className="mt-7 flex flex-wrap gap-3">
@@ -211,7 +203,7 @@ const Dashboard = () => {
         </div>
       </section>
 
-      <div className="mt-6 grid gap-6 xl:grid-cols-[minmax(0,1.75fr)_minmax(320px,0.75fr)]">
+      <div className="mt-6 grid gap-6 xl:grid-cols-[minmax(0,1.4fr)_minmax(320px,0.6fr)]">
         <div className="min-w-0 space-y-6">
           {firstIncompleteLesson ? (
             <section className="relative overflow-hidden rounded-2xl border border-primary/20 bg-gradient-to-br from-primary/14 via-[#15111a] to-[#101010] p-5 sm:p-6">
@@ -257,60 +249,6 @@ const Dashboard = () => {
             </section>
           )}
 
-          <section className="rounded-2xl border border-white/8 bg-[#101010] p-4 shadow-[0_18px_55px_rgba(0,0,0,0.24)] sm:p-6">
-            <div className="flex flex-col gap-4 border-b border-white/8 pb-5 sm:flex-row sm:items-end sm:justify-between">
-              <div>
-                <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-primary">Meu aprendizado</p>
-                <h2 className="mt-2 font-display text-2xl font-semibold text-white">Sua trilha organizada</h2>
-                <p className="mt-1 text-sm text-muted-foreground">Aulas e progresso reunidos em uma única área de trabalho.</p>
-              </div>
-              <Link to={ROUTES.myCourses} className="inline-flex items-center gap-2 text-sm font-semibold text-primary hover:text-primary/80">
-                Todos os cursos
-                <ArrowRight className="size-4" />
-              </Link>
-            </div>
-
-            <Tabs defaultValue="aulas" className="mt-5 space-y-5">
-              <TabsList className="h-auto w-full justify-start gap-1 rounded-xl border border-white/8 bg-black/20 p-1 sm:w-auto">
-                <TabsTrigger
-                  value="aulas"
-                  className="flex-1 gap-2 rounded-lg px-4 py-2.5 data-[state=active]:bg-primary data-[state=active]:text-white sm:flex-none"
-                >
-                  <BookOpen className="size-4" />
-                  Aulas
-                </TabsTrigger>
-                <TabsTrigger
-                  value="progresso"
-                  className="flex-1 gap-2 rounded-lg px-4 py-2.5 data-[state=active]:bg-primary data-[state=active]:text-white sm:flex-none"
-                >
-                  <Award className="size-4" />
-                  Progresso
-                </TabsTrigger>
-              </TabsList>
-
-              <TabsContent value="aulas" className="mt-0">
-                {modulesLoading ? (
-                  <div className="flex items-center justify-center rounded-2xl border border-white/8 bg-white/[0.015] py-16">
-                    <div className="size-9 animate-spin rounded-full border-2 border-white/10 border-t-primary" />
-                  </div>
-                ) : modulesError ? (
-                  <div className="rounded-2xl border border-white/8 bg-white/[0.015] py-14 text-center">
-                    <p className="mb-5 text-sm text-muted-foreground">Não foi possível carregar suas aulas agora.</p>
-                    <Button onClick={() => window.location.reload()}>Tentar novamente</Button>
-                  </div>
-                ) : (
-                  <LessonGrid modules={modulesWithProgress} onLessonClick={handleLessonClick} />
-                )}
-              </TabsContent>
-
-              <TabsContent value="progresso" className="mt-0">
-                <ModuleProgress modules={modulesWithProgress} />
-              </TabsContent>
-            </Tabs>
-          </section>
-        </div>
-
-        <aside className="space-y-6">
           <section>
             <div className="mb-3 flex items-center justify-between">
               <div>
@@ -318,23 +256,31 @@ const Dashboard = () => {
                 <h2 className="mt-1 font-display text-lg font-semibold text-white">Acesso rápido</h2>
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid gap-3 sm:grid-cols-2">
               {QUICK_ACTIONS.map(({ label, description, to, icon: Icon }) => (
                 <Link
                   key={to}
                   to={to}
-                  className="group min-h-36 rounded-2xl border border-white/8 bg-[#101010] p-4 transition hover:border-primary/30 hover:bg-primary/[0.06]"
+                  className="group flex min-h-32 items-start gap-4 rounded-2xl border border-white/8 bg-[#101010] p-5 transition hover:border-primary/30 hover:bg-primary/[0.06]"
                 >
-                  <span className="flex size-10 items-center justify-center rounded-xl border border-white/8 bg-white/[0.035] text-white/65 transition group-hover:border-primary/25 group-hover:bg-primary/15 group-hover:text-primary">
+                  <span className="flex size-11 shrink-0 items-center justify-center rounded-xl border border-white/8 bg-white/[0.035] text-white/65 transition group-hover:border-primary/25 group-hover:bg-primary/15 group-hover:text-primary">
                     <Icon className="size-5" />
                   </span>
-                  <p className="mt-5 text-sm font-semibold text-white">{label}</p>
-                  <p className="mt-1 text-xs leading-5 text-muted-foreground">{description}</p>
+                  <span className="min-w-0">
+                    <span className="block text-sm font-semibold text-white">{label}</span>
+                    <span className="mt-1 block text-xs leading-5 text-muted-foreground">{description}</span>
+                    <span className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-primary">
+                      Abrir
+                      <ArrowRight className="size-3.5" />
+                    </span>
+                  </span>
                 </Link>
               ))}
             </div>
           </section>
+        </div>
 
+        <aside className="space-y-6">
           <section className="rounded-2xl border border-white/8 bg-[#101010] p-5">
             <div className="flex items-center justify-between">
               <div>
