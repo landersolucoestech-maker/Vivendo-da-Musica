@@ -108,7 +108,7 @@ Deno.serve(async (request) => {
   }
 
   for (const item of insertedItems) {
-    const contractNumber = `VDM-DEV-${item.id.replaceAll('-', '').slice(0, 12).toUpperCase()}`;
+    const contractNumber = `VDM-DEV-${item.id.replaceAll('-', '').slice(-12).toUpperCase()}`;
     const { data: purchase } = await admin.from('beat_license_purchases').insert({
       beat_order_item_id: item.id, beat_id: item.beat_id, license_id: item.license_id,
       buyer_id: STUDENT_ID, contract_number: contractNumber, status: 'active', issued_at: paidAt,
