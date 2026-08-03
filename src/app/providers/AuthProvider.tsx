@@ -106,7 +106,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       return uniqueCapabilities(devRole === 'student' ? ['student'] : ['student', devRole]);
     }
 
-    const active = persistedCapabilities ?? [];
+    const active = [...(persistedCapabilities ?? [])];
     if (profile?.role && !active.includes(profile.role)) active.push(profile.role);
     if (!active.includes('student')) active.push('student');
     return uniqueCapabilities(active);
