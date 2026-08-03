@@ -1,4 +1,4 @@
-import { BriefcaseBusiness, Building2, LayoutDashboard, MessageSquareText, UsersRound } from 'lucide-react';
+import { BriefcaseBusiness, Building2, Coins, LayoutDashboard, MessageSquareText, UsersRound } from 'lucide-react';
 
 import SidebarNavList from '@/shared/components/SidebarNavList';
 import { ROUTES } from '@/shared/constants/routes';
@@ -6,6 +6,7 @@ import { ROUTES } from '@/shared/constants/routes';
 export const COMPANY_NAV_ITEMS = [
   { label: 'Visão geral', to: ROUTES.company, icon: LayoutDashboard },
   { label: 'Oportunidades', to: ROUTES.companyOpportunities, icon: BriefcaseBusiness },
+  { label: 'Créditos de vagas', to: ROUTES.companyCredits, icon: Coins },
   { label: 'Candidatos', to: ROUTES.companyCandidates, icon: UsersRound },
   { label: 'Mensagens', to: ROUTES.companyMessages, icon: MessageSquareText },
   { label: 'Perfil da empresa', to: ROUTES.companyProfile, icon: Building2 },
