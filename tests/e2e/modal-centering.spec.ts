@@ -28,13 +28,17 @@ test('company opportunity editor opens as a centered popup', async ({ page }) =>
   await expect(dialog).toBeHidden();
 });
 
-test('company deletion confirmation uses a centered alert popup', async ({ page }) => {
-  await page.goto('/empresa/oportunidades');
-  const deleteButton = page.getByRole('button', { name: 'Excluir' }).first();
-  await expect(deleteButton).toBeVisible();
-  await deleteButton.click();
+test('curriculum deletion confirmation uses a centered alert popup', async ({ page }) => {
+  await page.goto('/admin/cursos');
+  await page.getByRole('button', { name: 'Editar' }).first().click();
 
-  const alert = page.getByRole('alertdialog', { name: 'Excluir oportunidade?' });
+  const editor = page.getByRole('dialog', { name: 'Editar curso' });
+  await expect(editor).toBeVisible();
+  const deleteModuleButton = editor.getByRole('button', { name: /Excluir módulo/i }).first();
+  await expect(deleteModuleButton).toBeVisible();
+  await deleteModuleButton.click();
+
+  const alert = page.getByRole('alertdialog', { name: 'Excluir módulo?' });
   await expectCentered(page, alert);
   await expect(alert).toContainText('Esta ação não pode ser desfeita');
 
@@ -46,7 +50,7 @@ test('admin course editor opens as a centered popup', async ({ page }) => {
   await page.goto('/admin/cursos');
   await page.getByRole('button', { name: 'Novo curso' }).click();
 
-  const dialog = page.getByRole('dialog');
+  const dialog = page.getByRole('dialog', { name: 'Novo curso' });
   await expectCentered(page, dialog);
   await expect(dialog).toContainText(/novo curso|criar curso/i);
 });
