@@ -67,6 +67,7 @@ Deno.serve(async (request) => {
   const body = await request.json().catch(() => ({})) as Body;
   const authorization = request.headers.get('authorization');
   let userId: string | null = null;
+  let isDemoPreview = false;
   if (authorization) {
     const client = createClient(supabaseUrl, publishableKey, { global: { headers: { Authorization: authorization } }, auth: { persistSession: false } });
     const { data } = await client.auth.getUser();
@@ -76,6 +77,7 @@ Deno.serve(async (request) => {
   if (!userId && isDev && typeof body.actingUserId === 'string' && UUID_PATTERN.test(body.actingUserId)) {
     const { data } = await admin.from('user_profiles').select('user_id').eq('user_id', body.actingUserId).eq('is_demo', true).maybeSingle();
     userId = data?.user_id ?? null;
+    isDemoPreview = Boolean(userId);
   }
   if (!userId) return reply({ error: 'Autenticação obrigatória.' }, 401, origin);
 
@@ -104,13 +106,13 @@ Deno.serve(async (request) => {
     const { data, error } = await admin.from('service_listings').insert({
       provider_id: userId, category_id: categoryId, slug, title,
       short_description: text(body.shortDescription, 280) || null, description,
-      requirements: strings(body.requirements), status: 'draft', moderation_status: 'pending', is_demo: isDev && !authorization,
+      requirements: strings(body.requirements), status: 'draft', moderation_status: 'pending', is_demo: isDemoPreview,
     }).select('id').single();
     if (error || !data) return reply({ error: error?.message ?? 'Serviço não criado.' }, 400, origin);
-    const { data: profile } = await admin.from('user_profiles').select('full_name,bio,avatar_url,city,is_demo').eq('user_id', userId).maybeSingle();
+    const { data: profile } = await admin.from('user_profiles').select('full_name,avatar_url,is_demo').eq('user_id', userId).maybeSingle();
     await admin.from('service_provider_profiles').upsert({
       user_id: userId, display_name: profile?.full_name ?? 'Prestador musical', headline: 'Profissional da música',
-      bio: profile?.bio ?? null, avatar_url: profile?.avatar_url ?? null, location: profile?.city ?? null,
+      bio: null, avatar_url: profile?.avatar_url ?? null, location: null,
       verified: Boolean(profile?.is_demo), active: true, is_demo: Boolean(profile?.is_demo),
     }, { onConflict: 'user_id' });
     return reply({ id: data.id }, 201, origin);
