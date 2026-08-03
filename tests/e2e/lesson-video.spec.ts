@@ -1,10 +1,16 @@
 import { expect, test } from '@playwright/test';
 
-test('public lesson renders configured Vimeo source as an embed', async ({ page }) => {
+test('lesson player never embeds YouTube or Vimeo and uses private delivery', async ({ page }) => {
   await page.goto('/academia/producao-musical-do-zero-ao-profissional/aulas/boas-vindas');
 
-  const player = page.getByTitle('Boas-vindas e visão geral');
-  await expect(player).toBeVisible();
-  await expect(player).toHaveAttribute('src', 'https://player.vimeo.com/video/76979871');
-  await expect(page.locator('video[src*="player.vimeo.com"]')).toHaveCount(0);
+  await expect(page.locator('iframe[src*="youtube"], iframe[src*="youtu.be"], iframe[src*="vimeo"]')).toHaveCount(0);
+
+  const privateVideo = page.getByTestId('private-lesson-video');
+  const emptyState = page.getByText('Nenhum vídeo foi enviado para esta aula.');
+  await expect(privateVideo.or(emptyState)).toBeVisible();
+
+  if (await privateVideo.count()) {
+    await expect(privateVideo).toHaveAttribute('src', /\/storage\/v1\/object\/sign\/lesson-videos\//);
+    await expect(privateVideo).toHaveAttribute('controlslist', /nodownload/);
+  }
 });
