@@ -32,6 +32,13 @@ jobs:
     runs-on: ubuntu-latest
     environment: ${{ inputs.environment }}
     steps:
+      - name: Validate source branch
+        run: |
+          if [ "${{ inputs.environment }}" = "dev" ] && [ "$GITHUB_REF_NAME" != "dev" ]; then
+            echo "O deploy do ambiente dev deve ser executado a partir da branch dev."
+            exit 1
+          fi
+
       - name: Checkout
         uses: actions/checkout@v6
 
