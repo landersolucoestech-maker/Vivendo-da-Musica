@@ -16,8 +16,8 @@ concurrency:
 
 env:
   STATIC_BRANCH: dev-preview-static
-  STATIC_BASE_PATH: /landersolucoestech-maker/Vivendo-da-Musica/dev-preview-static/
-  STATIC_PREVIEW_URL: https://raw.githack.com/landersolucoestech-maker/Vivendo-da-Musica/dev-preview-static/index.html
+  STATIC_BASE_PATH: /gh/landersolucoestech-maker/Vivendo-da-Musica@dev-preview-static/
+  STATIC_PREVIEW_URL: https://cdn.jsdelivr.net/gh/landersolucoestech-maker/Vivendo-da-Musica@dev-preview-static/index.html
 
 jobs:
   publish:
@@ -31,7 +31,7 @@ jobs:
       VITE_DISABLE_AUTH: "true"
       VITE_PREVIEW_MODE: "true"
       VITE_USE_MOCK_DATA: "false"
-      VITE_BASE_PATH: /landersolucoestech-maker/Vivendo-da-Musica/dev-preview-static/
+      VITE_BASE_PATH: /gh/landersolucoestech-maker/Vivendo-da-Musica@dev-preview-static/
     steps:
       - name: Checkout dev
         uses: actions/checkout@v6
@@ -94,24 +94,29 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     env:
-      PREVIEW_URL: https://raw.githack.com/landersolucoestech-maker/Vivendo-da-Musica/dev-preview-static/index.html
+      PREVIEW_URL: https://cdn.jsdelivr.net/gh/landersolucoestech-maker/Vivendo-da-Musica@dev-preview-static/index.html
+      PREVIEW_ORIGIN: https://cdn.jsdelivr.net
     steps:
       - name: Checkout dev
         uses: actions/checkout@v6
         with:
           ref: dev
 
-      - name: Wait for static host
+      - name: Wait for static host and validate bundles
         run: |
           for attempt in $(seq 1 30); do
             if curl --fail --silent --show-error "${PREVIEW_URL}?commit=${GITHUB_SHA}" --output /tmp/preview.html \
               && grep --quiet "Vivendo da Música" /tmp/preview.html; then
-              exit 0
+              break
             fi
             sleep 4
           done
-          echo "A hospedagem estática não disponibilizou o build dentro do prazo." >&2
-          exit 1
+          test -s /tmp/preview.html
+          ASSET_PATH=$(grep -o 'src="[^"]*\.js"' /tmp/preview.html | head -1 | cut -d'"' -f2)
+          test -n "${ASSET_PATH}"
+          curl --fail --silent --show-error --dump-header /tmp/asset.headers "${PREVIEW_ORIGIN}${ASSET_PATH}" --output /tmp/main.js
+          grep -Ei '^content-type:.*(javascript|ecmascript)' /tmp/asset.headers
+          test -s /tmp/main.js
 
       - name: Setup Node.js
         uses: actions/setup-node@v6
@@ -139,17 +144,27 @@ jobs:
           const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
           const pageErrors = [];
           const failedAssets = [];
+          const consoleErrors = [];
 
           page.on('pageerror', (error) => pageErrors.push(error.message));
+          page.on('console', (message) => {
+            if (message.type() === 'error') consoleErrors.push(message.text());
+          });
           page.on('requestfailed', (request) => {
             if (['script', 'stylesheet', 'document'].includes(request.resourceType())) {
               failedAssets.push(`${request.resourceType()} ${request.url()} — ${request.failure()?.errorText ?? 'failed'}`);
             }
           });
 
-          const response = await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 45_000 });
-          await page.waitForFunction(() => document.querySelector('#root')?.childElementCount > 0, undefined, { timeout: 30_000 });
-          await page.waitForTimeout(2_000);
+          let status = 0;
+          let navigationError = null;
+          try {
+            const response = await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 45_000 });
+            status = response?.status() ?? 0;
+            await page.waitForTimeout(5_000);
+          } catch (error) {
+            navigationError = error instanceof Error ? error.message : String(error);
+          }
 
           const snapshot = await page.evaluate(() => ({
             title: document.title,
@@ -163,15 +178,18 @@ jobs:
           await page.screenshot({ path: 'artifacts/preview-audit/home.png', fullPage: true });
           const report = {
             url,
-            status: response?.status() ?? 0,
+            status,
+            navigationError,
             ...snapshot,
             bodyTextLength: snapshot.bodyText.length,
             pageErrors,
             failedAssets,
+            consoleErrors,
           };
           await writeFile('artifacts/preview-audit/report.json', JSON.stringify(report, null, 2));
 
           const failures = [];
+          if (navigationError) failures.push(navigationError);
           if (report.status !== 200) failures.push(`HTTP ${report.status}`);
           if (report.rootChildCount === 0) failures.push('React não montou conteúdo no #root.');
           if (report.bodyTextLength < 100) failures.push(`Conteúdo visível insuficiente: ${report.bodyTextLength} caracteres.`);
@@ -182,8 +200,8 @@ jobs:
           if (failedAssets.length > 0) failures.push(`Assets críticos falharam: ${failedAssets.join(' | ')}`);
 
           await browser.close();
-          if (failures.length > 0) throw new Error(failures.join('\n'));
           console.log(JSON.stringify(report, null, 2));
+          if (failures.length > 0) throw new Error(failures.join('\n'));
           JS
 
       - name: Upload preview audit report
