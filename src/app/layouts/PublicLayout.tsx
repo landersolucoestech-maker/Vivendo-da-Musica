@@ -12,7 +12,7 @@ const PublicLayout = ({ children }: { children: ReactNode }) => {
   return (
     <div className="vdm-page min-h-screen overflow-x-clip bg-background text-foreground">
       <Navigation />
-      <main className="relative">
+      <main className="relative pt-16 sm:pt-20">
         <div className="pointer-events-none absolute inset-x-0 top-0 h-72 bg-[radial-gradient(circle_at_top,rgba(138,43,226,0.12),transparent_68%)]" />
         <div className={`vdm-container relative ${isLegalDocument ? '!max-w-[1760px]' : ''}`}>
           {children}
