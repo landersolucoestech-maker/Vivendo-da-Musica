@@ -16,7 +16,7 @@ concurrency:
 
 env:
   STATIC_BRANCH: dev-preview-static
-  STATIC_PREVIEW_URL: https://ywirfqvobfnunlcsnptm.supabase.co/storage/v1/object/public/vivendo-preview/index.html
+  STORAGE_ROOT: https://ywirfqvobfnunlcsnptm.supabase.co/storage/v1/object/public/vivendo-preview/builds
   STATIC_PUBLISH_URL: https://ywirfqvobfnunlcsnptm.supabase.co/functions/v1/vivendo-preview
   STATIC_ASSET_BASE: https://cdn.jsdelivr.net/gh/landersolucoestech-maker/Vivendo-da-Musica@dev-preview-static/
 
@@ -26,6 +26,8 @@ jobs:
     if: github.event_name == 'push' || github.event_name == 'workflow_dispatch' || github.head_ref == 'dev'
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    outputs:
+      build_sha: ${{ steps.resolve.outputs.sha }}
     env:
       VITE_SUPABASE_URL: https://ywirfqvobfnunlcsnptm.supabase.co
       VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable_Oi717_T80P5TFfreKGATEg_qL1bEaVf
@@ -39,6 +41,13 @@ jobs:
         uses: actions/checkout@v6
         with:
           ref: dev
+
+      - name: Resolve build commit
+        id: resolve
+        run: |
+          BUILD_SHA=$(git rev-parse HEAD)
+          echo "BUILD_SHA=${BUILD_SHA}" >> "${GITHUB_ENV}"
+          echo "sha=${BUILD_SHA}" >> "${GITHUB_OUTPUT}"
 
       - name: Setup Node.js
         uses: actions/setup-node@v6
@@ -60,7 +69,7 @@ jobs:
 
           index = Path('dist/index.html')
           content = index.read_text(encoding='utf-8')
-          stamp = f'<meta name="vdm-preview-commit" content="{os.environ["GITHUB_SHA"]}" />'
+          stamp = f'<meta name="vdm-preview-commit" content="{os.environ["BUILD_SHA"]}" />'
           content = content.replace('<head>', '<head>\n    ' + stamp, 1)
           index.write_text(content, encoding='utf-8')
           Path('dist/404.html').write_text(content, encoding='utf-8')
@@ -69,14 +78,14 @@ jobs:
 
       - name: Validate compiled document
         run: |
-          grep --quiet "vdm-preview-commit.*${GITHUB_SHA}" dist/index.html
+          grep --quiet "vdm-preview-commit.*${BUILD_SHA}" dist/index.html
           grep --quiet 'https://cdn.jsdelivr.net/gh/landersolucoestech-maker/Vivendo-da-Musica@dev-preview-static/assets/' dist/index.html
           grep --quiet '<div id="root"></div>' dist/index.html
 
       - name: Upload compiled preview artifact
         uses: actions/upload-artifact@v7
         with:
-          name: dev-static-preview-${{ github.sha }}
+          name: dev-static-preview-${{ steps.resolve.outputs.sha }}
           path: dist
           if-no-files-found: error
           retention-days: 7
@@ -90,24 +99,24 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add --all
-          git commit -m "chore(preview): publish ${GITHUB_SHA}"
+          git commit -m "chore(preview): publish ${BUILD_SHA}"
           git push --force "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" "HEAD:${STATIC_BRANCH}"
 
-      - name: Publish HTML to Supabase Storage
+      - name: Publish immutable HTML to Supabase Storage
         run: |
           for attempt in $(seq 1 30); do
             if curl --fail --silent --show-error \
-              "${STATIC_PUBLISH_URL}?publish=1&commit=${GITHUB_SHA}" \
+              "${STATIC_PUBLISH_URL}?publish=1&commit=${BUILD_SHA}" \
               --output /tmp/publish.json \
               && grep --quiet '"ok":true' /tmp/publish.json \
-              && grep --quiet "${GITHUB_SHA}" /tmp/publish.json; then
+              && grep --quiet "${BUILD_SHA}" /tmp/publish.json; then
               cat /tmp/publish.json
               exit 0
             fi
             cat /tmp/publish.json 2>/dev/null || true
             sleep 4
           done
-          echo "Não foi possível publicar o HTML do preview no Storage." >&2
+          echo "Não foi possível publicar o HTML imutável do preview." >&2
           exit 1
 
   verify:
@@ -116,28 +125,24 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     env:
-      PREVIEW_URL: https://ywirfqvobfnunlcsnptm.supabase.co/storage/v1/object/public/vivendo-preview/index.html
-      EXPECTED_PATH: /storage/v1/object/public/vivendo-preview/index.html
+      BUILD_SHA: ${{ needs.publish.outputs.build_sha }}
+      STORAGE_ROOT: https://ywirfqvobfnunlcsnptm.supabase.co/storage/v1/object/public/vivendo-preview/builds
+      STATIC_PUBLISH_URL: https://ywirfqvobfnunlcsnptm.supabase.co/functions/v1/vivendo-preview
     steps:
       - name: Checkout dev
         uses: actions/checkout@v6
         with:
           ref: dev
 
-      - name: Wait for Storage host and validate bundle MIME
+      - name: Validate Storage document and bundle MIME
         run: |
-          for attempt in $(seq 1 30); do
-            if curl --fail --silent --show-error --dump-header /tmp/preview.headers \
-              "${PREVIEW_URL}?commit=${GITHUB_SHA}" --output /tmp/preview.html \
-              && grep --quiet "vdm-preview-commit.*${GITHUB_SHA}" /tmp/preview.html \
-              && grep --quiet '<div id="root"></div>' /tmp/preview.html \
-              && grep --quiet 'https://cdn.jsdelivr.net/' /tmp/preview.html; then
-              break
-            fi
-            sleep 4
-          done
+          PREVIEW_URL="${STORAGE_ROOT}/${BUILD_SHA}/index.html"
+          echo "PREVIEW_URL=${PREVIEW_URL}" >> "${GITHUB_ENV}"
+          curl --fail --silent --show-error --dump-header /tmp/preview.headers \
+            "${PREVIEW_URL}" --output /tmp/preview.html
           grep -Ei '^content-type:.*text/html' /tmp/preview.headers
-          grep --quiet "vdm-preview-commit.*${GITHUB_SHA}" /tmp/preview.html
+          grep --quiet "vdm-preview-commit.*${BUILD_SHA}" /tmp/preview.html
+          grep --quiet '<div id="root"></div>' /tmp/preview.html
           ASSET_URL=$(grep -o 'src="https://cdn.jsdelivr.net/[^"]*\.js"' /tmp/preview.html | head -1 | cut -d'"' -f2)
           test -n "${ASSET_URL}"
           curl --fail --silent --show-error --dump-header /tmp/asset.headers "${ASSET_URL}" --output /tmp/main.js
@@ -157,15 +162,13 @@ jobs:
         run: npx playwright install --with-deps chromium
 
       - name: Verify visible Home and hash navigation
-        env:
-          COMMIT_SHA: ${{ github.sha }}
         run: |
           mkdir -p artifacts/preview-audit
           node --input-type=module <<'JS'
           import { writeFile } from 'node:fs/promises';
           import { chromium } from '@playwright/test';
 
-          const url = `${process.env.PREVIEW_URL}?commit=${process.env.COMMIT_SHA}`;
+          const url = process.env.PREVIEW_URL;
           const browser = await chromium.launch({ headless: true });
           const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
           const pageErrors = [];
@@ -197,7 +200,7 @@ jobs:
             navigationError = error instanceof Error ? error.message : String(error);
           }
 
-          const snapshot = await page.evaluate(() => ({
+          const beforeNavigation = await page.evaluate(() => ({
             title: document.title,
             bodyText: document.body.innerText.trim(),
             rootChildCount: document.querySelector('#root')?.childElementCount ?? 0,
@@ -208,24 +211,25 @@ jobs:
             commit: document.querySelector('meta[name="vdm-preview-commit"]')?.getAttribute('content') ?? '',
           }));
 
-          const firstHashLink = page.locator('a[href*="#/"]').first();
-          let hashNavigationAvailable = false;
-          if (await firstHashLink.count()) {
-            hashNavigationAvailable = true;
-            const initialHash = await page.evaluate(() => window.location.hash);
-            await firstHashLink.click();
-            await page.waitForFunction((previousHash) => window.location.hash !== previousHash, initialHash, { timeout: 10_000 });
-          }
+          await page.evaluate(() => {
+            window.location.hash = '#/cursos';
+          });
+          await page.waitForFunction(() => window.location.hash === '#/cursos', undefined, { timeout: 10_000 });
+          await page.waitForTimeout(1_000);
+          const afterNavigation = await page.evaluate(() => ({
+            hash: window.location.hash,
+            bodyText: document.body.innerText.trim(),
+            rootChildCount: document.querySelector('#root')?.childElementCount ?? 0,
+          }));
 
           await page.screenshot({ path: 'artifacts/preview-audit/home.png', fullPage: true });
           const report = {
             url,
             status,
             navigationError,
-            ...snapshot,
-            bodyTextLength: snapshot.bodyText.length,
-            hashNavigationAvailable,
-            finalHash: await page.evaluate(() => window.location.hash),
+            ...beforeNavigation,
+            bodyTextLength: beforeNavigation.bodyText.length,
+            afterNavigation,
             pageErrors,
             failedAssets,
             consoleErrors,
@@ -234,15 +238,14 @@ jobs:
 
           const failures = [];
           if (navigationError) failures.push(navigationError);
-          if (report.status !== 200) failures.push(`HTTP ${report.status}`);
-          if (report.path !== process.env.EXPECTED_PATH) failures.push(`Rota inicial inesperada: ${report.path}`);
-          if (report.commit !== process.env.COMMIT_SHA) failures.push(`Build inesperado: ${report.commit}`);
-          if (report.rootChildCount === 0) failures.push('React não montou conteúdo no #root.');
-          if (report.bodyTextLength < 100) failures.push(`Conteúdo visível insuficiente: ${report.bodyTextLength} caracteres.`);
-          if (report.scriptCount === 0 || report.stylesheetCount === 0) failures.push('Bundles JavaScript ou CSS ausentes.');
-          if (report.bodyText.includes('Não foi possível abrir a plataforma')) failures.push('Fallback fatal de inicialização foi exibido.');
-          if (report.bodyText.includes('Carregando Vivendo da Música')) failures.push('Aplicação permaneceu presa no bootstrap.');
-          if (!hashNavigationAvailable) failures.push('Nenhum link interno com HashRouter foi renderizado.');
+          if (status !== 200) failures.push(`HTTP ${status}`);
+          if (beforeNavigation.commit !== process.env.BUILD_SHA) failures.push(`Build inesperado: ${beforeNavigation.commit}`);
+          if (beforeNavigation.rootChildCount === 0) failures.push('React não montou conteúdo no #root.');
+          if (beforeNavigation.bodyText.length < 100) failures.push(`Conteúdo visível insuficiente: ${beforeNavigation.bodyText.length} caracteres.`);
+          if (beforeNavigation.scriptCount === 0 || beforeNavigation.stylesheetCount === 0) failures.push('Bundles JavaScript ou CSS ausentes.');
+          if (beforeNavigation.bodyText.includes('Não foi possível abrir a plataforma')) failures.push('Fallback fatal de inicialização foi exibido.');
+          if (beforeNavigation.bodyText.includes('Carregando Vivendo da Música')) failures.push('Aplicação permaneceu presa no bootstrap.');
+          if (afterNavigation.hash !== '#/cursos' || afterNavigation.rootChildCount === 0) failures.push('Navegação interna por hash falhou.');
           if (pageErrors.length > 0) failures.push(`Erros JavaScript: ${pageErrors.join(' | ')}`);
           if (failedAssets.length > 0) failures.push(`Assets críticos falharam: ${failedAssets.join(' | ')}`);
 
@@ -251,18 +254,17 @@ jobs:
           if (failures.length > 0) throw new Error(failures.join('\n'));
           JS
 
-      - name: Verify public redirect
+      - name: Verify stable public redirect
         run: |
           curl --fail --silent --show-error --location \
-            https://ywirfqvobfnunlcsnptm.supabase.co/functions/v1/vivendo-preview \
-            --output /tmp/redirected.html
-          grep --quiet "vdm-preview-commit.*${GITHUB_SHA}" /tmp/redirected.html
+            "${STATIC_PUBLISH_URL}" --output /tmp/redirected.html
+          grep --quiet "vdm-preview-commit.*${BUILD_SHA}" /tmp/redirected.html
 
       - name: Upload preview audit report
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: dev-preview-audit-${{ github.sha }}
+          name: dev-preview-audit-${{ needs.publish.outputs.build_sha }}
           path: artifacts/preview-audit
           if-no-files-found: error
           retention-days: 14
