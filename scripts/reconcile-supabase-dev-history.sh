@@ -115,6 +115,7 @@ for schema in "${selected_schemas[@]}"; do
     printf -- '-- ============================================================\n\n'
   } >>"$remote_to_canonical_diff"
 
+  set +e
   "$migra_venv/bin/migra" \
     --unsafe \
     --schema "$schema" \
@@ -122,6 +123,13 @@ for schema in "${selected_schemas[@]}"; do
     "$canonical_url" \
     >>"$remote_to_canonical_diff" \
     2>>"$remote_to_canonical_log"
+  migra_status=$?
+  set -e
+
+  if [[ "$migra_status" -ne 0 && "$migra_status" -ne 2 ]]; then
+    echo "::error title=Supabase schema comparison failed::migra exited with status ${migra_status} while comparing schema ${schema}."
+    exit "$migra_status"
+  fi
 done
 
 node scripts/classify-supabase-schema-diff.mjs \
