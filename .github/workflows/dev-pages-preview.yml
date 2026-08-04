@@ -16,7 +16,6 @@ concurrency:
 
 env:
   STATIC_BRANCH: dev-preview-static
-  ASSET_BASE: https://cdn.jsdelivr.net/gh/landersolucoestech-maker/Vivendo-da-Musica@dev-preview-static/
 
 jobs:
   publish:
@@ -33,7 +32,7 @@ jobs:
       VITE_DISABLE_AUTH: "true"
       VITE_PREVIEW_MODE: "true"
       VITE_USE_MOCK_DATA: "false"
-      VITE_BASE_PATH: https://cdn.jsdelivr.net/gh/landersolucoestech-maker/Vivendo-da-Musica@dev-preview-static/
+      VITE_BASE_PATH: ./
       VITE_ROUTER_MODE: hash
     steps:
       - name: Checkout dev
@@ -78,7 +77,8 @@ jobs:
           Path('dist/.nojekyll').touch()
           PY
           grep --quiet "vdm-preview-commit.*${BUILD_SHA}" dist/index.html
-          grep --quiet "${ASSET_BASE}assets/" dist/index.html
+          grep --quiet 'src="./assets/' dist/index.html
+          grep --quiet 'href="./assets/' dist/index.html
           grep --quiet '<div id="root"></div>' dist/index.html
 
       - name: Upload compiled artifact
@@ -118,7 +118,7 @@ jobs:
         with:
           ref: dev
 
-      - name: Validate HTML and bundle delivery
+      - name: Validate immutable HTML and bundle delivery
         run: |
           PREVIEW_URL="https://cdn.githubraw.com/${GITHUB_REPOSITORY}/${STATIC_SHA}/index.html"
           echo "PREVIEW_URL=${PREVIEW_URL}" >> "${GITHUB_ENV}"
@@ -133,8 +133,9 @@ jobs:
           done
           grep -Ei '^content-type:.*text/html' /tmp/preview.headers
           grep --quiet "vdm-preview-commit.*${BUILD_SHA}" /tmp/preview.html
-          ASSET_URL=$(grep -o 'src="https://cdn.jsdelivr.net/[^"]*\.js"' /tmp/preview.html | head -1 | cut -d'"' -f2)
-          test -n "${ASSET_URL}"
+          ASSET_PATH=$(grep -o 'src="\./assets/[^"]*\.js"' /tmp/preview.html | head -1 | cut -d'"' -f2)
+          test -n "${ASSET_PATH}"
+          ASSET_URL="${PREVIEW_URL%/index.html}/${ASSET_PATH#./}"
           curl --fail --silent --show-error --dump-header /tmp/asset.headers "${ASSET_URL}" --output /tmp/main.js
           grep -Ei '^content-type:.*(javascript|ecmascript)' /tmp/asset.headers
           test -s /tmp/main.js
