@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
+import { Pencil } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 
 import { useProductById } from '@/modules/marketplace/hooks/useProductById';
 import { useProductCategories } from '@/modules/marketplace/hooks/useProducts';
 import { marketplaceService } from '@/modules/marketplace/services/marketplace.service';
 import type { Product } from '@/modules/marketplace/types/product';
+import StatusBadge from '@/shared/components/StatusBadge';
 import { Button } from '@/shared/components/ui/button';
 import {
   Dialog,
@@ -18,16 +20,21 @@ import { Input } from '@/shared/components/ui/input';
 import { Label } from '@/shared/components/ui/label';
 import { Textarea } from '@/shared/components/ui/textarea';
 import { useToast } from '@/shared/hooks/use-toast';
+import { formatPrice } from '@/shared/utils/formatters';
+
+export type ProductManagementMode = 'create' | 'view' | 'edit';
 
 interface ProductManagementDialogProps {
   open: boolean;
+  mode: ProductManagementMode;
   productId: string | null;
   onOpenChange: (open: boolean) => void;
+  onModeChange?: (mode: ProductManagementMode) => void;
 }
 
 type ProductStatus = Product['status'];
 
-const ProductManagementDialog = ({ open, productId, onOpenChange }: ProductManagementDialogProps) => {
+const ProductManagementDialog = ({ open, mode, productId, onOpenChange, onModeChange }: ProductManagementDialogProps) => {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const { data: existing, isLoading, isError } = useProductById(productId ?? undefined);
@@ -41,7 +48,7 @@ const ProductManagementDialog = ({ open, productId, onOpenChange }: ProductManag
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    if (!open) return;
+    if (!open || mode === 'view') return;
 
     if (existing) {
       setTitle(existing.title);
@@ -52,20 +59,20 @@ const ProductManagementDialog = ({ open, productId, onOpenChange }: ProductManag
       return;
     }
 
-    if (!productId) {
+    if (mode === 'create') {
       setTitle('');
       setCategory(categories?.[0] ?? '');
       setPrice('');
       setDescription('');
       setStatus('draft');
     }
-  }, [categories, existing, open, productId]);
+  }, [categories, existing, mode, open]);
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
-    if (saving) return;
+    if (saving || mode === 'view') return;
 
-    if (productId && !existing) {
+    if (mode === 'edit' && !existing) {
       toast({
         title: 'Produto não encontrado',
         description: 'Recarregue a listagem e selecione um produto válido.',
@@ -115,23 +122,38 @@ const ProductManagementDialog = ({ open, productId, onOpenChange }: ProductManag
     }
   };
 
-  const editing = Boolean(productId);
-  const missingProduct = editing && !isLoading && (isError || !existing);
+  const requiresProduct = mode !== 'create';
+  const missingProduct = requiresProduct && !isLoading && (isError || !existing);
 
   return (
     <Dialog open={open} onOpenChange={(nextOpen) => !saving && onOpenChange(nextOpen)}>
-      <DialogContent className="max-w-xl">
+      <DialogContent className="max-h-[90vh] max-w-xl overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{editing ? 'Editar produto' : 'Novo produto'}</DialogTitle>
+          <DialogTitle>{mode === 'create' ? 'Novo produto' : mode === 'edit' ? 'Editar produto' : 'Visualizar produto'}</DialogTitle>
           <DialogDescription>
-            {editing ? 'Atualize os dados do produto selecionado.' : 'Cadastre um novo produto no catálogo do marketplace.'}
+            {mode === 'create'
+              ? 'Cadastre um novo produto no catálogo do marketplace.'
+              : mode === 'edit'
+                ? 'Atualize os dados do produto selecionado.'
+                : 'Consulte todos os dados comerciais persistidos para este produto.'}
           </DialogDescription>
         </DialogHeader>
 
-        {editing && isLoading ? (
+        {requiresProduct && isLoading ? (
           <p className="py-6 text-sm text-muted-foreground">Carregando produto...</p>
         ) : missingProduct ? (
           <p className="py-6 text-sm text-destructive">O produto selecionado não existe ou não está acessível.</p>
+        ) : mode === 'view' && existing ? (
+          <div className="space-y-5">
+            <div className="grid gap-4 rounded-xl border border-white/10 bg-white/[0.02] p-4 sm:grid-cols-2">
+              <div><p className="text-xs text-muted-foreground">Título</p><p className="mt-1 font-semibold text-white">{existing.title}</p></div>
+              <div><p className="text-xs text-muted-foreground">Categoria</p><p className="mt-1 text-white">{existing.category}</p></div>
+              <div><p className="text-xs text-muted-foreground">Preço</p><p className="mt-1 text-white">{formatPrice(existing.priceCents)}</p></div>
+              <div><p className="text-xs text-muted-foreground">Status</p><div className="mt-1"><StatusBadge status={existing.status} label={existing.status === 'published' ? 'Publicado' : existing.status === 'archived' ? 'Arquivado' : 'Rascunho'} /></div></div>
+            </div>
+            <div><p className="text-xs text-muted-foreground">Descrição</p><p className="mt-2 whitespace-pre-line text-sm leading-6 text-white">{existing.description || 'Sem descrição.'}</p></div>
+            <div className="rounded-xl border border-white/10 p-4"><p className="text-xs text-muted-foreground">Identificador</p><p className="mt-2 font-mono text-xs text-white">{existing.id}</p></div>
+          </div>
         ) : (
           <form id="product-management-form" onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
@@ -183,10 +205,13 @@ const ProductManagementDialog = ({ open, productId, onOpenChange }: ProductManag
         )}
 
         <DialogFooter>
-          <Button variant="outline" type="button" disabled={saving} onClick={() => onOpenChange(false)}>Cancelar</Button>
-          {!missingProduct && (
-            <Button form="product-management-form" type="submit" disabled={saving || (editing && isLoading)}>
-              {saving ? 'Salvando...' : editing ? 'Salvar alterações' : 'Criar produto'}
+          <Button variant="outline" type="button" disabled={saving} onClick={() => onOpenChange(false)}>{mode === 'view' ? 'Fechar' : 'Cancelar'}</Button>
+          {mode === 'view' && existing && (
+            <Button type="button" onClick={() => onModeChange?.('edit')}><Pencil className="size-4" />Editar produto</Button>
+          )}
+          {mode !== 'view' && !missingProduct && (
+            <Button form="product-management-form" type="submit" disabled={saving || (mode === 'edit' && isLoading)}>
+              {saving ? 'Salvando...' : mode === 'edit' ? 'Salvar alterações' : 'Criar produto'}
             </Button>
           )}
         </DialogFooter>
