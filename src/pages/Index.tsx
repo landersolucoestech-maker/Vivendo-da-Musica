@@ -11,21 +11,19 @@ import TestimonialsSection from '@/shared/components/TestimonialsSection';
 const Index = () => (
   <div className="vdm-page h-dvh overflow-hidden">
     <Navigation />
-    <div className="h-full pt-16 sm:pt-20">
-      <main
-        data-testid="home-content-scroll"
-        className="h-full overflow-y-auto overscroll-contain [scrollbar-gutter:stable]"
-      >
-        <HeroSection />
-        <StatsBar />
-        <ExploreAreasSection />
-        <FeaturedCoursesSection />
-        <InstructorsSection />
-        <TestimonialsSection />
-        <ArticlesTeaserSection />
-        <Footer />
-      </main>
-    </div>
+    <main
+      data-testid="home-content-scroll"
+      className="fixed bottom-0 left-0 right-0 top-16 overflow-y-auto overscroll-contain [scrollbar-gutter:stable] sm:top-20"
+    >
+      <HeroSection />
+      <StatsBar />
+      <ExploreAreasSection />
+      <FeaturedCoursesSection />
+      <InstructorsSection />
+      <TestimonialsSection />
+      <ArticlesTeaserSection />
+      <Footer />
+    </main>
   </div>
 );
 
