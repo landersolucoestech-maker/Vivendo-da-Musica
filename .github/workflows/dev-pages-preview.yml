@@ -16,8 +16,8 @@ concurrency:
 
 env:
   STATIC_BRANCH: dev-preview-static
-  STATIC_BASE_PATH: /gh/landersolucoestech-maker/Vivendo-da-Musica@dev-preview-static/
-  STATIC_PREVIEW_URL: https://cdn.jsdelivr.net/gh/landersolucoestech-maker/Vivendo-da-Musica@dev-preview-static/index.html
+  STATIC_PREVIEW_URL: https://raw.githack.com/landersolucoestech-maker/Vivendo-da-Musica/dev-preview-static/index.html
+  STATIC_ASSET_BASE: https://cdn.jsdelivr.net/gh/landersolucoestech-maker/Vivendo-da-Musica@dev-preview-static/
 
 jobs:
   publish:
@@ -31,7 +31,7 @@ jobs:
       VITE_DISABLE_AUTH: "true"
       VITE_PREVIEW_MODE: "true"
       VITE_USE_MOCK_DATA: "false"
-      VITE_BASE_PATH: /gh/landersolucoestech-maker/Vivendo-da-Musica@dev-preview-static/
+      VITE_BASE_PATH: https://cdn.jsdelivr.net/gh/landersolucoestech-maker/Vivendo-da-Musica@dev-preview-static/
     steps:
       - name: Checkout dev
         uses: actions/checkout@v6
@@ -50,7 +50,7 @@ jobs:
       - name: Build hosted preview
         run: npm run build
 
-      - name: Normalize static entry and add fallback
+      - name: Normalize document route and add fallback
         run: |
           python - <<'PY'
           from pathlib import Path
@@ -58,8 +58,12 @@ jobs:
           index = Path('dist/index.html')
           content = index.read_text(encoding='utf-8')
           normalizer = """<script>
-            if (window.location.pathname.endsWith('/index.html')) {
-              window.history.replaceState(null, '', window.location.pathname.slice(0, -10) + window.location.search + window.location.hash);
+            if (window.location.pathname !== '/') {
+              window.history.replaceState(
+                null,
+                '',
+                '/' + window.location.search + window.location.hash,
+              );
             }
           </script>"""
           content = content.replace('<head>', '<head>\n    ' + normalizer, 1)
@@ -67,6 +71,11 @@ jobs:
           Path('dist/404.html').write_text(content, encoding='utf-8')
           Path('dist/.nojekyll').touch()
           PY
+
+      - name: Validate compiled document
+        run: |
+          grep --quiet 'https://cdn.jsdelivr.net/gh/landersolucoestech-maker/Vivendo-da-Musica@dev-preview-static/assets/' dist/index.html
+          grep --quiet '<div id="root"></div>' dist/index.html
 
       - name: Upload compiled preview artifact
         uses: actions/upload-artifact@v7
@@ -94,27 +103,27 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     env:
-      PREVIEW_URL: https://cdn.jsdelivr.net/gh/landersolucoestech-maker/Vivendo-da-Musica@dev-preview-static/index.html
-      PREVIEW_ORIGIN: https://cdn.jsdelivr.net
+      PREVIEW_URL: https://raw.githack.com/landersolucoestech-maker/Vivendo-da-Musica/dev-preview-static/index.html
     steps:
       - name: Checkout dev
         uses: actions/checkout@v6
         with:
           ref: dev
 
-      - name: Wait for static host and validate bundles
+      - name: Wait for HTML host and validate bundle MIME
         run: |
           for attempt in $(seq 1 30); do
             if curl --fail --silent --show-error "${PREVIEW_URL}?commit=${GITHUB_SHA}" --output /tmp/preview.html \
-              && grep --quiet "Vivendo da Música" /tmp/preview.html; then
+              && grep --quiet '<div id="root"></div>' /tmp/preview.html \
+              && grep --quiet 'https://cdn.jsdelivr.net/' /tmp/preview.html; then
               break
             fi
             sleep 4
           done
           test -s /tmp/preview.html
-          ASSET_PATH=$(grep -o 'src="[^"]*\.js"' /tmp/preview.html | head -1 | cut -d'"' -f2)
-          test -n "${ASSET_PATH}"
-          curl --fail --silent --show-error --dump-header /tmp/asset.headers "${PREVIEW_ORIGIN}${ASSET_PATH}" --output /tmp/main.js
+          ASSET_URL=$(grep -o 'src="https://cdn.jsdelivr.net/[^"]*\.js"' /tmp/preview.html | head -1 | cut -d'"' -f2)
+          test -n "${ASSET_URL}"
+          curl --fail --silent --show-error --dump-header /tmp/asset.headers "${ASSET_URL}" --output /tmp/main.js
           grep -Ei '^content-type:.*(javascript|ecmascript)' /tmp/asset.headers
           test -s /tmp/main.js
 
@@ -161,7 +170,12 @@ jobs:
           try {
             const response = await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 45_000 });
             status = response?.status() ?? 0;
-            await page.waitForTimeout(5_000);
+            await page.waitForFunction(
+              () => document.querySelector('#root')?.childElementCount > 0,
+              undefined,
+              { timeout: 30_000 },
+            );
+            await page.waitForTimeout(2_000);
           } catch (error) {
             navigationError = error instanceof Error ? error.message : String(error);
           }
@@ -191,6 +205,7 @@ jobs:
           const failures = [];
           if (navigationError) failures.push(navigationError);
           if (report.status !== 200) failures.push(`HTTP ${report.status}`);
+          if (report.path !== '/') failures.push(`Rota inicial inesperada: ${report.path}`);
           if (report.rootChildCount === 0) failures.push('React não montou conteúdo no #root.');
           if (report.bodyTextLength < 100) failures.push(`Conteúdo visível insuficiente: ${report.bodyTextLength} caracteres.`);
           if (report.scriptCount === 0 || report.stylesheetCount === 0) failures.push('Bundles JavaScript ou CSS ausentes.');
