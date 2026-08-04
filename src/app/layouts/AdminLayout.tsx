@@ -13,9 +13,11 @@ const AdminLayout = ({ children }: { children: ReactNode }) => (
       <AdminSidebar />
       <main
         data-testid="admin-content-scroll"
-        className="min-h-0 min-w-0 w-full flex-1 overflow-y-auto overscroll-contain [scrollbar-gutter:stable] px-4 py-6 sm:px-6 md:ml-64 md:w-[calc(100%-16rem)] lg:px-8 lg:py-8"
+        className="min-h-0 min-w-0 w-full flex-1 overflow-y-auto overscroll-contain [scrollbar-gutter:stable] md:ml-64 md:w-[calc(100%-16rem)]"
       >
-        {children}
+        <div className="min-h-full px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
+          {children}
+        </div>
       </main>
     </div>
   </div>
