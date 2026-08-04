@@ -12,7 +12,8 @@
     "typecheck": "tsc --build --force",
     "types:supabase": "node scripts/generate-supabase-types.mjs",
     "audit:high": "node scripts/audit-high.mjs",
-    "test": "vitest run && npm run test:layouts && npm run test:ui-contracts",
+    "audit:crud": "node scripts/audit-platform-crud-flows.mjs",
+    "test": "vitest run && npm run test:layouts && npm run test:ui-contracts && npm run audit:crud",
     "test:unit": "vitest run src",
     "test:security": "vitest run tests/security",
     "test:contracts": "vitest run tests/contracts",
@@ -20,7 +21,7 @@
     "test:layouts": "node scripts/verify-fixed-header-layouts.mjs",
     "test:ui-contracts": "node scripts/verify-popup-modals-and-contracts.mjs",
     "test:performance": "node scripts/quality-gate.mjs",
-    "quality": "npm run audit:high && npm run typecheck && npm run lint && npm run test:unit && npm run test:contracts && npm run test:security && npm run test:layouts && npm run test:ui-contracts && npm run build && npm run test:performance"
+    "quality": "npm run audit:high && npm run typecheck && npm run lint && npm run test:unit && npm run test:contracts && npm run test:security && npm run test:layouts && npm run test:ui-contracts && npm run audit:crud && npm run build && npm run test:performance"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.0",
@@ -63,8 +64,6 @@
     "@types/node": "^22.5.5",
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.0",
-    "@vitejs/plugin-react-swc": "^4.3.1",
-    "autoprefixer": "^10.4.20",
     "eslint": "^9.9.0",
     "eslint-plugin-react-hooks": "^5.1.0-rc.0",
     "eslint-plugin-react-refresh": "^0.4.9",
