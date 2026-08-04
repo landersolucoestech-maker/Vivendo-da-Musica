@@ -47,6 +47,16 @@ if [[ ! -s "$remote_dump" ]]; then
   exit 1
 fi
 
+echo "Preparing local ownership roles for the disposable remote snapshot..."
+docker exec -i "$local_db_container" psql \
+  --username postgres \
+  --dbname template1 \
+  --set ON_ERROR_STOP=1 <<'SQL'
+grant supabase_admin to postgres;
+grant supabase_auth_admin to postgres;
+grant supabase_storage_admin to postgres;
+SQL
+
 echo "Creating an isolated database for the remote schema snapshot..."
 docker exec -i "$local_db_container" psql \
   --username postgres \
