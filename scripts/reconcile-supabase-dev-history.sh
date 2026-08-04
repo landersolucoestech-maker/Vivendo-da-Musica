@@ -51,7 +51,8 @@ fi
 
 echo "Normalizing ownership only for the disposable remote snapshot..."
 sed -E \
-  's/OWNER TO "(pg_database_owner|supabase_admin|supabase_auth_admin|supabase_storage_admin)"/OWNER TO "postgres"/g' \
+  -e 's/OWNER TO "(pg_database_owner|supabase_admin|supabase_auth_admin|supabase_storage_admin)"/OWNER TO "postgres"/g' \
+  -e 's/ALTER DEFAULT PRIVILEGES FOR ROLE "(supabase_admin|supabase_auth_admin|supabase_storage_admin)"/ALTER DEFAULT PRIVILEGES FOR ROLE "postgres"/g' \
   "$remote_dump" >"$remote_snapshot_dump"
 
 if [[ ! -s "$remote_snapshot_dump" ]]; then
