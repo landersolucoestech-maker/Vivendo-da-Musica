@@ -208,7 +208,33 @@ SQL
 drop schema if exists public cascade;
 drop schema if exists app_private cascade;
 drop schema if exists authz_private cascade;
+drop schema if exists auth cascade;
 create schema public authorization postgres;
+create schema auth authorization postgres;
+
+create table auth.users (
+  id uuid primary key
+);
+
+create function auth.uid()
+returns uuid
+language sql
+stable
+as $$
+  select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid;
+$$;
+
+create function auth.role()
+returns text
+language sql
+stable
+as $$
+  select nullif(current_setting('request.jwt.claim.role', true), '');
+$$;
+
+grant usage on schema auth to anon, authenticated, service_role;
+grant execute on function auth.uid() to anon, authenticated, service_role;
+grant execute on function auth.role() to anon, authenticated, service_role;
 SQL
 
   docker exec -i "$local_db_container" psql \
