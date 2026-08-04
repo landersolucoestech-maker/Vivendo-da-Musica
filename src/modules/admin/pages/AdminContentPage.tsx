@@ -17,6 +17,14 @@ import {
   AlertDialogTitle,
 } from '@/shared/components/ui/alert-dialog';
 import { Button } from '@/shared/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/shared/components/ui/dialog';
 import { useToast } from '@/shared/hooks/use-toast';
 import AcademyContentForm from '@/modules/courses/components/AcademyContentForm';
 import AcademyContentStatusBadge from '@/modules/courses/components/AcademyContentStatusBadge';
@@ -46,6 +54,7 @@ const AdminContentPage = () => {
   const addAttachment = useAddAcademyAttachment();
   const removeAttachment = useRemoveAcademyAttachment();
   const [editing, setEditing] = useState<AcademyContent | null>(null);
+  const [viewing, setViewing] = useState<AcademyContent | null>(null);
   const [isCreating, setIsCreating] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<AcademyContent | null>(null);
   const [search, setSearch] = useState('');
@@ -64,7 +73,13 @@ const AdminContentPage = () => {
   }, [contents, search, status]);
 
   const activeContent = isCreating ? null : editing;
-  const showForm = isCreating || !!editing;
+  const editorOpen = isCreating || !!editing;
+
+  const closeEditor = () => {
+    if (saveContent.isPending || addAttachment.isPending) return;
+    setEditing(null);
+    setIsCreating(false);
+  };
 
   const handleSave = async (input: AcademyContentInput, pendingMaterials: AcademyUploadResult[]) => {
     try {
@@ -132,7 +147,7 @@ const AdminContentPage = () => {
     <AdminLayout>
       <PageHeader
         title="Conteúdos da Academia"
-        subtitle="CMS educacional com vídeo próprio, texto, banner e materiais para download."
+        subtitle="Crie, visualize e edite conteúdos, mídias e materiais somente em popups centralizados."
         actions={
           <Button onClick={() => { setIsCreating(true); setEditing(null); }}>
             <Plus className="mr-2 size-4" />
@@ -140,19 +155,6 @@ const AdminContentPage = () => {
           </Button>
         }
       />
-
-      {showForm && (
-        <div className="mb-8 rounded-lg border border-border bg-card p-5">
-          <h2 className="mb-4 text-lg font-semibold">{editing ? 'Editar conteúdo' : 'Novo conteúdo'}</h2>
-          <AcademyContentForm
-            content={activeContent}
-            isSaving={saveContent.isPending || addAttachment.isPending}
-            onSubmit={handleSave}
-            onRemoveAttachment={handleRemoveAttachment}
-            onCancel={() => { setEditing(null); setIsCreating(false); }}
-          />
-        </div>
-      )}
 
       <div className="mb-6 flex flex-col gap-4 sm:flex-row">
         <SearchInput value={search} onChange={setSearch} placeholder="Buscar conteúdos..." className="flex-1" />
@@ -189,9 +191,13 @@ const AdminContentPage = () => {
             },
             { header: 'Status', cell: (content) => <AcademyContentStatusBadge status={content.status} /> },
             {
-              header: '',
+              header: 'Ações',
               cell: (content) => (
                 <div className="flex flex-wrap justify-end gap-2">
+                  <Button size="sm" variant="outline" className="border-border" onClick={() => setViewing(content)}>
+                    <Eye className="mr-2 size-4" />
+                    Visualizar
+                  </Button>
                   <Button size="sm" variant="outline" className="border-border" onClick={() => void handleTogglePublish(content)}>
                     {content.status === 'published' ? <EyeOff className="mr-2 size-4" /> : <Eye className="mr-2 size-4" />}
                     {content.status === 'published' ? 'Despublicar' : 'Publicar'}
@@ -210,6 +216,63 @@ const AdminContentPage = () => {
           ]}
         />
       )}
+
+      <Dialog open={editorOpen} onOpenChange={(open) => !open && closeEditor()}>
+        <DialogContent className="max-h-[90vh] max-w-4xl overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{editing ? 'Editar conteúdo' : 'Novo conteúdo'}</DialogTitle>
+            <DialogDescription>
+              {editing ? 'Atualize texto, vídeo, imagens e materiais vinculados.' : 'Cadastre o conteúdo educacional e defina se será salvo como rascunho ou publicado.'}
+            </DialogDescription>
+          </DialogHeader>
+          <AcademyContentForm
+            content={activeContent}
+            isSaving={saveContent.isPending || addAttachment.isPending}
+            onSubmit={handleSave}
+            onRemoveAttachment={handleRemoveAttachment}
+            onCancel={closeEditor}
+          />
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!viewing} onOpenChange={(open) => !open && setViewing(null)}>
+        <DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Visualizar conteúdo</DialogTitle>
+            <DialogDescription>Visão completa dos dados persistidos no CMS.</DialogDescription>
+          </DialogHeader>
+          {viewing && (
+            <div className="space-y-5">
+              <div className="grid gap-4 rounded-xl border border-white/10 bg-white/[0.02] p-4 sm:grid-cols-2">
+                <div><p className="text-xs text-muted-foreground">Título</p><p className="mt-1 font-semibold text-white">{viewing.title}</p></div>
+                <div><p className="text-xs text-muted-foreground">Slug</p><p className="mt-1 font-mono text-sm text-white">{viewing.slug}</p></div>
+                <div><p className="text-xs text-muted-foreground">Categoria</p><p className="mt-1 text-white">{viewing.category || 'Não informada'}</p></div>
+                <div><p className="text-xs text-muted-foreground">Status</p><div className="mt-1"><AcademyContentStatusBadge status={viewing.status} /></div></div>
+              </div>
+              {viewing.subtitle && <div><p className="text-xs text-muted-foreground">Subtítulo</p><p className="mt-2 text-white">{viewing.subtitle}</p></div>}
+              <div><p className="text-xs text-muted-foreground">Descrição</p><p className="mt-2 whitespace-pre-line text-sm leading-6 text-white">{viewing.description || 'Sem descrição.'}</p></div>
+              <div><p className="text-xs text-muted-foreground">Conteúdo textual</p><p className="mt-2 whitespace-pre-line text-sm leading-6 text-white">{viewing.body || 'Sem conteúdo textual.'}</p></div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="rounded-xl border border-white/10 p-4"><p className="text-xs text-muted-foreground">Vídeo</p><p className="mt-2 break-all text-sm text-white">{viewing.videoUrl || 'Não vinculado'}</p></div>
+                <div className="rounded-xl border border-white/10 p-4"><p className="text-xs text-muted-foreground">Materiais</p><p className="mt-2 text-sm text-white">{viewing.attachments?.length ?? 0} arquivo(s)</p></div>
+              </div>
+              {!!viewing.attachments?.length && (
+                <div className="space-y-2">
+                  {viewing.attachments.map((attachment) => (
+                    <div key={attachment.id} className="rounded-xl border border-white/10 p-3"><p className="text-sm font-medium text-white">{attachment.name}</p><p className="mt-1 text-xs text-muted-foreground">{attachment.mimeType} · {attachment.size.toLocaleString('pt-BR')} bytes</p></div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setViewing(null)}>Fechar</Button>
+            <Button onClick={() => { const content = viewing; setViewing(null); setEditing(content); setIsCreating(false); }}>
+              <Pencil className="size-4" />Editar conteúdo
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <AlertDialog open={!!pendingDelete} onOpenChange={(open) => !open && setPendingDelete(null)}>
         <AlertDialogContent>
