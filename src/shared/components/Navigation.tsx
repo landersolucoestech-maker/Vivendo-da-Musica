@@ -31,7 +31,7 @@ const Navigation = () => {
   };
 
   return (
-    <nav className="sticky inset-x-0 top-0 z-50 w-full border-b border-white/10 bg-[#0D0D0D]/94 backdrop-blur-xl">
+    <nav className="fixed inset-x-0 top-0 z-[100] w-full border-b border-white/10 bg-[#0D0D0D]/94 backdrop-blur-xl">
       <div className="mx-auto w-full max-w-[1920px] px-4 sm:px-6 lg:px-8">
         <div className="flex h-16 items-center justify-between gap-5 sm:h-20">
           <Link to={ROUTES.home} className="shrink-0" aria-label="Vivendo da Música — início">
@@ -82,7 +82,7 @@ const Navigation = () => {
         </div>
 
         {isOpen && (
-          <div className="space-y-2 border-t border-white/10 py-4 lg:hidden">
+          <div className="max-h-[calc(100vh-4rem)] space-y-2 overflow-y-auto border-t border-white/10 py-4 sm:max-h-[calc(100vh-5rem)] lg:hidden">
             {NAV_LINKS.map((link) => (
               <Link
                 key={link.to}
