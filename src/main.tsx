@@ -1,6 +1,7 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
 
+import App from './App';
 import './index.css';
 
 interface ErrorBoundaryState {
@@ -57,14 +58,6 @@ const FatalErrorScreen = () => (
   </main>
 );
 
-const BootstrapScreen = () => (
-  <main aria-busy="true" aria-label="Carregando plataforma" style={screenStyle}>
-    <section style={cardStyle}>
-      <strong style={{ fontSize: '18px' }}>Carregando Vivendo da Música…</strong>
-    </section>
-  </main>
-);
-
 class AppErrorBoundary extends Component<{ children: ReactNode }, ErrorBoundaryState> {
   public state: ErrorBoundaryState = { hasError: false };
 
@@ -87,31 +80,8 @@ if (!rootElement) {
   throw new Error('Elemento raiz da aplicação não encontrado.');
 }
 
-const root = createRoot(rootElement);
-let applicationMounted = false;
-
-const renderBootstrapFailure = (error: unknown) => {
-  console.error('Falha durante a inicialização da aplicação.', error);
-  root.render(<FatalErrorScreen />);
-};
-
-window.addEventListener('error', (event) => {
-  if (!applicationMounted) renderBootstrapFailure(event.error ?? event.message);
-});
-
-window.addEventListener('unhandledrejection', (event) => {
-  if (!applicationMounted) renderBootstrapFailure(event.reason);
-});
-
-root.render(<BootstrapScreen />);
-
-void import('./App')
-  .then(({ default: App }) => {
-    applicationMounted = true;
-    root.render(
-      <AppErrorBoundary>
-        <App />
-      </AppErrorBoundary>,
-    );
-  })
-  .catch(renderBootstrapFailure);
+createRoot(rootElement).render(
+  <AppErrorBoundary>
+    <App />
+  </AppErrorBoundary>,
+);
