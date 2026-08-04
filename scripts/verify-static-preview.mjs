@@ -44,7 +44,8 @@ let caughtError = null;
 let home = null;
 let academy = null;
 let student = null;
-let fixedHeader = null;
+let homeScroll = null;
+let academyShell = null;
 let studentScroll = null;
 
 const snapshotPage = async () =>
@@ -54,7 +55,7 @@ const snapshotPage = async () =>
     bodyHtml: document.body.innerHTML.slice(0, 10_000),
     rootHtml: document.querySelector('#root')?.innerHTML.slice(0, 10_000) ?? '',
     rootChildCount: document.querySelector('#root')?.childElementCount ?? 0,
-    homeCount: document.querySelectorAll('.vdm-page').length,
+    pageCount: document.querySelectorAll('.vdm-page').length,
     scriptCount: Array.from(document.scripts).filter((script) => Boolean(script.src)).length,
     stylesheetCount: document.querySelectorAll('link[rel="stylesheet"]').length,
     commit: document.querySelector('meta[name="vdm-preview-commit"]')?.getAttribute('content') ?? '',
@@ -63,28 +64,14 @@ const snapshotPage = async () =>
     sourceUrl: window.__VDM_PREVIEW_DOCUMENT_URL__ ?? '',
   }));
 
-const captureHeaderPosition = async () =>
-  page.evaluate(() => {
+const captureShell = async (scrollTestId) =>
+  page.evaluate((testId) => {
     const header = document.querySelector('[data-testid="public-header"]');
     const logo = header?.querySelector('[aria-label="Vivendo da Música — início"]');
     const academyLink = Array.from(header?.querySelectorAll('a') ?? []).find(
       (link) => link.textContent?.trim() === 'Academia',
     );
-
-    return {
-      position: header ? getComputedStyle(header).position : '',
-      headerTop: header?.getBoundingClientRect().top ?? null,
-      logoTop: logo?.getBoundingClientRect().top ?? null,
-      academyTop: academyLink?.getBoundingClientRect().top ?? null,
-      scrollY: window.scrollY,
-    };
-  });
-
-const captureStudentLayout = async () =>
-  page.evaluate(() => {
-    const header = document.querySelector('[data-testid="public-header"]');
-    const logo = header?.querySelector('[aria-label="Vivendo da Música — início"]');
-    const content = document.querySelector('[data-testid="student-content-scroll"]');
+    const content = document.querySelector(`[data-testid="${testId}"]`);
     const headerRect = header?.getBoundingClientRect();
     const contentRect = content?.getBoundingClientRect();
 
@@ -93,6 +80,7 @@ const captureStudentLayout = async () =>
       headerTop: headerRect?.top ?? null,
       headerBottom: headerRect?.bottom ?? null,
       logoTop: logo?.getBoundingClientRect().top ?? null,
+      academyTop: academyLink?.getBoundingClientRect().top ?? null,
       contentTop: contentRect?.top ?? null,
       contentBottom: contentRect?.bottom ?? null,
       contentOverflowY: content ? getComputedStyle(content).overflowY : '',
@@ -103,7 +91,30 @@ const captureStudentLayout = async () =>
       documentScrollHeight: document.documentElement.scrollHeight,
       viewportHeight: window.innerHeight,
     };
+  }, scrollTestId);
+
+const scrollShell = async (scrollTestId) => {
+  const before = await captureShell(scrollTestId);
+  await page.evaluate((testId) => {
+    const content = document.querySelector(`[data-testid="${testId}"]`);
+    if (!(content instanceof HTMLElement)) return;
+    const maximumScroll = Math.max(0, content.scrollHeight - content.clientHeight);
+    content.scrollTo(0, Math.min(1_200, maximumScroll));
+  }, scrollTestId);
+  await page.waitForTimeout(500);
+  const after = await captureShell(scrollTestId);
+  return { before, after };
+};
+
+const navigateClientSide = async (path) => {
+  await page.evaluate((nextPath) => {
+    window.history.pushState(null, '', nextPath);
+    window.dispatchEvent(new PopStateEvent('popstate'));
+  }, path);
+  await page.waitForFunction((nextPath) => window.location.pathname === nextPath, path, {
+    timeout: 10_000,
   });
+};
 
 try {
   const response = await page.goto(previewUrl, {
@@ -115,61 +126,32 @@ try {
   stage = 'home';
   await page.locator('.vdm-page').waitFor({ state: 'visible', timeout: 30_000 });
   await page.locator('[data-testid="public-header"]').waitFor({ state: 'visible', timeout: 10_000 });
+  await page.locator('[data-testid="home-content-scroll"]').waitFor({ state: 'visible', timeout: 10_000 });
   await page.waitForTimeout(2_000);
   home = await snapshotPage();
-
-  stage = 'fixed-header';
-  const beforeScroll = await captureHeaderPosition();
-  await page.evaluate(() => {
-    const maximumScroll = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
-    window.scrollTo(0, Math.min(1_200, maximumScroll));
-  });
-  await page.waitForTimeout(500);
-  const afterScroll = await captureHeaderPosition();
-  fixedHeader = { beforeScroll, afterScroll };
-  await page.evaluate(() => window.scrollTo(0, 0));
+  homeScroll = await scrollShell('home-content-scroll');
 
   stage = 'academy';
-  await page.evaluate(() => {
-    window.history.pushState(null, '', '/academia');
-    window.dispatchEvent(new PopStateEvent('popstate'));
-  });
-  await page.waitForFunction(() => window.location.pathname === '/academia', undefined, {
-    timeout: 10_000,
-  });
+  await navigateClientSide('/academia');
   await page.waitForFunction(
     () => !document.body.innerText.includes('ERRO 404') && document.body.innerText.trim().length > 100,
     undefined,
     { timeout: 20_000 },
   );
+  await page.locator('[data-testid="public-content-scroll"]').waitFor({ state: 'visible', timeout: 20_000 });
   await page.waitForTimeout(1_000);
   academy = await snapshotPage();
+  academyShell = await captureShell('public-content-scroll');
 
   stage = 'student-portal';
-  await page.evaluate(() => {
-    window.history.pushState(null, '', '/aluno');
-    window.dispatchEvent(new PopStateEvent('popstate'));
-  });
-  await page.waitForFunction(() => window.location.pathname === '/aluno', undefined, {
-    timeout: 10_000,
-  });
+  await navigateClientSide('/aluno');
   await page.locator('[data-testid="student-content-scroll"]').waitFor({
     state: 'visible',
     timeout: 30_000,
   });
   await page.waitForTimeout(2_000);
   student = await snapshotPage();
-
-  const beforeContentScroll = await captureStudentLayout();
-  await page.evaluate(() => {
-    const content = document.querySelector('[data-testid="student-content-scroll"]');
-    if (!(content instanceof HTMLElement)) return;
-    const maximumScroll = Math.max(0, content.scrollHeight - content.clientHeight);
-    content.scrollTo(0, Math.min(1_200, maximumScroll));
-  });
-  await page.waitForTimeout(500);
-  const afterContentScroll = await captureStudentLayout();
-  studentScroll = { beforeContentScroll, afterContentScroll };
+  studentScroll = await scrollShell('student-content-scroll');
 } catch (error) {
   caughtError = error instanceof Error ? `${error.name}: ${error.message}` : String(error);
   try {
@@ -181,7 +163,7 @@ try {
   }
 } finally {
   try {
-    await page.screenshot({ path: 'artifacts/preview-audit/student-portal.png', fullPage: false });
+    await page.screenshot({ path: 'artifacts/preview-audit/fixed-header.png', fullPage: false });
   } catch (screenshotError) {
     consoleErrors.push(
       `Falha ao capturar screenshot: ${screenshotError instanceof Error ? screenshotError.message : String(screenshotError)}`,
@@ -194,8 +176,9 @@ try {
     stage,
     caughtError,
     home: home ? { ...home, bodyTextLength: home.bodyText.length } : null,
-    fixedHeader,
+    homeScroll,
     academy: academy ? { ...academy, bodyTextLength: academy.bodyText.length } : null,
+    academyShell,
     student: student ? { ...student, bodyTextLength: student.bodyText.length } : null,
     studentScroll,
     pageErrors,
@@ -217,7 +200,7 @@ if (!home) {
   if (home.commit !== buildSha) failures.push(`Build inesperado: ${home.commit}`);
   if (home.path !== '/') failures.push(`Pathname inicial não normalizado: ${home.path}`);
   if (!home.sourceUrl.includes('/index.html')) failures.push('A URL de origem do documento não foi preservada.');
-  if (home.homeCount === 0 || home.rootChildCount === 0 || home.bodyText.length < 100) {
+  if (home.pageCount === 0 || home.rootChildCount === 0 || home.bodyText.length < 100) {
     failures.push('A Home real não foi renderizada.');
   }
   if (home.bodyText.includes('ERRO 404') || home.bodyText.includes('Página não encontrada')) {
@@ -234,27 +217,58 @@ if (!home) {
   }
 }
 
-if (!fixedHeader) {
-  failures.push('A posição do cabeçalho não foi validada.');
-} else {
-  const { beforeScroll, afterScroll } = fixedHeader;
-  if (beforeScroll.position !== 'fixed' || afterScroll.position !== 'fixed') {
-    failures.push(`Cabeçalho não está fixed: ${beforeScroll.position}/${afterScroll.position}`);
+const validateShell = (label, state, { requireScroll }) => {
+  if (!state) {
+    failures.push(`${label}: estrutura de rolagem não validada.`);
+    return;
   }
-  if (afterScroll.scrollY < 100) {
-    failures.push(`A Home não rolou o suficiente para validar o cabeçalho: ${afterScroll.scrollY}px.`);
+
+  const before = 'before' in state ? state.before : state;
+  const after = 'after' in state ? state.after : state;
+
+  if (before.headerPosition !== 'fixed' || after.headerPosition !== 'fixed') {
+    failures.push(`${label}: cabeçalho não está fixed (${before.headerPosition}/${after.headerPosition}).`);
   }
+  if (after.contentOverflowY !== 'auto') {
+    failures.push(`${label}: conteúdo não controla a rolagem (${after.contentOverflowY}).`);
+  }
+  if (after.windowScrollY !== 0) {
+    failures.push(`${label}: o documento rolou ${after.windowScrollY}px.`);
+  }
+  if (after.documentScrollHeight > after.viewportHeight + 1) {
+    failures.push(
+      `${label}: ainda existe scrollbar global (${after.documentScrollHeight}px para viewport de ${after.viewportHeight}px).`,
+    );
+  }
+  if (
+    before.headerBottom === null ||
+    before.contentTop === null ||
+    Math.abs(before.contentTop - before.headerBottom) > 1
+  ) {
+    failures.push(
+      `${label}: área rolável não começa exatamente abaixo do cabeçalho (header=${before.headerBottom}, conteúdo=${before.contentTop}).`,
+    );
+  }
+  if (Math.abs(after.headerTop ?? Number.POSITIVE_INFINITY) > 1) {
+    failures.push(`${label}: cabeçalho saiu do topo (${after.headerTop}px).`);
+  }
+
   for (const key of ['headerTop', 'logoTop', 'academyTop']) {
-    const before = beforeScroll[key];
-    const after = afterScroll[key];
-    if (before === null || after === null || Math.abs(before - after) > 1) {
-      failures.push(`${key} se moveu durante a rolagem da Home: ${before} → ${after}.`);
+    const initial = before[key];
+    const current = after[key];
+    if (initial === null || current === null || Math.abs(initial - current) > 1) {
+      failures.push(`${label}: ${key} se moveu (${initial} → ${current}).`);
     }
   }
-  if (Math.abs(afterScroll.headerTop ?? Number.POSITIVE_INFINITY) > 1) {
-    failures.push(`Cabeçalho saiu do topo da viewport: ${afterScroll.headerTop}px.`);
+
+  if (requireScroll && (after.contentScrollTop ?? 0) < 100) {
+    failures.push(`${label}: área interna rolou apenas ${after.contentScrollTop}px.`);
   }
-}
+};
+
+validateShell('Home', homeScroll, { requireScroll: true });
+validateShell('Páginas públicas', academyShell, { requireScroll: false });
+validateShell('Portal do aluno', studentScroll, { requireScroll: true });
 
 if (
   !academy ||
@@ -274,52 +288,6 @@ if (
   student.bodyText.includes('ERRO 404')
 ) {
   failures.push('O portal do aluno não foi renderizado.');
-}
-
-if (!studentScroll) {
-  failures.push('A rolagem isolada do portal do aluno não foi validada.');
-} else {
-  const { beforeContentScroll, afterContentScroll } = studentScroll;
-  if (
-    beforeContentScroll.headerPosition !== 'fixed' ||
-    afterContentScroll.headerPosition !== 'fixed'
-  ) {
-    failures.push(
-      `Cabeçalho do portal não está fixed: ${beforeContentScroll.headerPosition}/${afterContentScroll.headerPosition}.`,
-    );
-  }
-  if (afterContentScroll.contentOverflowY !== 'auto') {
-    failures.push(`O conteúdo do portal não controla a rolagem: ${afterContentScroll.contentOverflowY}.`);
-  }
-  if ((afterContentScroll.contentScrollTop ?? 0) < 100) {
-    failures.push(
-      `A área interna do portal não rolou o suficiente: ${afterContentScroll.contentScrollTop}px.`,
-    );
-  }
-  if (afterContentScroll.windowScrollY !== 0) {
-    failures.push(`O documento rolou junto com o portal: ${afterContentScroll.windowScrollY}px.`);
-  }
-  if (afterContentScroll.documentScrollHeight > afterContentScroll.viewportHeight + 1) {
-    failures.push(
-      `O documento ainda possui scrollbar global: ${afterContentScroll.documentScrollHeight}px para viewport de ${afterContentScroll.viewportHeight}px.`,
-    );
-  }
-  for (const key of ['headerTop', 'logoTop']) {
-    const before = beforeContentScroll[key];
-    const after = afterContentScroll[key];
-    if (before === null || after === null || Math.abs(before - after) > 1) {
-      failures.push(`${key} se moveu durante a rolagem interna: ${before} → ${after}.`);
-    }
-  }
-  if (
-    beforeContentScroll.headerBottom === null ||
-    beforeContentScroll.contentTop === null ||
-    beforeContentScroll.contentTop < beforeContentScroll.headerBottom - 1
-  ) {
-    failures.push(
-      `A área rolável começa por trás do cabeçalho: header=${beforeContentScroll.headerBottom}, conteúdo=${beforeContentScroll.contentTop}.`,
-    );
-  }
 }
 
 if (pageErrors.length > 0) failures.push(`Erros JavaScript: ${pageErrors.join(' | ')}`);
