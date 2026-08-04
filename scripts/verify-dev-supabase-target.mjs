@@ -9,6 +9,7 @@ const FORBIDDEN_PROJECT_REFS = new Set([
 
 const requiredFiles = new Map([
   ['supabase/config.toml', [`project_id = "${DEV_PROJECT_REF}"`]],
+  ['.env.example', [`VITE_SUPABASE_URL=${DEV_PROJECT_URL}`]],
   ['.github/workflows/dev-pages-preview.yml', [`VITE_SUPABASE_URL: ${DEV_PROJECT_URL}`]],
   ['.github/workflows/dev-quality.yml', [`VITE_SUPABASE_URL: ${DEV_PROJECT_URL}`]],
   ['.github/workflows/quality.yml', [`VITE_SUPABASE_URL: ${DEV_PROJECT_URL}`]],
@@ -16,6 +17,7 @@ const requiredFiles = new Map([
     '.github/workflows/deploy-supabase.yml',
     [
       `DEV_SUPABASE_PROJECT_REF: ${DEV_PROJECT_REF}`,
+      'if [ "${{ inputs.environment }}" = "dev" ] && [ "$GITHUB_REF_NAME" != "dev" ]; then',
       'if [ "${{ inputs.environment }}" = "dev" ]; then',
       'echo "SUPABASE_PROJECT_REF=${DEV_SUPABASE_PROJECT_REF}" >> "$GITHUB_ENV"',
     ],
