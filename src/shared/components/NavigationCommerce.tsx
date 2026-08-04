@@ -58,7 +58,7 @@ const NavigationCommerce = () => (
           <SheetTrigger asChild>
             <Button variant="outline" size="icon" aria-label="Abrir menu"><Menu className="size-5" /></Button>
           </SheetTrigger>
-          <SheetContent side="right" className="w-[min(88vw,360px)] border-white/10 bg-[#0a0a0a] p-6">
+          <SheetContent className="max-h-[85vh] w-[calc(100%-2rem)] max-w-md border-white/10 bg-[#0a0a0a] p-6">
             <div className="mb-8"><Brand /></div>
             <nav className="space-y-2" aria-label="Navegação móvel">
               {links.map((item) => (
