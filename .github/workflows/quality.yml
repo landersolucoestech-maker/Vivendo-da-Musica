@@ -86,7 +86,7 @@ jobs:
       github.event_name == 'pull_request' &&
       github.event.pull_request.head.ref == 'dev'
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 60
     environment: dev
     env:
       SUPABASE_PROJECT_REF: ywirfqvobfnunlcsnptm
@@ -122,22 +122,16 @@ jobs:
         if: steps.trigger.outputs.deploy == 'true'
         run: npm ci
 
-      - name: Validate deployment credentials and target
+      - name: Validate deployment credential and target
         if: steps.trigger.outputs.deploy == 'true'
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
         shell: bash
         run: |
           set -euo pipefail
           test -n "$SUPABASE_ACCESS_TOKEN"
           grep --quiet "project_id = \"${SUPABASE_PROJECT_REF}\"" supabase/config.toml
           node scripts/verify-dev-supabase-target.mjs
-          if [ -n "${SUPABASE_DB_PASSWORD:-}" ]; then
-            echo "Database password fallback is configured."
-          else
-            echo "Database password fallback is not configured; passwordless CLI authentication will be used."
-          fi
 
       - name: Link Supabase DEV project
         if: steps.trigger.outputs.deploy == 'true'
@@ -145,56 +139,20 @@ jobs:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
         run: npx supabase link --project-ref "$SUPABASE_PROJECT_REF"
 
-      - name: Fetch remote migration history
+      - name: Reconcile schema and migration history
         if: steps.trigger.outputs.deploy == 'true'
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          env -u SUPABASE_DB_PASSWORD npx supabase migration fetch --linked
-          env -u SUPABASE_DB_PASSWORD npx supabase migration list --linked
+        run: bash scripts/reconcile-supabase-dev-history.sh
 
-      - name: Apply all remote migrations
-        if: steps.trigger.outputs.deploy == 'true'
-        env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
-        shell: bash
-        run: |
-          set -uo pipefail
-          passwordless_log="${RUNNER_TEMP}/supabase-db-push-passwordless.log"
-
-          set +e
-          timeout --signal=TERM --kill-after=30s 15m \
-            env -u SUPABASE_DB_PASSWORD npx supabase db push --linked --include-all 2>&1 | tee "$passwordless_log"
-          passwordless_status=${PIPESTATUS[0]}
-          set -e
-
-          if [ "$passwordless_status" -eq 0 ]; then
-            echo "Remote migrations applied with passwordless Supabase CLI authentication."
-            exit 0
-          fi
-
-          if ! grep -Eqi 'password authentication failed|failed SASL auth|invalid SCRAM|authentication failed' "$passwordless_log"; then
-            echo "::error title=Supabase migration deployment failed::The remote connection succeeded, but migration execution failed. Review the SQL error above."
-            exit "$passwordless_status"
-          fi
-
-          if [ -z "${SUPABASE_DB_PASSWORD:-}" ]; then
-            echo "::error title=Supabase database authentication failed::Passwordless authentication failed and no database password fallback is configured."
-            exit "$passwordless_status"
-          fi
-
-          echo "Passwordless authentication failed; retrying with the configured database password fallback."
-          timeout --signal=TERM --kill-after=30s 15m \
-            npx supabase db push --linked --include-all --password "$SUPABASE_DB_PASSWORD"
-
-      - name: Verify linked migration history
-        if: steps.trigger.outputs.deploy == 'true'
-        env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-        run: env -u SUPABASE_DB_PASSWORD npx supabase migration list --linked
+      - name: Upload Supabase reconciliation diagnostics
+        if: always() && steps.trigger.outputs.deploy == 'true'
+        uses: actions/upload-artifact@v7
+        with:
+          name: supabase-dev-reconciliation-${{ github.run_id }}
+          path: artifacts/supabase-dev
+          if-no-files-found: warn
+          retention-days: 7
 
       - name: Deploy all Edge Functions
         if: steps.trigger.outputs.deploy == 'true'
@@ -216,7 +174,7 @@ jobs:
                 echo "## Supabase DEV deployment"
                 echo
                 echo "- Project: \`${SUPABASE_PROJECT_REF}\`"
-                echo "- Migrations: applied"
+                echo "- Schema and migration history: reconciled"
                 echo "- Edge Functions: deployed"
                 echo "- API health: healthy"
                 echo "- Source commit: \`${GITHUB_SHA}\`"
