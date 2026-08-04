@@ -4,15 +4,41 @@ set -euo pipefail
 : "${SUPABASE_PROJECT_REF:?SUPABASE_PROJECT_REF is required}"
 : "${SUPABASE_ACCESS_TOKEN:?SUPABASE_ACCESS_TOKEN is required}"
 
+baseline_version="20260804103000"
 artifact_dir="${GITHUB_WORKSPACE:-.}/artifacts/supabase-dev"
 diff_file="${artifact_dir}/canonical-vs-remote.sql"
 list_before="${artifact_dir}/migration-list-before.txt"
 list_after="${artifact_dir}/migration-list-after.txt"
 mkdir -p "$artifact_dir"
 
-# Compare the canonical migration chain with the linked database without using
-# the remote migration history as a source of truth. Authentication triggers,
-# storage buckets/policies and private authorization schemas are included.
+env -u SUPABASE_DB_PASSWORD npx supabase migration list --linked | tee "$list_before"
+
+remote_has_baseline=false
+if awk -F'|' -v baseline="$baseline_version" '
+  NF >= 2 {
+    remote=$2
+    gsub(/[^0-9]/, "", remote)
+    if (remote == baseline) found=1
+  }
+  END { exit(found ? 0 : 1) }
+' "$list_before"; then
+  remote_has_baseline=true
+fi
+
+# Fetch remote-only migration records into the disposable runner worktree. Do
+# not overwrite canonical files when timestamps already exist.
+printf 'n\n' | env -u SUPABASE_DB_PASSWORD npx supabase migration fetch --linked
+
+if [[ "$remote_has_baseline" == "true" ]]; then
+  echo "Canonical DEV migration baseline is already established. Applying only migrations newer than the baseline."
+  env -u SUPABASE_DB_PASSWORD npx supabase db push --linked --include-all
+  env -u SUPABASE_DB_PASSWORD npx supabase migration list --linked | tee "$list_after"
+  exit 0
+fi
+
+# First-time reconciliation: compare the complete canonical migration chain
+# with the linked database without trusting either migration history. Include
+# authentication triggers, storage policies/buckets and private auth schemas.
 set +e
 timeout --signal=TERM --kill-after=30s 20m \
   env -u SUPABASE_DB_PASSWORD npx supabase db diff \
@@ -37,12 +63,6 @@ if [[ -n "$meaningful_diff" ]]; then
   echo "::error title=Supabase DEV schema drift::The linked database is not equivalent to the canonical dev migrations. Migration history was not modified."
   exit 2
 fi
-
-env -u SUPABASE_DB_PASSWORD npx supabase migration list --linked | tee "$list_before"
-
-# Fetch remote-only migration records into the disposable runner worktree. Do
-# not overwrite canonical files when timestamps already exist.
-printf 'n\n' | env -u SUPABASE_DB_PASSWORD npx supabase migration fetch --linked
 
 # Extract remote migration versions from the pre-fetch list. The CLI table has
 # local and remote columns separated by pipes; only 14-digit remote versions are
@@ -75,21 +95,27 @@ for version in "${local_versions[@]}"; do
   fi
 done
 
-if [[ "${#missing_versions[@]}" -gt 0 ]]; then
-  echo "Canonical schemas are equivalent. Repairing ${#missing_versions[@]} missing canonical migration-history records."
-  batch=()
-  for version in "${missing_versions[@]}"; do
-    batch+=("$version")
-    if [[ "${#batch[@]}" -ge 40 ]]; then
-      env -u SUPABASE_DB_PASSWORD npx supabase migration repair --linked --status applied "${batch[@]}"
-      batch=()
-    fi
-  done
-  if [[ "${#batch[@]}" -gt 0 ]]; then
+if [[ "${#missing_versions[@]}" -eq 0 ]]; then
+  echo "::error title=Supabase migration baseline missing::Schemas are equivalent, but no canonical migration records require reconciliation. Baseline was not modified."
+  exit 3
+fi
+
+if [[ ! " ${missing_versions[*]} " =~ " ${baseline_version} " ]]; then
+  echo "::error title=Supabase baseline invariant failed::The baseline migration is not among the missing canonical history records."
+  exit 4
+fi
+
+echo "Canonical schemas are equivalent. Repairing ${#missing_versions[@]} missing canonical migration-history records."
+batch=()
+for version in "${missing_versions[@]}"; do
+  batch+=("$version")
+  if [[ "${#batch[@]}" -ge 40 ]]; then
     env -u SUPABASE_DB_PASSWORD npx supabase migration repair --linked --status applied "${batch[@]}"
+    batch=()
   fi
-else
-  echo "Remote migration history already contains every canonical migration version."
+done
+if [[ "${#batch[@]}" -gt 0 ]]; then
+  env -u SUPABASE_DB_PASSWORD npx supabase migration repair --linked --status applied "${batch[@]}"
 fi
 
 env -u SUPABASE_DB_PASSWORD npx supabase migration list --linked | tee "$list_after"
@@ -97,4 +123,4 @@ env -u SUPABASE_DB_PASSWORD npx supabase migration list --linked | tee "$list_af
 # This must be a no-op after an equivalent-schema history reconciliation.
 env -u SUPABASE_DB_PASSWORD npx supabase db push --linked --include-all --dry-run
 
-echo "Supabase DEV schema and migration history reconciled safely."
+echo "Supabase DEV schema and migration history reconciled safely at baseline ${baseline_version}."
