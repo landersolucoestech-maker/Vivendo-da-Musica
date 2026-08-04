@@ -8,7 +8,8 @@ const STANDALONE_FORM_ALLOWLIST = [
   /\/modules\/checkout\/pages\//,
   /\/pages\/Contact\.tsx$/,
   /\/modules\/profile\/pages\/EditProfile\.tsx$/,
-  /\/modules\/dashboard\/pages\/(?:SupportPage|StudentSettingsPage)\.tsx$/,
+  /\/modules\/dashboard\/pages\/StudentSettingsPage\.tsx$/,
+  /\/modules\/certificates\/pages\/ValidateCertificatePage\.tsx$/,
 ];
 
 const normalize = (path) => path.replaceAll('\\', '/');
@@ -49,27 +50,28 @@ const insideModal = (index, intervals) => intervals.some((interval) => index > i
 
 const intentFor = (text) => {
   const normalized = text.toLocaleLowerCase('pt-BR');
-  if (/\b(novo|nova|criar|cadastrar|adicionar|publicar|registrar)\b/.test(normalized)) return 'create';
-  if (/\b(editar|alterar|atualizar|salvar alterações|substituir)\b/.test(normalized)) return 'edit';
-  if (/\b(ver|visualizar|detalhes|consultar|abrir)\b/.test(normalized)) return 'view';
   if (/\b(login|entrar|senha|cadastro de conta|registrar conta)\b/.test(normalized)) return 'auth';
   if (/\b(checkout|pagamento|finalizar compra)\b/.test(normalized)) return 'checkout';
-  if (/\b(buscar|pesquisar|filtrar|filtro)\b/.test(normalized)) return 'filter';
+  if (/\b(buscar|pesquisar|filtrar|filtro|validar certificado)\b/.test(normalized)) return 'filter';
+  if (/\b(novo|nova|criar|cadastrar|adicionar|publicar|registrar|solicitar|abrir solicitação|enviar solicitação)\b/.test(normalized)) return 'create';
+  if (/\b(editar|alterar|atualizar|salvar alterações|substituir)\b/.test(normalized)) return 'edit';
+  if (/\b(ver|visualizar|detalhes|consultar|abrir)\b/.test(normalized)) return 'view';
   return 'other';
 };
 
 const extractLabels = (source) => {
   const labels = [];
-  const pattern = />\s*([^<>\n]{2,80}?)\s*</g;
+  const pattern = />\s*([^<>\n]{2,100}?)\s*</g;
   for (const match of source.matchAll(pattern)) {
     const label = match[1].replace(/\s+/g, ' ').trim();
-    if (/^(novo|nova|criar|cadastrar|adicionar|editar|alterar|ver|visualizar|detalhes|abrir)(\b|\s)/i.test(label)) labels.push(label);
+    if (/^(novo|nova|criar|cadastrar|adicionar|publicar|registrar|solicitar|editar|alterar|ver|visualizar|detalhes|abrir)(\b|\s)/i.test(label)) labels.push(label);
   }
-  return [...new Set(labels)].slice(0, 30);
+  return [...new Set(labels)].slice(0, 40);
 };
 
 const files = await walk(ROOT);
 const forms = [];
+const delegatedForms = [];
 const modules = new Map();
 const violations = [];
 
@@ -79,7 +81,17 @@ for (const absolutePath of files) {
   const intervals = modalIntervals(source);
   const labels = extractLabels(source);
   const moduleName = path.split('/')[2] ?? 'shared';
-  const summary = modules.get(moduleName) ?? { files: 0, forms: 0, modalForms: 0, inlineForms: 0, create: 0, edit: 0, view: 0 };
+  const allowedStandalone = STANDALONE_FORM_ALLOWLIST.some((pattern) => pattern.test(`/${path}`));
+  const summary = modules.get(moduleName) ?? {
+    files: 0,
+    forms: 0,
+    delegatedForms: 0,
+    modalForms: 0,
+    inlineForms: 0,
+    create: 0,
+    edit: 0,
+    view: 0,
+  };
   summary.files += 1;
 
   for (const match of source.matchAll(/<form\b/g)) {
@@ -87,7 +99,6 @@ for (const absolutePath of files) {
     const context = source.slice(Math.max(0, index - 1800), Math.min(source.length, index + 3500));
     const intent = intentFor(context);
     const modal = insideModal(index, intervals);
-    const allowedStandalone = STANDALONE_FORM_ALLOWLIST.some((pattern) => pattern.test(`/${path}`));
     const item = { path, line: lineAt(source, index), intent, presentation: modal ? 'popup' : 'inline', allowedStandalone };
     forms.push(item);
     summary.forms += 1;
@@ -98,21 +109,38 @@ for (const absolutePath of files) {
     if (intent === 'view') summary.view += 1;
 
     if (!modal && !allowedStandalone && ['create', 'edit'].includes(intent)) {
-      violations.push(`${path}:${item.line} — formulário ${intent === 'create' ? 'de criação' : 'de edição'} está direto na página.`);
+      violations.push(`${path}:${item.line} — formulário ${intent === 'create' ? 'de criação/solicitação' : 'de edição'} está direto na página.`);
     }
   }
 
-  const hasCreateAction = labels.some((label) => /^(novo|nova|criar|cadastrar|adicionar)/i.test(label));
+  if (/\/pages\//.test(path)) {
+    for (const match of source.matchAll(/<([A-Z][A-Za-z0-9]*(?:Form|Editor))\b/g)) {
+      const component = match[1];
+      const index = match.index ?? 0;
+      const modal = insideModal(index, intervals);
+      delegatedForms.push({ path, line: lineAt(source, index), component, presentation: modal ? 'popup' : 'inline' });
+      summary.delegatedForms += 1;
+      if (!modal && !allowedStandalone) {
+        violations.push(`${path}:${lineAt(source, index)} — componente de formulário ${component} está renderizado diretamente na página.`);
+      }
+    }
+  }
+
+  const hasCreateAction = labels.some((label) => /^(novo|nova|criar|cadastrar|adicionar|publicar|registrar|solicitar)/i.test(label));
   const hasEditAction = labels.some((label) => /^(editar|alterar)/i.test(label));
   const hasViewAction = labels.some((label) => /^(ver|visualizar|detalhes|abrir)/i.test(label));
   const operationalPage = /\/pages\/.+Page\.tsx$/.test(path) && !/Public|Landing|Detail|Login|Register|Checkout|Payment|NotFound|ComingSoon/.test(path);
 
   if (operationalPage && (hasCreateAction || hasEditAction) && !hasViewAction && !/Dashboard/.test(path)) {
-    violations.push(`${path} — possui Criar/Editar, mas não expõe uma ação explícita de Ver/Visualizar.`);
+    violations.push(`${path} — possui Criar/Editar/Solicitar, mas não expõe uma ação explícita de Ver/Visualizar.`);
   }
 
   if (/(?:slide-in-from|slide-out-to)-(?:left|right|top|bottom)/.test(source) && /(?:DialogContent|AlertDialogContent|SheetContent)/.test(source)) {
     violations.push(`${path} — modal ainda contém animação slide-in/slide-out.`);
+  }
+
+  if (/SheetContent\s+side=/.test(source)) {
+    violations.push(`${path} — SheetContent ainda define side e pode voltar a abrir como painel lateral.`);
   }
 
   modules.set(moduleName, summary);
@@ -136,6 +164,7 @@ const report = {
   scannedFiles: files.length,
   routeDeclarations: routes.length,
   forms,
+  delegatedForms,
   modules: Object.fromEntries([...modules.entries()].sort(([a], [b]) => a.localeCompare(b))),
   violations,
 };
@@ -148,4 +177,4 @@ if (violations.length) {
   throw new Error(`Auditoria encontrou ${violations.length} violação(ões):\n${violations.map((item) => `- ${item}`).join('\n')}`);
 }
 
-console.log(`Auditoria concluída: ${files.length} arquivos, ${forms.length} formulários e ${routes.length} rotas.`);
+console.log(`Auditoria concluída: ${files.length} arquivos, ${forms.length} formulários, ${delegatedForms.length} formulários delegados e ${routes.length} rotas.`);
