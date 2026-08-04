@@ -32,6 +32,8 @@ jobs:
     steps:
       - name: Checkout dev
         uses: actions/checkout@v6
+        with:
+          ref: dev
 
       - name: Setup Node.js
         uses: actions/setup-node@v6
@@ -60,7 +62,7 @@ jobs:
 
   deploy:
     name: Deploy dev preview
-    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    if: github.event_name != 'pull_request' || github.head_ref == 'dev'
     needs: build
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -76,7 +78,7 @@ jobs:
 
   verify:
     name: Verify live dev preview
-    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    if: github.event_name != 'pull_request' || github.head_ref == 'dev'
     needs: deploy
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -85,6 +87,8 @@ jobs:
     steps:
       - name: Checkout dev
         uses: actions/checkout@v6
+        with:
+          ref: dev
 
       - name: Setup Node.js
         uses: actions/setup-node@v6
