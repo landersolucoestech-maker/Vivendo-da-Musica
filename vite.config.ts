@@ -33,7 +33,10 @@ const previewRouterBasePlugin = (basePath: string): Plugin => ({
 });
 
 const basePath = normalizeBasePath(process.env.VITE_BASE_PATH);
-const routerBasePath = isAbsoluteHttpUrl(basePath) ? '/' : basePath;
+const defaultRouterBasePath = isAbsoluteHttpUrl(basePath) ? '/' : basePath;
+const routerBasePath = normalizeBasePath(
+  process.env.VITE_ROUTER_BASE_PATH ?? defaultRouterBasePath,
+);
 
 export default defineConfig({
   base: basePath,
