@@ -29,7 +29,7 @@ const MobileSidebarMenu = ({ sectionLabel, items, exactPath }: MobileSidebarMenu
             <span className="text-xs text-muted-foreground">{sectionLabel}</span>
           </Button>
         </SheetTrigger>
-        <SheetContent side="left" className="w-[86vw] max-w-80 overflow-y-auto border-white/10 bg-[#0A0A0A] p-4">
+        <SheetContent className="max-h-[85vh] w-[calc(100%-2rem)] max-w-md border-white/10 bg-[#0A0A0A] p-4">
           <div className="mb-5 border-b border-white/10 px-1 pb-4 pt-2">
             <p className="vdm-eyebrow">Vivendo da Música</p>
             <p className="mt-1 font-display text-base font-semibold text-white">{sectionLabel}</p>
