@@ -9,11 +9,13 @@ remote_dump="${artifact_dir}/remote-schema.sql"
 remote_snapshot_dump="${artifact_dir}/remote-schema.snapshot.sql"
 remote_restore_log="${artifact_dir}/remote-schema.restore.log"
 remote_to_canonical_diff="${artifact_dir}/remote-to-canonical.sql"
+remote_to_canonical_log="${artifact_dir}/remote-to-canonical.log"
 remote_to_canonical_report="${artifact_dir}/remote-to-canonical.report.json"
 migration_list="${artifact_dir}/migration-list-before.txt"
 selected_schemas=(auth storage public app_private authz_private)
 mkdir -p "$artifact_dir"
 : >"$remote_to_canonical_diff"
+: >"$remote_to_canonical_log"
 
 cleanup() {
   npx supabase stop --no-backup >/dev/null 2>&1 || true
@@ -117,7 +119,8 @@ for schema in "${selected_schemas[@]}"; do
     --schema "$schema" \
     "$remote_snapshot_url" \
     "$canonical_url" \
-    >>"$remote_to_canonical_diff"
+    >>"$remote_to_canonical_diff" \
+    2>>"$remote_to_canonical_log"
 done
 
 node scripts/classify-supabase-schema-diff.mjs \
