@@ -3,7 +3,7 @@ info:
   title: Vivendo da Música API
   version: 1.0.0
 servers:
-  - url: https://ehaehioqaqvyfgcetylh.supabase.co/functions/v1/api-v1/v1
+  - url: https://ywirfqvobfnunlcsnptm.supabase.co/functions/v1/api-v1/v1
 paths:
   /health:
     get:
