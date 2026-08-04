@@ -61,7 +61,6 @@ export const ROUTES = {
   producerProducts: '/produtor/produtos',
   producerOrders: '/produtor/pedidos',
   producerServices: '/produtor/servicos',
-  producerServiceCatalog: '/produtor/catalogo-servicos',
   producerServiceRequests: '/produtor/solicitacoes-servico',
 
   affiliate: '/afiliado',
