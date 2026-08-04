@@ -57,10 +57,13 @@ from pg_stat_activity
 where datname = 'remote_snapshot'
   and pid <> pg_backend_pid();
 drop database if exists remote_snapshot;
-create database remote_snapshot template postgres;
+create database remote_snapshot
+  with template template0
+       owner postgres
+       encoding 'UTF8';
 SQL
 
-echo "Removing canonical application schemas from the remote snapshot database..."
+echo "Preparing the isolated remote snapshot database..."
 docker exec -i "$local_db_container" psql \
   --username postgres \
   --dbname remote_snapshot \
