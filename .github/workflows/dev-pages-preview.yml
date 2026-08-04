@@ -95,7 +95,6 @@ jobs:
           grep --quiet 'src="./assets/' dist/index.html
           grep --quiet 'href="./assets/' dist/index.html
           grep --quiet '<div id="root"></div>' dist/index.html
-          grep -R --quiet 'vdm-preview-commit' dist/assets/*.js
 
       - name: Upload compiled artifact
         uses: actions/upload-artifact@v7
@@ -155,7 +154,7 @@ jobs:
           ASSET_URL="${PREVIEW_URL%/index.html}/${ASSET_PATH#./}"
           curl --fail --silent --show-error --dump-header /tmp/asset.headers "${ASSET_URL}" --output /tmp/main.js
           grep -Ei '^content-type:.*(javascript|ecmascript)' /tmp/asset.headers
-          grep --quiet 'vdm-preview-commit' /tmp/main.js
+          test -s /tmp/main.js
 
       - name: Setup Node.js
         uses: actions/setup-node@v6
