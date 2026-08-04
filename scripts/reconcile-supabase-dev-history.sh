@@ -11,6 +11,14 @@ list_before="${artifact_dir}/migration-list-before.txt"
 list_after="${artifact_dir}/migration-list-after.txt"
 mkdir -p "$artifact_dir"
 
+# Capture canonical versions before the disposable runner worktree receives any
+# remote-only migration files.
+mapfile -t canonical_versions < <(
+  find supabase/migrations -maxdepth 1 -type f -printf '%f\n' \
+    | sed -nE 's/^([0-9]{14})_[A-Za-z0-9._-]+\.sql$/\1/p' \
+    | sort -u
+)
+
 env -u SUPABASE_DB_PASSWORD npx supabase migration list --linked | tee "$list_before"
 
 remote_has_baseline=false
@@ -25,11 +33,11 @@ if awk -F'|' -v baseline="$baseline_version" '
   remote_has_baseline=true
 fi
 
-# Fetch remote-only migration records into the disposable runner worktree. Do
-# not overwrite canonical files when timestamps already exist.
-printf 'n\n' | env -u SUPABASE_DB_PASSWORD npx supabase migration fetch --linked
-
 if [[ "$remote_has_baseline" == "true" ]]; then
+  # The one-time equivalence gate already passed on a previous deployment.
+  # Accept remote-only history files in this disposable checkout, then apply
+  # only canonical migrations added after the baseline.
+  printf 'y\n' | env -u SUPABASE_DB_PASSWORD npx supabase migration fetch --linked
   echo "Canonical DEV migration baseline is already established. Applying only migrations newer than the baseline."
   env -u SUPABASE_DB_PASSWORD npx supabase db push --linked --include-all
   env -u SUPABASE_DB_PASSWORD npx supabase migration list --linked | tee "$list_after"
@@ -64,9 +72,12 @@ if [[ -n "$meaningful_diff" ]]; then
   exit 2
 fi
 
-# Extract remote migration versions from the pre-fetch list. The CLI table has
-# local and remote columns separated by pipes; only 14-digit remote versions are
-# considered.
+# Schema equivalence has been proved. Remote-only migration files may now be
+# accepted in the disposable checkout so db push can evaluate both histories.
+printf 'y\n' | env -u SUPABASE_DB_PASSWORD npx supabase migration fetch --linked
+
+# Extract remote migration versions from the original list. Only canonical
+# versions missing from the remote history are marked as applied.
 mapfile -t remote_versions < <(
   awk -F'|' '
     NF >= 2 {
@@ -82,14 +93,8 @@ for version in "${remote_versions[@]}"; do
   remote_set["$version"]=1
 done
 
-mapfile -t local_versions < <(
-  find supabase/migrations -maxdepth 1 -type f -printf '%f\n' \
-    | sed -nE 's/^([0-9]{14})_[A-Za-z0-9._-]+\.sql$/\1/p' \
-    | sort -u
-)
-
 missing_versions=()
-for version in "${local_versions[@]}"; do
+for version in "${canonical_versions[@]}"; do
   if [[ -z "${remote_set[$version]+x}" ]]; then
     missing_versions+=("$version")
   fi
