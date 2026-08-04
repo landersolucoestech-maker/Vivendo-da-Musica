@@ -1,4 +1,4 @@
-name: Dev Pages Preview
+name: Dev Static Preview
 
 on:
   push:
@@ -8,17 +8,20 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
-  pages: write
-  id-token: write
+  contents: write
 
 concurrency:
-  group: dev-pages-preview-${{ github.event_name }}
+  group: dev-static-preview-${{ github.event_name }}
   cancel-in-progress: true
 
+env:
+  STATIC_BRANCH: dev-preview-static
+  STATIC_BASE_PATH: /landersolucoestech-maker/Vivendo-da-Musica/dev-preview-static/
+  STATIC_PREVIEW_URL: https://raw.githack.com/landersolucoestech-maker/Vivendo-da-Musica/dev-preview-static/index.html
+
 jobs:
-  build:
-    name: Build preview artifact
+  publish:
+    name: Build and publish dev preview
     if: github.event_name == 'push' || github.event_name == 'workflow_dispatch' || github.head_ref == 'dev'
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -28,7 +31,7 @@ jobs:
       VITE_DISABLE_AUTH: "true"
       VITE_PREVIEW_MODE: "true"
       VITE_USE_MOCK_DATA: "false"
-      VITE_BASE_PATH: /Vivendo-da-Musica/
+      VITE_BASE_PATH: /landersolucoestech-maker/Vivendo-da-Musica/dev-preview-static/
     steps:
       - name: Checkout dev
         uses: actions/checkout@v6
@@ -47,48 +50,68 @@ jobs:
       - name: Build hosted preview
         run: npm run build
 
-      - name: Add SPA fallback and disable Jekyll
+      - name: Normalize static entry and add fallback
         run: |
-          cp dist/index.html dist/404.html
-          touch dist/.nojekyll
+          python - <<'PY'
+          from pathlib import Path
 
-      - name: Configure GitHub Pages
-        uses: actions/configure-pages@v6
+          index = Path('dist/index.html')
+          content = index.read_text(encoding='utf-8')
+          normalizer = """<script>
+            if (window.location.pathname.endsWith('/index.html')) {
+              window.history.replaceState(null, '', window.location.pathname.slice(0, -10) + window.location.search + window.location.hash);
+            }
+          </script>"""
+          content = content.replace('<head>', '<head>\n    ' + normalizer, 1)
+          index.write_text(content, encoding='utf-8')
+          Path('dist/404.html').write_text(content, encoding='utf-8')
+          Path('dist/.nojekyll').touch()
+          PY
 
-      - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v5
+      - name: Upload compiled preview artifact
+        uses: actions/upload-artifact@v7
         with:
+          name: dev-static-preview-${{ github.sha }}
           path: dist
+          if-no-files-found: error
+          retention-days: 7
 
-  deploy:
-    name: Deploy dev preview
-    if: github.event_name != 'pull_request' || github.head_ref == 'dev'
-    needs: build
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    outputs:
-      page_url: ${{ steps.deployment.outputs.page_url }}
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v5
+      - name: Publish static branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cd dist
+          git init --initial-branch="${STATIC_BRANCH}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add --all
+          git commit -m "chore(preview): publish ${GITHUB_SHA}"
+          git push --force "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" "HEAD:${STATIC_BRANCH}"
 
   verify:
-    name: Verify live dev preview
-    if: github.event_name != 'pull_request' || github.head_ref == 'dev'
-    needs: deploy
+    name: Verify published dev preview
+    needs: publish
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
-      PREVIEW_URL: ${{ needs.deploy.outputs.page_url }}
+      PREVIEW_URL: https://raw.githack.com/landersolucoestech-maker/Vivendo-da-Musica/dev-preview-static/index.html
     steps:
       - name: Checkout dev
         uses: actions/checkout@v6
         with:
           ref: dev
+
+      - name: Wait for static host
+        run: |
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent --show-error "${PREVIEW_URL}?commit=${GITHUB_SHA}" --output /tmp/preview.html \
+              && grep --quiet "Vivendo da Música" /tmp/preview.html; then
+              exit 0
+            fi
+            sleep 4
+          done
+          echo "A hospedagem estática não disponibilizou o build dentro do prazo." >&2
+          exit 1
 
       - name: Setup Node.js
         uses: actions/setup-node@v6
@@ -102,7 +125,7 @@ jobs:
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
 
-      - name: Verify published application
+      - name: Verify rendered application
         run: node scripts/verify-pages-preview.mjs
 
       - name: Upload preview audit report
