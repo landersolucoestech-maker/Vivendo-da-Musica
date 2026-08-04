@@ -1,14 +1,25 @@
 export type SellerProductType = 'preset' | 'drum_kit' | 'midi' | 'plugin' | 'template' | 'project' | 'ebook' | 'other';
 
+export interface SellerProductFile {
+  id: string;
+  storagePath: string;
+  fileName: string;
+  mimeType: string | null;
+  sizeBytes: number;
+  createdAt: string;
+}
+
 export interface SellerProduct {
   id: string;
   title: string;
   slug: string;
+  description: string;
   productType: SellerProductType;
   priceCents: number;
   currency: string;
   status: 'draft' | 'published' | 'archived';
   fileCount: number;
+  files: SellerProductFile[];
   createdAt: string;
 }
 
