@@ -6,16 +6,19 @@ import ProducerSidebar, { PRODUCER_NAV_ITEMS } from '@/shared/components/Produce
 import { ROUTES } from '@/shared/constants/routes';
 
 const ProducerLayout = ({ children }: { children: ReactNode }) => (
-  <div className="vdm-page min-h-screen overflow-x-hidden">
+  <div className="vdm-page h-dvh overflow-hidden">
     <Navigation />
-    <div className="pt-16 sm:pt-20">
+    <div className="flex h-full flex-col overflow-hidden pt-16 sm:pt-20">
       <MobileSidebarMenu
         sectionLabel="Portal do Produtor"
         items={PRODUCER_NAV_ITEMS}
         exactPath={ROUTES.producer}
       />
       <ProducerSidebar />
-      <main className="min-h-[calc(100dvh-4rem)] min-w-0 w-full px-4 py-6 sm:min-h-[calc(100dvh-5rem)] sm:px-6 md:ml-64 md:w-[calc(100%-16rem)] lg:px-8 lg:py-8">
+      <main
+        data-testid="producer-content-scroll"
+        className="min-h-0 min-w-0 w-full flex-1 overflow-y-auto overscroll-contain [scrollbar-gutter:stable] px-4 py-6 sm:px-6 md:ml-64 md:w-[calc(100%-16rem)] lg:px-8 lg:py-8"
+      >
         {children}
       </main>
     </div>
