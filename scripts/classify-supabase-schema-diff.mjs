@@ -71,6 +71,122 @@ function collect(pattern, formatter = (match) => match[1]?.trim()) {
   return [...values].sort();
 }
 
+const preservedForeignKeys = [
+  {
+    table: 'candidate_profiles',
+    constraint: 'candidate_profiles_user_id_fkey',
+    definition: 'FOREIGN KEY (user_id) REFERENCES user_profiles(user_id) ON DELETE CASCADE',
+  },
+  {
+    table: 'company_members',
+    constraint: 'company_members_user_id_fkey',
+    definition: 'FOREIGN KEY (user_id) REFERENCES user_profiles(user_id) ON DELETE CASCADE',
+  },
+  {
+    table: 'company_profiles',
+    constraint: 'company_profiles_owner_user_id_fkey',
+    definition: 'FOREIGN KEY (owner_user_id) REFERENCES user_profiles(user_id) ON DELETE CASCADE',
+  },
+  {
+    table: 'lesson_comments',
+    constraint: 'lesson_comments_lesson_id_fkey',
+    definition: 'FOREIGN KEY (lesson_id) REFERENCES lessons(id) ON DELETE CASCADE',
+  },
+  {
+    table: 'lesson_materials',
+    constraint: 'lesson_materials_lesson_id_fkey',
+    definition: 'FOREIGN KEY (lesson_id) REFERENCES lessons(id) ON DELETE CASCADE',
+  },
+  {
+    table: 'opportunities',
+    constraint: 'opportunities_created_by_fkey',
+    definition: 'FOREIGN KEY (created_by) REFERENCES user_profiles(user_id) ON DELETE SET NULL',
+  },
+  {
+    table: 'opportunity_application_messages',
+    constraint: 'opportunity_application_messages_sender_id_fkey',
+    definition: 'FOREIGN KEY (sender_id) REFERENCES user_profiles(user_id) ON DELETE CASCADE',
+  },
+  {
+    table: 'producer_financial_accounts',
+    constraint: 'producer_financial_accounts_producer_id_fkey',
+    definition: 'FOREIGN KEY (producer_id) REFERENCES user_profiles(user_id) ON DELETE RESTRICT',
+  },
+  {
+    table: 'producer_payout_events',
+    constraint: 'producer_payout_events_producer_id_fkey',
+    definition: 'FOREIGN KEY (producer_id) REFERENCES user_profiles(user_id) ON DELETE RESTRICT',
+  },
+  {
+    table: 'product_questions',
+    constraint: 'product_questions_answered_by_fkey',
+    definition: 'FOREIGN KEY (answered_by) REFERENCES user_profiles(user_id) ON DELETE SET NULL',
+  },
+  {
+    table: 'product_questions',
+    constraint: 'product_questions_user_id_fkey',
+    definition: 'FOREIGN KEY (user_id) REFERENCES user_profiles(user_id) ON DELETE CASCADE',
+  },
+  {
+    table: 'product_reviews',
+    constraint: 'product_reviews_user_id_fkey',
+    definition: 'FOREIGN KEY (user_id) REFERENCES user_profiles(user_id) ON DELETE CASCADE',
+  },
+];
+
+function augmentDiffForConstraintReplacement(sourceSql) {
+  const replacesLessonsPrimaryKey = /drop\s+constraint\s+"lessons_pkey"\s*;/i.test(sourceSql);
+  const replacesProfilesPrimaryKey = /drop\s+constraint\s+"user_profiles_pkey"\s*;/i.test(sourceSql);
+
+  if (!replacesLessonsPrimaryKey && !replacesProfilesPrimaryKey) {
+    return { applied: false, foreignKeys: [] };
+  }
+
+  const activeForeignKeys = preservedForeignKeys.filter(({ constraint }) => {
+    const escapedConstraint = constraint.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    return !new RegExp(`drop\\s+constraint\\s+"${escapedConstraint}"\\s*;`, 'i').test(sourceSql);
+  });
+
+  if (activeForeignKeys.length === 0) {
+    return { applied: false, foreignKeys: [] };
+  }
+
+  const prelude = activeForeignKeys
+    .map(
+      ({ table, constraint }) =>
+        `alter table "public"."${table}" drop constraint "${constraint}";`,
+    )
+    .join('\n');
+  const epilogue = activeForeignKeys
+    .map(
+      ({ table, constraint, definition }) =>
+        `alter table "public"."${table}" add constraint "${constraint}" ${definition};`,
+    )
+    .join('\n');
+
+  const augmentedSql = [
+    '-- Temporary dependency cycle required while canonical primary/unique indexes are replaced.',
+    'set local search_path = public, auth, app_private, authz_private, pg_catalog;',
+    prelude,
+    '',
+    sourceSql.trim(),
+    '',
+    '-- Restore foreign keys that remain part of the canonical schema.',
+    epilogue,
+    '',
+  ].join('\n');
+
+  writeFileSync(inputPath, augmentedSql, 'utf8');
+  return {
+    applied: true,
+    foreignKeys: activeForeignKeys.map(({ table, constraint }) => ({
+      schema: 'public',
+      table,
+      constraint,
+    })),
+  };
+}
+
 const objects = {
   dropped_tables: collect(objectPatterns.dropped_tables),
   dropped_types: collect(objectPatterns.dropped_types),
@@ -81,12 +197,14 @@ const objects = {
   created_tables: collect(objectPatterns.created_tables),
 };
 
+const dependencyCycle = augmentDiffForConstraintReplacement(sql);
 const report = {
   source_file: basename(inputPath),
   empty: executableSql.length === 0,
   statement_counts: counts,
   destructive_statement_count: destructiveCount,
   requires_manual_review: destructiveCount > 0,
+  dependency_cycle: dependencyCycle,
   objects,
 };
 
