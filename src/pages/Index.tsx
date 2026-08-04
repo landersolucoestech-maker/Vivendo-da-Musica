@@ -9,7 +9,7 @@ import StatsBar from '@/shared/components/StatsBar';
 import TestimonialsSection from '@/shared/components/TestimonialsSection';
 
 const Index = () => (
-  <div className="vdm-page min-h-screen overflow-x-hidden">
+  <div className="vdm-page min-h-screen overflow-x-clip">
     <Navigation />
     <HeroSection />
     <StatsBar />
