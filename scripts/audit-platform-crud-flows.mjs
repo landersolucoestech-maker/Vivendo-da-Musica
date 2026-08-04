@@ -1,4 +1,4 @@
-import { readdir, readFile } from 'node:fs/promises';
+import { basename, readdir, readFile } from 'node:fs/promises';
 import { join, relative } from 'node:path';
 
 const ROOT = 'src';
@@ -70,6 +70,18 @@ const extractLabels = (source) => {
 };
 
 const files = await walk(ROOT);
+const sourceByPath = new Map();
+for (const absolutePath of files) sourceByPath.set(absolutePath, await readFile(absolutePath, 'utf8'));
+
+const selfContainedPopupComponents = new Set(
+  files
+    .filter((absolutePath) => {
+      const source = sourceByPath.get(absolutePath) ?? '';
+      return /<form\b/.test(source) && /(?:DialogContent|AlertDialogContent|SheetContent)/.test(source);
+    })
+    .map((absolutePath) => basename(absolutePath).replace(/\.tsx?$/, '')),
+);
+
 const forms = [];
 const delegatedForms = [];
 const modules = new Map();
@@ -77,7 +89,7 @@ const violations = [];
 
 for (const absolutePath of files) {
   const path = normalize(relative('.', absolutePath));
-  const source = await readFile(absolutePath, 'utf8');
+  const source = sourceByPath.get(absolutePath) ?? '';
   const intervals = modalIntervals(source);
   const labels = extractLabels(source);
   const moduleName = path.split('/')[2] ?? 'shared';
@@ -118,9 +130,10 @@ for (const absolutePath of files) {
       const component = match[1];
       const index = match.index ?? 0;
       const modal = insideModal(index, intervals);
-      delegatedForms.push({ path, line: lineAt(source, index), component, presentation: modal ? 'popup' : 'inline' });
+      const selfContainedPopup = selfContainedPopupComponents.has(component);
+      delegatedForms.push({ path, line: lineAt(source, index), component, presentation: modal || selfContainedPopup ? 'popup' : 'inline' });
       summary.delegatedForms += 1;
-      if (!modal && !allowedStandalone) {
+      if (!modal && !selfContainedPopup && !allowedStandalone) {
         violations.push(`${path}:${lineAt(source, index)} — componente de formulário ${component} está renderizado diretamente na página.`);
       }
     }
@@ -163,6 +176,7 @@ const report = {
   generatedAt: new Date().toISOString(),
   scannedFiles: files.length,
   routeDeclarations: routes.length,
+  selfContainedPopupComponents: [...selfContainedPopupComponents].sort(),
   forms,
   delegatedForms,
   modules: Object.fromEntries([...modules.entries()].sort(([a], [b]) => a.localeCompare(b))),
