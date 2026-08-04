@@ -9,6 +9,7 @@ const layoutFiles = [
   'src/app/layouts/ProducerLayout.tsx',
   'src/app/layouts/AffiliateLayout.tsx',
   'src/app/layouts/CompanyLayout.tsx',
+  'src/modules/lessons/pages/Lesson.tsx',
 ];
 
 const failures = [];
@@ -55,4 +56,4 @@ if (failures.length > 0) {
   throw new Error(failures.join('\n'));
 }
 
-console.log(`Cabeçalho fixo validado em ${layoutFiles.length} layouts.`);
+console.log(`Cabeçalho fixo validado em ${layoutFiles.length} estruturas.`);
