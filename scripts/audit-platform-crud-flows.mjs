@@ -143,8 +143,9 @@ for (const absolutePath of files) {
   const hasEditAction = labels.some((label) => /^(editar|alterar)/i.test(label));
   const hasViewAction = labels.some((label) => /^(ver|visualizar|detalhes|abrir)/i.test(label));
   const operationalPage = /\/pages\/.+Page\.tsx$/.test(path) && !/Public|Landing|Detail|Login|Register|Checkout|Payment|NotFound|ComingSoon/.test(path);
+  const nestedManagementComponent = /\/components\/.+(?:Actions|Editor|Manager|Management)\.tsx$/.test(path);
 
-  if (operationalPage && (hasCreateAction || hasEditAction) && !hasViewAction && !/Dashboard/.test(path)) {
+  if ((operationalPage || nestedManagementComponent) && (hasCreateAction || hasEditAction) && !hasViewAction && !/Dashboard/.test(path)) {
     violations.push(`${path} — possui Criar/Editar/Solicitar, mas não expõe uma ação explícita de Ver/Visualizar.`);
   }
 
