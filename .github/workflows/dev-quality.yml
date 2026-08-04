@@ -127,7 +127,7 @@ jobs:
 
           echo "registry_ok=${registry_ok}" >> "${GITHUB_OUTPUT}"
 
-      - name: Start local Supabase with bounded retry
+      - name: Start local Postgres with bounded retry
         id: db_start
         shell: bash
         run: |
@@ -145,15 +145,20 @@ jobs:
             echo "::endgroup::"
           }
 
+          clean_partial_database_runtime() {
+            docker ps -aq --filter "name=supabase_" | xargs -r docker rm -f || true
+            docker network ls -q --filter "name=supabase" | xargs -r docker network rm || true
+            docker volume ls -q --filter "name=supabase" | xargs -r docker volume rm -f || true
+            docker container prune --force || true
+          }
+
           for attempt in 1 2 3; do
-            echo "Starting local Supabase — attempt ${attempt}/3"
+            echo "Starting local Postgres — attempt ${attempt}/3"
             attempt_log="${RUNNER_TEMP}/supabase-db-start-attempt-${attempt}.log"
 
             set +e
             timeout --signal=TERM --kill-after=30s 8m \
-              supabase start \
-                -x studio,imgproxy,mailpit,edge-runtime,logflare,vector,supavisor \
-                --debug 2>&1 | tee "${attempt_log}"
+              supabase db start --debug 2>&1 | tee "${attempt_log}"
             exit_code=${PIPESTATUS[0]}
             set -e
             cat "${attempt_log}" >> "${log_file}"
@@ -164,23 +169,22 @@ jobs:
               {
                 echo "## Local database gate"
                 echo
-                echo "- Supabase services started successfully on attempt ${attempt}."
+                echo "- Local Postgres started successfully on attempt ${attempt}."
+                echo "- Only the database service was started because reset, lint and pgTAP do not require the complete Supabase stack."
               } >> "${GITHUB_STEP_SUMMARY}"
               exit 0
             fi
 
             echo "Attempt ${attempt} failed or timed out with exit code ${exit_code}."
             print_diagnostics
-
-            timeout --signal=TERM --kill-after=30s 2m supabase stop --no-backup || true
-            docker container prune --force || true
+            clean_partial_database_runtime
 
             if [ "${attempt}" -lt 3 ]; then
               sleep $((attempt * 20))
             fi
           done
 
-          failure_class="supabase_startup"
+          failure_class="supabase_database_startup"
           if grep -Eqi 'x509: certificate signed by unknown authority|TLS handshake timeout|failed to copy|failed to download docker image|toomanyrequests|connection reset by peer|temporary failure in name resolution' "${log_file}"; then
             failure_class="external_container_registry"
           elif grep -Eqi 'invalid reference format|manifest unknown|no matching manifest' "${log_file}"; then
@@ -199,7 +203,7 @@ jobs:
             echo "- The job remains failed intentionally; no skipped database validation is reported as success."
           } >> "${GITHUB_STEP_SUMMARY}"
 
-          echo "::error title=Local database validation blocked::Supabase could not start after three bounded attempts (${failure_class}). Database reset, lint and pgTAP were not executed."
+          echo "::error title=Local database validation blocked::Postgres could not start after three bounded attempts (${failure_class}). Database reset, lint and pgTAP were not executed."
           exit 1
 
       - name: Rebuild local database
@@ -214,7 +218,12 @@ jobs:
         if: steps.db_start.outputs.db_started == 'true'
         run: timeout --signal=TERM --kill-after=30s 10m supabase test db --local
 
-      - name: Stop local Supabase
+      - name: Stop local database
         if: always() && steps.db_start.outputs.db_started == 'true'
         continue-on-error: true
-        run: timeout --signal=TERM --kill-after=30s 3m supabase stop --no-backup || true
+        shell: bash
+        run: |
+          timeout --signal=TERM --kill-after=30s 3m supabase stop --no-backup || true
+          docker ps -aq --filter "name=supabase_" | xargs -r docker rm -f || true
+          docker network ls -q --filter "name=supabase" | xargs -r docker network rm || true
+          docker volume ls -q --filter "name=supabase" | xargs -r docker volume rm -f || true
