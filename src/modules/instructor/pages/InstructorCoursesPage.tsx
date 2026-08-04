@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Eye, Pencil, Plus } from 'lucide-react';
 
@@ -15,11 +15,17 @@ import { getEffectiveUserId } from '@/shared/utils/devIdentity';
 const formatPrice = (value: number) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value / 100);
 
-const InstructorCoursesPage = () => {
+interface InstructorCoursesPageProps {
+  initialMode?: CourseDialogMode;
+  initialCourseId?: string;
+}
+
+const InstructorCoursesPage = ({ initialMode, initialCourseId }: InstructorCoursesPageProps = {}) => {
   const queryClient = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [dialogMode, setDialogMode] = useState<CourseDialogMode>('create');
   const [selectedCourse, setSelectedCourse] = useState<ManagedCourse | null>(null);
+  const initialDialogHandled = useRef(false);
 
   const coursesQuery = useQuery({
     queryKey: ['instructor-managed-courses'],
@@ -42,11 +48,20 @@ const InstructorCoursesPage = () => {
     setDialogOpen(true);
   };
 
+  useEffect(() => {
+    if (initialDialogHandled.current || !initialMode) return;
+    if (initialMode !== 'create' && coursesQuery.isLoading) return;
+
+    const course = initialCourseId ? courses.find((item) => item.id === initialCourseId) : undefined;
+    openDialog(initialMode, course);
+    initialDialogHandled.current = true;
+  }, [courses, coursesQuery.isLoading, initialCourseId, initialMode]);
+
   return (
     <InstructorLayout>
       <PageHeader
         title="Meus cursos"
-        subtitle="Crie cursos e gerencie módulos, aulas e materiais sem sair desta página."
+        subtitle="Crie, visualize e edite cursos, módulos, aulas e materiais somente em popups centralizados."
         actions={
           <Button onClick={() => openDialog('create')}>
             <Plus className="mr-2 h-4 w-4" />
