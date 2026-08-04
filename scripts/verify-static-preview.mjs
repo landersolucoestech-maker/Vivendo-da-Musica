@@ -72,8 +72,14 @@ const captureShell = async (scrollTestId) =>
       (link) => link.textContent?.trim() === 'Academia',
     );
     const content = document.querySelector(`[data-testid="${testId}"]`);
+    const visibleFixedSidebar = Array.from(document.querySelectorAll('aside')).find((element) => {
+      const style = getComputedStyle(element);
+      return style.position === 'fixed' && style.display !== 'none';
+    });
+    const sidebarScroll = visibleFixedSidebar?.querySelector('[class*="overflow-y-auto"]') ?? visibleFixedSidebar;
     const headerRect = header?.getBoundingClientRect();
     const contentRect = content?.getBoundingClientRect();
+    const sidebarRect = sidebarScroll?.getBoundingClientRect();
 
     return {
       headerPosition: header ? getComputedStyle(header).position : '',
@@ -81,12 +87,17 @@ const captureShell = async (scrollTestId) =>
       headerBottom: headerRect?.bottom ?? null,
       logoTop: logo?.getBoundingClientRect().top ?? null,
       academyTop: academyLink?.getBoundingClientRect().top ?? null,
+      contentPosition: content ? getComputedStyle(content).position : '',
       contentTop: contentRect?.top ?? null,
       contentBottom: contentRect?.bottom ?? null,
       contentOverflowY: content ? getComputedStyle(content).overflowY : '',
       contentScrollTop: content?.scrollTop ?? null,
       contentScrollHeight: content?.scrollHeight ?? null,
       contentClientHeight: content?.clientHeight ?? null,
+      sidebarTop: sidebarRect?.top ?? null,
+      sidebarBottom: sidebarRect?.bottom ?? null,
+      sidebarOverflowY: sidebarScroll ? getComputedStyle(sidebarScroll).overflowY : '',
+      sidebarClientHeight: sidebarScroll?.clientHeight ?? null,
       windowScrollY: window.scrollY,
       documentScrollHeight: document.documentElement.scrollHeight,
       viewportHeight: window.innerHeight,
@@ -217,7 +228,7 @@ if (!home) {
   }
 }
 
-const validateShell = (label, state, { requireScroll }) => {
+const validateShell = (label, state, { requireScroll, requireSidebarAlignment = false }) => {
   if (!state) {
     failures.push(`${label}: estrutura de rolagem não validada.`);
     return;
@@ -228,6 +239,9 @@ const validateShell = (label, state, { requireScroll }) => {
 
   if (before.headerPosition !== 'fixed' || after.headerPosition !== 'fixed') {
     failures.push(`${label}: cabeçalho não está fixed (${before.headerPosition}/${after.headerPosition}).`);
+  }
+  if (after.contentPosition !== 'fixed') {
+    failures.push(`${label}: a área rolável principal não está presa à viewport (${after.contentPosition}).`);
   }
   if (after.contentOverflowY !== 'auto') {
     failures.push(`${label}: conteúdo não controla a rolagem (${after.contentOverflowY}).`);
@@ -264,11 +278,37 @@ const validateShell = (label, state, { requireScroll }) => {
   if (requireScroll && (after.contentScrollTop ?? 0) < 100) {
     failures.push(`${label}: área interna rolou apenas ${after.contentScrollTop}px.`);
   }
+
+  if (requireSidebarAlignment) {
+    if (before.sidebarOverflowY !== 'auto') {
+      failures.push(`${label}: sidebar não controla a própria rolagem (${before.sidebarOverflowY}).`);
+    }
+    for (const [contentKey, sidebarKey] of [
+      ['contentTop', 'sidebarTop'],
+      ['contentBottom', 'sidebarBottom'],
+      ['contentClientHeight', 'sidebarClientHeight'],
+    ]) {
+      const contentValue = before[contentKey];
+      const sidebarValue = before[sidebarKey];
+      if (
+        contentValue === null ||
+        sidebarValue === null ||
+        Math.abs(contentValue - sidebarValue) > 1
+      ) {
+        failures.push(
+          `${label}: scrollbar principal e sidebar desalinhadas em ${contentKey}/${sidebarKey} (${contentValue} vs ${sidebarValue}).`,
+        );
+      }
+    }
+  }
 };
 
 validateShell('Home', homeScroll, { requireScroll: true });
 validateShell('Páginas públicas', academyShell, { requireScroll: false });
-validateShell('Portal do aluno', studentScroll, { requireScroll: true });
+validateShell('Portal do aluno', studentScroll, {
+  requireScroll: true,
+  requireSidebarAlignment: true,
+});
 
 if (
   !academy ||
