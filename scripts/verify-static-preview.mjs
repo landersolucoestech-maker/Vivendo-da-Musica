@@ -57,6 +57,7 @@ const snapshotPage = async () =>
     commit: document.querySelector('meta[name="vdm-preview-commit"]')?.getAttribute('content') ?? '',
     path: window.location.pathname,
     hash: window.location.hash,
+    sourceUrl: window.__VDM_PREVIEW_DOCUMENT_URL__ ?? '',
   }));
 
 try {
@@ -73,9 +74,10 @@ try {
 
   stage = 'academy';
   await page.evaluate(() => {
-    window.location.hash = '#/academia';
+    window.history.pushState(null, '', '/academia');
+    window.dispatchEvent(new PopStateEvent('popstate'));
   });
-  await page.waitForFunction(() => window.location.hash === '#/academia', undefined, {
+  await page.waitForFunction(() => window.location.pathname === '/academia', undefined, {
     timeout: 10_000,
   });
   await page.waitForFunction(
@@ -127,6 +129,8 @@ if (!home) {
   failures.push('Não foi possível capturar a Home.');
 } else {
   if (home.commit !== buildSha) failures.push(`Build inesperado: ${home.commit}`);
+  if (home.path !== '/') failures.push(`Pathname inicial não normalizado: ${home.path}`);
+  if (!home.sourceUrl.includes('/index.html')) failures.push('A URL de origem do documento não foi preservada.');
   if (home.homeCount === 0 || home.rootChildCount === 0 || home.bodyText.length < 100) {
     failures.push('A Home real não foi renderizada.');
   }
@@ -145,7 +149,7 @@ if (!home) {
 }
 if (
   !academy ||
-  academy.hash !== '#/academia' ||
+  academy.path !== '/academia' ||
   academy.rootChildCount === 0 ||
   academy.bodyText.length < 100 ||
   academy.bodyText.includes('ERRO 404')
