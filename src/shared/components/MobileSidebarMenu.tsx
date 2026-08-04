@@ -15,29 +15,29 @@ const MobileSidebarMenu = ({ sectionLabel, items, exactPath }: MobileSidebarMenu
   const [open, setOpen] = useState(false);
 
   return (
-    <>
-      <div aria-hidden="true" className="h-14 md:hidden" />
-      <div className="fixed inset-x-0 top-16 z-40 border-b border-white/10 bg-[#0D0D0D]/96 px-4 py-2.5 backdrop-blur-xl sm:top-20 md:hidden">
-        <Sheet open={open} onOpenChange={setOpen}>
-          <SheetTrigger asChild>
-            <Button variant="outline" size="sm" className="w-full justify-between sm:w-auto">
-              <span className="flex items-center gap-2">
-                <Menu className="size-4" />
-                Navegação
-              </span>
-              <span className="text-xs text-muted-foreground">{sectionLabel}</span>
-            </Button>
-          </SheetTrigger>
-          <SheetContent side="left" className="w-[86vw] max-w-80 overflow-y-auto border-white/10 bg-[#0A0A0A] p-4">
-            <div className="mb-5 border-b border-white/10 px-1 pb-4 pt-2">
-              <p className="vdm-eyebrow">Vivendo da Música</p>
-              <p className="mt-1 font-display text-base font-semibold text-white">{sectionLabel}</p>
-            </div>
-            <SidebarNavList items={items} exactPath={exactPath} onNavigate={() => setOpen(false)} />
-          </SheetContent>
-        </Sheet>
-      </div>
-    </>
+    <div
+      data-testid="mobile-portal-navigation"
+      className="fixed inset-x-0 top-16 z-40 border-b border-white/10 bg-[#0D0D0D]/96 px-4 py-2.5 backdrop-blur-xl sm:top-20 md:hidden"
+    >
+      <Sheet open={open} onOpenChange={setOpen}>
+        <SheetTrigger asChild>
+          <Button variant="outline" size="sm" className="w-full justify-between sm:w-auto">
+            <span className="flex items-center gap-2">
+              <Menu className="size-4" />
+              Navegação
+            </span>
+            <span className="text-xs text-muted-foreground">{sectionLabel}</span>
+          </Button>
+        </SheetTrigger>
+        <SheetContent side="left" className="w-[86vw] max-w-80 overflow-y-auto border-white/10 bg-[#0A0A0A] p-4">
+          <div className="mb-5 border-b border-white/10 px-1 pb-4 pt-2">
+            <p className="vdm-eyebrow">Vivendo da Música</p>
+            <p className="mt-1 font-display text-base font-semibold text-white">{sectionLabel}</p>
+          </div>
+          <SidebarNavList items={items} exactPath={exactPath} onNavigate={() => setOpen(false)} />
+        </SheetContent>
+      </Sheet>
+    </div>
   );
 };
 
