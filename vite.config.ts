@@ -2,8 +2,12 @@ import path from 'path';
 import react from '@vitejs/plugin-react-swc';
 import { defineConfig, type Plugin } from 'vitest/config';
 
+const isAbsoluteHttpUrl = (value: string): boolean => /^https?:\/\//i.test(value);
+
 const normalizeBasePath = (value?: string): string => {
   if (!value || value === '/') return '/';
+  if (isAbsoluteHttpUrl(value)) return value.endsWith('/') ? value : `${value}/`;
+
   const withLeadingSlash = value.startsWith('/') ? value : `/${value}`;
   return withLeadingSlash.endsWith('/') ? withLeadingSlash : `${withLeadingSlash}/`;
 };
@@ -29,6 +33,7 @@ const previewRouterBasePlugin = (basePath: string): Plugin => ({
 });
 
 const basePath = normalizeBasePath(process.env.VITE_BASE_PATH);
+const routerBasePath = isAbsoluteHttpUrl(basePath) ? '/' : basePath;
 
 export default defineConfig({
   base: basePath,
@@ -36,7 +41,7 @@ export default defineConfig({
     host: '::',
     port: 8080,
   },
-  plugins: [previewRouterBasePlugin(basePath), react()],
+  plugins: [previewRouterBasePlugin(routerBasePath), react()],
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
