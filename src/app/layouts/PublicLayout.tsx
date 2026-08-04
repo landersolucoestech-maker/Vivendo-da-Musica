@@ -12,19 +12,17 @@ const PublicLayout = ({ children }: { children: ReactNode }) => {
   return (
     <div className="vdm-page h-dvh overflow-hidden bg-background text-foreground">
       <Navigation />
-      <div className="h-full pt-16 sm:pt-20">
-        <div
-          data-testid="public-content-scroll"
-          className="h-full overflow-y-auto overscroll-contain [scrollbar-gutter:stable]"
-        >
-          <main className="relative">
-            <div className="pointer-events-none absolute inset-x-0 top-0 h-72 bg-[radial-gradient(circle_at_top,rgba(138,43,226,0.12),transparent_68%)]" />
-            <div className={`vdm-container relative ${isLegalDocument ? '!max-w-[1760px]' : ''}`}>
-              {children}
-            </div>
-          </main>
-          <Footer />
-        </div>
+      <div
+        data-testid="public-content-scroll"
+        className="fixed bottom-0 left-0 right-0 top-16 overflow-y-auto overscroll-contain [scrollbar-gutter:stable] sm:top-20"
+      >
+        <main className="relative">
+          <div className="pointer-events-none absolute inset-x-0 top-0 h-72 bg-[radial-gradient(circle_at_top,rgba(138,43,226,0.12),transparent_68%)]" />
+          <div className={`vdm-container relative ${isLegalDocument ? '!max-w-[1760px]' : ''}`}>
+            {children}
+          </div>
+        </main>
+        <Footer />
       </div>
     </div>
   );
