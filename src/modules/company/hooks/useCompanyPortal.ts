@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 
 import { companyService } from '@/modules/company/services/company.service';
+import { companyCreditsService } from '@/modules/company/services/companyCredits.service';
 
 export const useCompanyDashboard = () => useQuery({
   queryKey: ['company-dashboard'],
@@ -14,7 +15,7 @@ export const useCompanyOpportunities = () => useQuery({
 
 export const useCompanyCreditBalance = () => useQuery({
   queryKey: ['company-credit-balance'],
-  queryFn: () => companyService.getCreditBalance(),
+  queryFn: () => companyCreditsService.getBalance(),
 });
 
 export const useCompanyCreditPacks = () => useQuery({
