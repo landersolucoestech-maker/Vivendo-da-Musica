@@ -131,30 +131,55 @@ jobs:
         run: |
           set -euo pipefail
           test -n "$SUPABASE_ACCESS_TOKEN"
-          test -n "$SUPABASE_DB_PASSWORD"
           grep --quiet "project_id = \"${SUPABASE_PROJECT_REF}\"" supabase/config.toml
           node scripts/verify-dev-supabase-target.mjs
+          if [ -n "${SUPABASE_DB_PASSWORD:-}" ]; then
+            echo "Database password fallback is configured."
+          else
+            echo "Database password fallback is not configured; passwordless CLI authentication will be used."
+          fi
 
       - name: Link Supabase DEV project
         if: steps.trigger.outputs.deploy == 'true'
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
-        run: npx supabase link --project-ref "$SUPABASE_PROJECT_REF" --password "$SUPABASE_DB_PASSWORD"
+        run: npx supabase link --project-ref "$SUPABASE_PROJECT_REF"
 
       - name: Apply all remote migrations
         if: steps.trigger.outputs.deploy == 'true'
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
-        run: npx supabase db push --linked --include-all --password "$SUPABASE_DB_PASSWORD"
+        shell: bash
+        run: |
+          set -uo pipefail
+          passwordless_log="${RUNNER_TEMP}/supabase-db-push-passwordless.log"
+
+          set +e
+          timeout --signal=TERM --kill-after=30s 15m \
+            npx supabase db push --linked --include-all 2>&1 | tee "$passwordless_log"
+          passwordless_status=${PIPESTATUS[0]}
+          set -e
+
+          if [ "$passwordless_status" -eq 0 ]; then
+            echo "Remote migrations applied with passwordless Supabase CLI authentication."
+            exit 0
+          fi
+
+          if [ -z "${SUPABASE_DB_PASSWORD:-}" ]; then
+            echo "::error title=Supabase database authentication failed::Passwordless authentication failed and no database password fallback is configured."
+            exit "$passwordless_status"
+          fi
+
+          echo "Passwordless authentication failed; retrying with the configured database password fallback."
+          timeout --signal=TERM --kill-after=30s 15m \
+            npx supabase db push --linked --include-all --password "$SUPABASE_DB_PASSWORD"
 
       - name: Verify linked migration history
         if: steps.trigger.outputs.deploy == 'true'
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
-        run: npx supabase migration list --linked --password "$SUPABASE_DB_PASSWORD"
+        run: npx supabase migration list --linked
 
       - name: Deploy all Edge Functions
         if: steps.trigger.outputs.deploy == 'true'
