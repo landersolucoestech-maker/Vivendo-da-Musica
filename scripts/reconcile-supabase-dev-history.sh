@@ -47,12 +47,14 @@ fi
 # First-time reconciliation: compare the complete canonical migration chain
 # with the linked database without trusting either migration history. Include
 # authentication triggers, storage policies/buckets and private auth schemas.
+# Use the stable migra engine; pg-delta is still experimental and can fail on
+# otherwise valid dependency cycles involving altered enum-backed columns.
 set +e
 timeout --signal=TERM --kill-after=30s 20m \
   env -u SUPABASE_DB_PASSWORD npx supabase db diff \
     --linked \
     --schema auth,storage,public,app_private,authz_private \
-    --use-pg-delta \
+    --use-migra \
     >"$diff_file"
 diff_status=$?
 set -e
