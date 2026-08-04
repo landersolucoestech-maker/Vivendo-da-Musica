@@ -56,6 +56,20 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Force preview HashRouter
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          app = Path('src/App.tsx')
+          source = app.read_text(encoding='utf-8')
+          current = "const Router = import.meta.env.VITE_ROUTER_MODE === 'hash' ? HashRouter : BrowserRouter;"
+          replacement = "const Router = document.querySelector('meta[name=\"vdm-preview-commit\"]') ? HashRouter : BrowserRouter;"
+          if current not in source:
+              raise SystemExit('A seleção esperada do Router não foi encontrada em src/App.tsx.')
+          app.write_text(source.replace(current, replacement, 1), encoding='utf-8')
+          PY
+
       - name: Build hosted preview
         run: npm run build
 
@@ -67,19 +81,21 @@ jobs:
 
           index = Path('dist/index.html')
           html = index.read_text(encoding='utf-8')
-          html = html.replace(
-              '<head>',
-              f'<head>\n    <meta name="vdm-preview-commit" content="{os.environ["BUILD_SHA"]}" />',
-              1,
+          preview_bootstrap = (
+              f'<meta name="vdm-preview-commit" content="{os.environ["BUILD_SHA"]}" />\n'
+              '    <script>if (!window.location.hash) history.replaceState(null, "", window.location.pathname + window.location.search + "#/");</script>'
           )
+          html = html.replace('<head>', f'<head>\n    {preview_bootstrap}', 1)
           index.write_text(html, encoding='utf-8')
           Path('dist/404.html').write_text(html, encoding='utf-8')
           Path('dist/.nojekyll').touch()
           PY
           grep --quiet "vdm-preview-commit.*${BUILD_SHA}" dist/index.html
+          grep --quiet 'window.location.hash' dist/index.html
           grep --quiet 'src="./assets/' dist/index.html
           grep --quiet 'href="./assets/' dist/index.html
           grep --quiet '<div id="root"></div>' dist/index.html
+          grep -R --quiet 'vdm-preview-commit' dist/assets/*.js
 
       - name: Upload compiled artifact
         uses: actions/upload-artifact@v7
@@ -133,12 +149,13 @@ jobs:
           done
           grep -Ei '^content-type:.*text/html' /tmp/preview.headers
           grep --quiet "vdm-preview-commit.*${BUILD_SHA}" /tmp/preview.html
+          grep --quiet 'window.location.hash' /tmp/preview.html
           ASSET_PATH=$(grep -o 'src="\./assets/[^"]*\.js"' /tmp/preview.html | head -1 | cut -d'"' -f2)
           test -n "${ASSET_PATH}"
           ASSET_URL="${PREVIEW_URL%/index.html}/${ASSET_PATH#./}"
           curl --fail --silent --show-error --dump-header /tmp/asset.headers "${ASSET_URL}" --output /tmp/main.js
           grep -Ei '^content-type:.*(javascript|ecmascript)' /tmp/asset.headers
-          test -s /tmp/main.js
+          grep --quiet 'vdm-preview-commit' /tmp/main.js
 
       - name: Setup Node.js
         uses: actions/setup-node@v6
