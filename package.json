@@ -12,7 +12,7 @@
     "typecheck": "tsc --build --force",
     "types:supabase": "node scripts/generate-supabase-types.mjs",
     "audit:high": "node scripts/audit-high.mjs",
-    "test": "vitest run",
+    "test": "vitest run && npm run test:layouts",
     "test:unit": "vitest run src",
     "test:security": "vitest run tests/security",
     "test:contracts": "vitest run tests/contracts",
