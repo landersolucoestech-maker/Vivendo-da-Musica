@@ -128,10 +128,18 @@ if (!navigationSource.includes('z-[100]')) {
   failures.push('src/shared/components/Navigation.tsx: o cabeçalho global precisa permanecer acima das áreas roláveis.');
 }
 
+const producerSidebarSource = await readFile('src/shared/components/ProducerSidebar.tsx', 'utf8');
+const routesSource = await readFile('src/shared/constants/routes.ts', 'utf8');
+for (const forbiddenTerm of ['Catálogo de serviços', 'producerServiceCatalog', '/produtor/catalogo-servicos']) {
+  if (producerSidebarSource.includes(forbiddenTerm) || routesSource.includes(forbiddenTerm)) {
+    failures.push(`Portal do Produtor: inclusão não autorizada encontrada (${forbiddenTerm}).`);
+  }
+}
+
 if (failures.length > 0) {
   throw new Error(failures.join('\n'));
 }
 
 console.log(
-  `Cabeçalho fixo e geometria das scrollbars validados em ${fixedHeaderStructures.length} estruturas.`,
+  `Cabeçalho fixo, geometria das scrollbars e escopo do produtor validados em ${fixedHeaderStructures.length} estruturas.`,
 );
