@@ -1,7 +1,28 @@
 {
   "project_ref": "ywirfqvobfnunlcsnptm",
-  "result": "failure",
-  "source_sha": "fe1082b9904d36d62eb7074fae9594070145e9de",
-  "workflow_run_id": "30895603765",
-  "completed_at": "2026-08-04T09:16:49Z"
+  "result": "blocked_missing_credentials",
+  "latest_workflow_run_id": 30896245131,
+  "latest_workflow_job_id": 91950561052,
+  "latest_source_sha": "3b446facbdfd327e29e66e0317ce529c6caf06bc",
+  "previous_workflow_run_id": 30895603765,
+  "previous_source_sha": "fe1082b9904d36d62eb7074fae9594070145e9de",
+  "missing_secrets": [
+    "SUPABASE_ACCESS_TOKEN",
+    "SUPABASE_DB_PASSWORD"
+  ],
+  "validated_before_block": {
+    "quality": "success",
+    "e2e_preview": "success",
+    "e2e_auth_guard": "success",
+    "deployment_trigger": "authorized",
+    "target_project_ref": "validated"
+  },
+  "remote_steps_not_executed": [
+    "supabase link",
+    "supabase db push",
+    "supabase migration list",
+    "edge function deployment",
+    "api-v1 health check"
+  ],
+  "recorded_at": "2026-08-04T09:32:00Z"
 }
