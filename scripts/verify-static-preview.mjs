@@ -15,38 +15,63 @@ const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
 const pageErrors = [];
 const failedAssets = [];
 const consoleErrors = [];
+const responses = [];
 
 page.on('pageerror', (error) => pageErrors.push(error.message));
 page.on('console', (message) => {
   if (message.type() === 'error') consoleErrors.push(message.text());
 });
 page.on('requestfailed', (request) => {
-  if (['script', 'stylesheet', 'document'].includes(request.resourceType())) {
-    failedAssets.push(
-      `${request.resourceType()} ${request.url()} — ${request.failure()?.errorText ?? 'failed'}`,
-    );
+  failedAssets.push(
+    `${request.resourceType()} ${request.url()} — ${request.failure()?.errorText ?? 'failed'}`,
+  );
+});
+page.on('response', (response) => {
+  const request = response.request();
+  if (['document', 'script', 'stylesheet'].includes(request.resourceType())) {
+    responses.push({
+      type: request.resourceType(),
+      status: response.status(),
+      url: response.url(),
+      contentType: response.headers()['content-type'] ?? '',
+    });
   }
 });
+
+let status = 0;
+let stage = 'navigation';
+let caughtError = null;
+let home = null;
+let academy = null;
+
+const snapshotPage = async () =>
+  page.evaluate(() => ({
+    title: document.title,
+    bodyText: document.body.innerText.trim(),
+    bodyHtml: document.body.innerHTML.slice(0, 10_000),
+    rootHtml: document.querySelector('#root')?.innerHTML.slice(0, 10_000) ?? '',
+    rootChildCount: document.querySelector('#root')?.childElementCount ?? 0,
+    homeCount: document.querySelectorAll('.vdm-page').length,
+    scriptCount: Array.from(document.scripts).filter((script) => Boolean(script.src)).length,
+    stylesheetCount: document.querySelectorAll('link[rel="stylesheet"]').length,
+    commit: document.querySelector('meta[name="vdm-preview-commit"]')?.getAttribute('content') ?? '',
+    path: window.location.pathname,
+    hash: window.location.hash,
+  }));
 
 try {
   const response = await page.goto(previewUrl, {
     waitUntil: 'domcontentloaded',
     timeout: 45_000,
   });
+  status = response?.status() ?? 0;
 
+  stage = 'home';
   await page.locator('.vdm-page').waitFor({ state: 'visible', timeout: 30_000 });
   await page.waitForTimeout(2_000);
+  home = await snapshotPage();
 
-  const home = await page.evaluate(() => ({
-    title: document.title,
-    bodyText: document.body.innerText.trim(),
-    rootChildCount: document.querySelector('#root')?.childElementCount ?? 0,
-    homeCount: document.querySelectorAll('.vdm-page').length,
-    scriptCount: Array.from(document.scripts).filter((script) => Boolean(script.src)).length,
-    stylesheetCount: document.querySelectorAll('link[rel="stylesheet"]').length,
-    commit: document.querySelector('meta[name="vdm-preview-commit"]')?.getAttribute('content') ?? '',
-  }));
-
+  stage = 'academy';
   await page.evaluate(() => {
     window.location.hash = '#/academia';
   });
@@ -59,28 +84,48 @@ try {
     { timeout: 20_000 },
   );
   await page.waitForTimeout(1_000);
-
-  const academy = await page.evaluate(() => ({
-    hash: window.location.hash,
-    bodyText: document.body.innerText.trim(),
-    rootChildCount: document.querySelector('#root')?.childElementCount ?? 0,
-  }));
-
-  await page.screenshot({ path: 'artifacts/preview-audit/home.png', fullPage: true });
+  academy = await snapshotPage();
+} catch (error) {
+  caughtError = error instanceof Error ? `${error.name}: ${error.message}` : String(error);
+  try {
+    if (!home) home = await snapshotPage();
+  } catch (snapshotError) {
+    consoleErrors.push(
+      `Falha ao capturar o estado da página: ${snapshotError instanceof Error ? snapshotError.message : String(snapshotError)}`,
+    );
+  }
+} finally {
+  try {
+    await page.screenshot({ path: 'artifacts/preview-audit/home.png', fullPage: true });
+  } catch (screenshotError) {
+    consoleErrors.push(
+      `Falha ao capturar screenshot: ${screenshotError instanceof Error ? screenshotError.message : String(screenshotError)}`,
+    );
+  }
 
   const report = {
     url: previewUrl,
-    status: response?.status() ?? 0,
-    home: { ...home, bodyTextLength: home.bodyText.length },
-    academy: { ...academy, bodyTextLength: academy.bodyText.length },
+    status,
+    stage,
+    caughtError,
+    home: home ? { ...home, bodyTextLength: home.bodyText.length } : null,
+    academy: academy ? { ...academy, bodyTextLength: academy.bodyText.length } : null,
     pageErrors,
     failedAssets,
     consoleErrors,
+    responses,
   };
   await writeFile('artifacts/preview-audit/report.json', JSON.stringify(report, null, 2));
+  console.log(JSON.stringify(report, null, 2));
+  await browser.close();
+}
 
-  const failures = [];
-  if (report.status !== 200) failures.push(`HTTP ${report.status}`);
+const failures = [];
+if (caughtError) failures.push(`${stage}: ${caughtError}`);
+if (status !== 200) failures.push(`HTTP ${status}`);
+if (!home) {
+  failures.push('Não foi possível capturar a Home.');
+} else {
   if (home.commit !== buildSha) failures.push(`Build inesperado: ${home.commit}`);
   if (home.homeCount === 0 || home.rootChildCount === 0 || home.bodyText.length < 100) {
     failures.push('A Home real não foi renderizada.');
@@ -97,21 +142,21 @@ try {
   if (home.bodyText.includes('Carregando Vivendo da Música')) {
     failures.push('Aplicação permaneceu no bootstrap.');
   }
-  if (
-    academy.hash !== '#/academia' ||
-    academy.rootChildCount === 0 ||
-    academy.bodyText.length < 100 ||
-    academy.bodyText.includes('ERRO 404')
-  ) {
-    failures.push('A rota pública /academia não foi renderizada.');
-  }
-  if (pageErrors.length > 0) failures.push(`Erros JavaScript: ${pageErrors.join(' | ')}`);
-  if (failedAssets.length > 0) {
-    failures.push(`Assets críticos falharam: ${failedAssets.join(' | ')}`);
-  }
+}
+if (
+  !academy ||
+  academy.hash !== '#/academia' ||
+  academy.rootChildCount === 0 ||
+  academy.bodyText.length < 100 ||
+  academy.bodyText.includes('ERRO 404')
+) {
+  failures.push('A rota pública /academia não foi renderizada.');
+}
+if (pageErrors.length > 0) failures.push(`Erros JavaScript: ${pageErrors.join(' | ')}`);
+if (failedAssets.length > 0) {
+  failures.push(`Requisições falharam: ${failedAssets.join(' | ')}`);
+}
 
-  console.log(JSON.stringify(report, null, 2));
-  if (failures.length > 0) throw new Error(failures.join('\n'));
-} finally {
-  await browser.close();
+if (failures.length > 0) {
+  throw new Error(failures.join('\n'));
 }
