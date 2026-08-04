@@ -52,7 +52,7 @@ jobs:
 
   database:
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    timeout-minutes: 40
     env:
       SUPABASE_CLI_VERSION: 2.111.0
       SUPABASE_TELEMETRY_DISABLED: "1"
@@ -60,24 +60,81 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version: 22
-          cache: npm
-
-      - name: Prepare database tooling
+      - name: Install pinned Supabase CLI
         shell: bash
         run: |
           set -euo pipefail
-          docker info >/dev/null
-          timeout --signal=TERM --kill-after=30s 3m \
-            npx --yes "supabase@${SUPABASE_CLI_VERSION}" --version
+          archive="${RUNNER_TEMP}/supabase_linux_amd64.tar.gz"
+          install_dir="${RUNNER_TEMP}/supabase-cli"
+          mkdir -p "${install_dir}"
 
-      - name: Start local Postgres with bounded retry
+          for attempt in 1 2 3; do
+            if curl --fail --location --silent --show-error \
+              --retry 3 --retry-all-errors --connect-timeout 20 --max-time 180 \
+              "https://github.com/supabase/cli/releases/download/v${SUPABASE_CLI_VERSION}/supabase_linux_amd64.tar.gz" \
+              --output "${archive}"; then
+              break
+            fi
+            if [ "${attempt}" -eq 3 ]; then
+              echo "::error title=Supabase CLI unavailable::Could not download pinned Supabase CLI v${SUPABASE_CLI_VERSION}."
+              exit 1
+            fi
+            sleep $((attempt * 10))
+          done
+
+          tar -xzf "${archive}" -C "${install_dir}"
+          chmod +x "${install_dir}/supabase"
+          echo "${install_dir}" >> "${GITHUB_PATH}"
+          "${install_dir}/supabase" --version
+
+      - name: Container runtime and registry preflight
+        id: registry_preflight
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          check_registry() {
+            local name="$1"
+            local url="$2"
+            local status
+            status="$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' \
+              --connect-timeout 15 --max-time 45 "${url}" || true)"
+            case "${status}" in
+              200|401)
+                echo "${name}: reachable (HTTP ${status})"
+                ;;
+              *)
+                echo "${name}: unavailable or TLS/DNS failure (HTTP ${status:-none})"
+                return 1
+                ;;
+            esac
+          }
+
+          docker info > "${RUNNER_TEMP}/docker-info.txt"
+          docker version
+
+          registry_ok=true
+          check_registry "Docker Hub" "https://registry-1.docker.io/v2/" || registry_ok=false
+          check_registry "GitHub Container Registry" "https://ghcr.io/v2/" || registry_ok=false
+
+          {
+            echo "## Database container preflight"
+            echo
+            echo "- Docker daemon: available"
+            echo "- External registries reachable: ${registry_ok}"
+            echo "- Supabase CLI: $(supabase --version)"
+          } >> "${GITHUB_STEP_SUMMARY}"
+
+          echo "registry_ok=${registry_ok}" >> "${GITHUB_OUTPUT}"
+
+      - name: Start local Supabase with bounded retry
+        id: db_start
         shell: bash
         run: |
           set -uo pipefail
+          log_file="${RUNNER_TEMP}/supabase-db-start.log"
+          : > "${log_file}"
+          echo "db_started=false" >> "${GITHUB_OUTPUT}"
 
           print_diagnostics() {
             echo "::group::Docker diagnostics"
@@ -89,38 +146,75 @@ jobs:
           }
 
           for attempt in 1 2 3; do
-            echo "Starting local Supabase Postgres — attempt ${attempt}/3"
+            echo "Starting local Supabase — attempt ${attempt}/3"
+            attempt_log="${RUNNER_TEMP}/supabase-db-start-attempt-${attempt}.log"
 
-            if timeout --signal=TERM --kill-after=30s 7m \
-              npx --yes "supabase@${SUPABASE_CLI_VERSION}" db start; then
-              npx --yes "supabase@${SUPABASE_CLI_VERSION}" status || true
+            set +e
+            timeout --signal=TERM --kill-after=30s 8m \
+              supabase start \
+                -x studio,imgproxy,mailpit,edge-runtime,logflare,vector,supavisor \
+                --debug 2>&1 | tee "${attempt_log}"
+            exit_code=${PIPESTATUS[0]}
+            set -e
+            cat "${attempt_log}" >> "${log_file}"
+
+            if [ "${exit_code}" -eq 0 ]; then
+              echo "db_started=true" >> "${GITHUB_OUTPUT}"
+              supabase status || true
+              {
+                echo "## Local database gate"
+                echo
+                echo "- Supabase services started successfully on attempt ${attempt}."
+              } >> "${GITHUB_STEP_SUMMARY}"
               exit 0
             fi
 
-            exit_code=$?
             echo "Attempt ${attempt} failed or timed out with exit code ${exit_code}."
             print_diagnostics
 
-            timeout --signal=TERM --kill-after=30s 2m \
-              npx --yes "supabase@${SUPABASE_CLI_VERSION}" stop --no-backup || true
+            timeout --signal=TERM --kill-after=30s 2m supabase stop --no-backup || true
+            docker container prune --force || true
 
             if [ "${attempt}" -lt 3 ]; then
-              sleep $((attempt * 15))
+              sleep $((attempt * 20))
             fi
           done
 
-          echo "Unable to start local Postgres after three bounded attempts."
+          failure_class="supabase_startup"
+          if grep -Eqi 'x509: certificate signed by unknown authority|TLS handshake timeout|failed to copy|failed to download docker image|toomanyrequests|connection reset by peer|temporary failure in name resolution' "${log_file}"; then
+            failure_class="external_container_registry"
+          elif grep -Eqi 'invalid reference format|manifest unknown|no matching manifest' "${log_file}"; then
+            failure_class="container_image_reference"
+          elif grep -Eqi 'port is already allocated|address already in use' "${log_file}"; then
+            failure_class="runner_port_conflict"
+          fi
+
+          echo "failure_class=${failure_class}" >> "${GITHUB_OUTPUT}"
+          {
+            echo "## Local database gate blocked"
+            echo
+            echo "- Failure class: \`${failure_class}\`"
+            echo "- Registry preflight passed: \`${{ steps.registry_preflight.outputs.registry_ok }}\`"
+            echo "- Database reset, SQL lint and pgTAP were **not executed**."
+            echo "- The job remains failed intentionally; no skipped database validation is reported as success."
+          } >> "${GITHUB_STEP_SUMMARY}"
+
+          echo "::error title=Local database validation blocked::Supabase could not start after three bounded attempts (${failure_class}). Database reset, lint and pgTAP were not executed."
           exit 1
 
       - name: Rebuild local database
-        run: timeout --signal=TERM --kill-after=30s 10m npx --yes "supabase@${SUPABASE_CLI_VERSION}" db reset --local
+        if: steps.db_start.outputs.db_started == 'true'
+        run: timeout --signal=TERM --kill-after=30s 12m supabase db reset --local
 
       - name: Lint local database
-        run: timeout --signal=TERM --kill-after=30s 5m npx --yes "supabase@${SUPABASE_CLI_VERSION}" db lint --local
+        if: steps.db_start.outputs.db_started == 'true'
+        run: timeout --signal=TERM --kill-after=30s 6m supabase db lint --local --level warning --fail-on error
 
       - name: Run pgTAP database tests
-        run: timeout --signal=TERM --kill-after=30s 8m npx --yes "supabase@${SUPABASE_CLI_VERSION}" test db --local
+        if: steps.db_start.outputs.db_started == 'true'
+        run: timeout --signal=TERM --kill-after=30s 10m supabase test db --local
 
       - name: Stop local Supabase
-        if: always()
-        run: timeout --signal=TERM --kill-after=30s 2m npx --yes "supabase@${SUPABASE_CLI_VERSION}" stop --no-backup || true
+        if: always() && steps.db_start.outputs.db_started == 'true'
+        continue-on-error: true
+        run: timeout --signal=TERM --kill-after=30s 3m supabase stop --no-backup || true
