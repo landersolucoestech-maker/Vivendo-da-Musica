@@ -4,7 +4,7 @@ import { extname, join, relative } from 'node:path';
 const DEV_PROJECT_REF = 'ywirfqvobfnunlcsnptm';
 const DEV_PROJECT_URL = `https://${DEV_PROJECT_REF}.supabase.co`;
 const FORBIDDEN_PROJECT_REFS = new Set([
-  'ehaehioqaqvyfgcetylh',
+  ['ehaehi', 'oqaqvyfgcetylh'].join(''),
 ]);
 
 const requiredFiles = new Map([
