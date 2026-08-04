@@ -41,7 +41,16 @@ interface ContractResponse {
   licenseName: string;
   usageRights: unknown;
   deliverables: unknown;
+  url?: string;
+  fileName?: string;
+  source?: 'producer_upload' | 'generated_fallback';
   error?: string;
+}
+
+export interface BeatLicenseContractDownload {
+  blob: Blob;
+  fileName: string;
+  source: 'producer_upload' | 'generated_fallback';
 }
 
 const asStringList = (value: unknown): string[] =>
@@ -153,8 +162,19 @@ export const downloadsService = {
     return response.url;
   },
 
-  async getBeatLicenseContract(deliveryId: string): Promise<Blob> {
+  async getBeatLicenseContract(deliveryId: string): Promise<BeatLicenseContractDownload> {
     const contract = await invokeAccess<ContractResponse>({ kind: 'beat', id: deliveryId, action: 'contract' });
+
+    if (contract.url) {
+      const response = await fetch(contract.url, { cache: 'no-store' });
+      if (!response.ok) throw new Error('O arquivo de contrato enviado pelo produtor não pôde ser baixado.');
+      return {
+        blob: await response.blob(),
+        fileName: contract.fileName || `${contract.contractNumber}.pdf`,
+        source: 'producer_upload',
+      };
+    }
+
     const lines = [
       'VIVENDO DA MUSICA - CONTRATO DE LICENCA DE BEAT',
       '',
@@ -171,6 +191,10 @@ export const downloadsService = {
       '',
       'Documento emitido automaticamente pela plataforma Vivendo da Musica.',
     ];
-    return createPdf(lines);
+    return {
+      blob: createPdf(lines),
+      fileName: `${contract.contractNumber}.pdf`,
+      source: 'generated_fallback',
+    };
   },
 };
