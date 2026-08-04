@@ -9,16 +9,23 @@ import StatsBar from '@/shared/components/StatsBar';
 import TestimonialsSection from '@/shared/components/TestimonialsSection';
 
 const Index = () => (
-  <div className="vdm-page min-h-screen overflow-x-clip">
+  <div className="vdm-page h-dvh overflow-hidden">
     <Navigation />
-    <HeroSection />
-    <StatsBar />
-    <ExploreAreasSection />
-    <FeaturedCoursesSection />
-    <InstructorsSection />
-    <TestimonialsSection />
-    <ArticlesTeaserSection />
-    <Footer />
+    <div className="h-full pt-16 sm:pt-20">
+      <main
+        data-testid="home-content-scroll"
+        className="h-full overflow-y-auto overscroll-contain [scrollbar-gutter:stable]"
+      >
+        <HeroSection />
+        <StatsBar />
+        <ExploreAreasSection />
+        <FeaturedCoursesSection />
+        <InstructorsSection />
+        <TestimonialsSection />
+        <ArticlesTeaserSection />
+        <Footer />
+      </main>
+    </div>
   </div>
 );
 
