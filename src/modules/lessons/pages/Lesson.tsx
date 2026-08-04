@@ -98,12 +98,12 @@ const Lesson = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <div className="h-dvh overflow-hidden bg-background text-foreground">
       <Navigation />
 
-      <div className="flex pt-16">
-        <aside className="hidden w-80 shrink-0 border-r border-white/8 bg-[#090909] lg:block">
-          <div className="sticky top-16 max-h-[calc(100vh-4rem)] overflow-y-auto p-5">
+      <div className="flex h-full overflow-hidden pt-16 sm:pt-20">
+        <aside className="hidden h-full w-80 shrink-0 border-r border-white/8 bg-[#090909] lg:block">
+          <div className="h-full overflow-y-auto p-5">
             <Button variant="ghost" size="sm" onClick={() => navigate(ROUTES.dashboard)} className="mb-5 -ml-2 text-muted-foreground hover:text-white">
               <ArrowLeft className="size-4" />
               Voltar ao portal
@@ -154,7 +154,10 @@ const Lesson = () => {
           </div>
         </aside>
 
-        <main className="min-w-0 flex-1 px-4 py-8 sm:px-6 lg:px-10">
+        <main
+          data-testid="lesson-content-scroll"
+          className="min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain [scrollbar-gutter:stable] px-4 py-8 sm:px-6 lg:px-10"
+        >
           <div className="mx-auto max-w-5xl">
             <header className="mb-7">
               <p className="vdm-eyebrow">{currentModule?.title ?? 'Aula'}</p>
