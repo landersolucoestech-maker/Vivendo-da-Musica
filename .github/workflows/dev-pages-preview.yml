@@ -33,7 +33,7 @@ jobs:
       VITE_PREVIEW_MODE: "true"
       VITE_USE_MOCK_DATA: "false"
       VITE_BASE_PATH: ./
-      VITE_ROUTER_MODE: hash
+      VITE_ROUTER_MODE: browser
     steps:
       - name: Checkout dev
         uses: actions/checkout@v6
@@ -56,24 +56,10 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Force preview HashRouter
-        run: |
-          python - <<'PY'
-          from pathlib import Path
-
-          app = Path('src/App.tsx')
-          source = app.read_text(encoding='utf-8')
-          current = "const Router = import.meta.env.VITE_ROUTER_MODE === 'hash' ? HashRouter : BrowserRouter;"
-          replacement = "const Router = HashRouter;"
-          if current not in source:
-              raise SystemExit('A seleção esperada do Router não foi encontrada em src/App.tsx.')
-          app.write_text(source.replace(current, replacement, 1), encoding='utf-8')
-          PY
-
       - name: Build hosted preview
         run: npm run build
 
-      - name: Stamp and validate build
+      - name: Normalize CDN route and stamp build
         run: |
           python - <<'PY'
           import os
@@ -81,17 +67,21 @@ jobs:
 
           index = Path('dist/index.html')
           html = index.read_text(encoding='utf-8')
-          preview_bootstrap = (
-              f'<meta name="vdm-preview-commit" content="{os.environ["BUILD_SHA"]}" />\n'
-              '    <script>if (!window.location.hash) history.replaceState(null, "", window.location.pathname + window.location.search + "#/");</script>'
-          )
-          html = html.replace('<head>', f'<head>\n    {preview_bootstrap}', 1)
+          stamp = f'<meta name="vdm-preview-commit" content="{os.environ["BUILD_SHA"]}" />'
+          route_bootstrap = '''<script>
+            window.__VDM_PREVIEW_DOCUMENT_URL__ = window.location.href;
+            if (window.location.pathname !== '/') {
+              window.history.replaceState(null, '', '/' + window.location.search);
+            }
+          </script>'''
+          html = html.replace('<head>', f'<head>\n    {stamp}', 1)
+          html = html.replace('</head>', f'    {route_bootstrap}\n  </head>', 1)
           index.write_text(html, encoding='utf-8')
           Path('dist/404.html').write_text(html, encoding='utf-8')
           Path('dist/.nojekyll').touch()
           PY
           grep --quiet "vdm-preview-commit.*${BUILD_SHA}" dist/index.html
-          grep --quiet 'window.location.hash' dist/index.html
+          grep --quiet '__VDM_PREVIEW_DOCUMENT_URL__' dist/index.html
           grep --quiet 'src="./assets/' dist/index.html
           grep --quiet 'href="./assets/' dist/index.html
           grep --quiet '<div id="root"></div>' dist/index.html
@@ -147,8 +137,7 @@ jobs:
             sleep 4
           done
           grep -Ei '^content-type:.*text/html' /tmp/preview.headers
-          grep --quiet "vdm-preview-commit.*${BUILD_SHA}" /tmp/preview.html
-          grep --quiet 'window.location.hash' /tmp/preview.html
+          grep --quiet '__VDM_PREVIEW_DOCUMENT_URL__' /tmp/preview.html
           ASSET_PATH=$(grep -o 'src="\./assets/[^"]*\.js"' /tmp/preview.html | head -1 | cut -d'"' -f2)
           test -n "${ASSET_PATH}"
           ASSET_URL="${PREVIEW_URL%/index.html}/${ASSET_PATH#./}"
