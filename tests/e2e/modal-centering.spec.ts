@@ -22,7 +22,7 @@ test('company opportunity editor opens as a centered popup', async ({ page }) =>
 
   const dialog = page.getByRole('dialog', { name: 'Nova oportunidade' });
   await expectCentered(page, dialog);
-  await expect(dialog).toContainText('As informações publicadas aparecerão na página de oportunidades');
+  await expect(dialog).toContainText('Ao publicar, um crédito será consumido da carteira da empresa');
 
   await dialog.getByRole('button', { name: 'Cancelar' }).click();
   await expect(dialog).toBeHidden();
