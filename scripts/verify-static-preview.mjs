@@ -43,7 +43,9 @@ let stage = 'navigation';
 let caughtError = null;
 let home = null;
 let academy = null;
+let student = null;
 let fixedHeader = null;
+let studentScroll = null;
 
 const snapshotPage = async () =>
   page.evaluate(() => ({
@@ -75,6 +77,31 @@ const captureHeaderPosition = async () =>
       logoTop: logo?.getBoundingClientRect().top ?? null,
       academyTop: academyLink?.getBoundingClientRect().top ?? null,
       scrollY: window.scrollY,
+    };
+  });
+
+const captureStudentLayout = async () =>
+  page.evaluate(() => {
+    const header = document.querySelector('[data-testid="public-header"]');
+    const logo = header?.querySelector('[aria-label="Vivendo da Música — início"]');
+    const content = document.querySelector('[data-testid="student-content-scroll"]');
+    const headerRect = header?.getBoundingClientRect();
+    const contentRect = content?.getBoundingClientRect();
+
+    return {
+      headerPosition: header ? getComputedStyle(header).position : '',
+      headerTop: headerRect?.top ?? null,
+      headerBottom: headerRect?.bottom ?? null,
+      logoTop: logo?.getBoundingClientRect().top ?? null,
+      contentTop: contentRect?.top ?? null,
+      contentBottom: contentRect?.bottom ?? null,
+      contentOverflowY: content ? getComputedStyle(content).overflowY : '',
+      contentScrollTop: content?.scrollTop ?? null,
+      contentScrollHeight: content?.scrollHeight ?? null,
+      contentClientHeight: content?.clientHeight ?? null,
+      windowScrollY: window.scrollY,
+      documentScrollHeight: document.documentElement.scrollHeight,
+      viewportHeight: window.innerHeight,
     };
   });
 
@@ -117,6 +144,32 @@ try {
   );
   await page.waitForTimeout(1_000);
   academy = await snapshotPage();
+
+  stage = 'student-portal';
+  await page.evaluate(() => {
+    window.history.pushState(null, '', '/aluno');
+    window.dispatchEvent(new PopStateEvent('popstate'));
+  });
+  await page.waitForFunction(() => window.location.pathname === '/aluno', undefined, {
+    timeout: 10_000,
+  });
+  await page.locator('[data-testid="student-content-scroll"]').waitFor({
+    state: 'visible',
+    timeout: 30_000,
+  });
+  await page.waitForTimeout(2_000);
+  student = await snapshotPage();
+
+  const beforeContentScroll = await captureStudentLayout();
+  await page.evaluate(() => {
+    const content = document.querySelector('[data-testid="student-content-scroll"]');
+    if (!(content instanceof HTMLElement)) return;
+    const maximumScroll = Math.max(0, content.scrollHeight - content.clientHeight);
+    content.scrollTo(0, Math.min(1_200, maximumScroll));
+  });
+  await page.waitForTimeout(500);
+  const afterContentScroll = await captureStudentLayout();
+  studentScroll = { beforeContentScroll, afterContentScroll };
 } catch (error) {
   caughtError = error instanceof Error ? `${error.name}: ${error.message}` : String(error);
   try {
@@ -128,7 +181,7 @@ try {
   }
 } finally {
   try {
-    await page.screenshot({ path: 'artifacts/preview-audit/home.png', fullPage: true });
+    await page.screenshot({ path: 'artifacts/preview-audit/student-portal.png', fullPage: false });
   } catch (screenshotError) {
     consoleErrors.push(
       `Falha ao capturar screenshot: ${screenshotError instanceof Error ? screenshotError.message : String(screenshotError)}`,
@@ -143,6 +196,8 @@ try {
     home: home ? { ...home, bodyTextLength: home.bodyText.length } : null,
     fixedHeader,
     academy: academy ? { ...academy, bodyTextLength: academy.bodyText.length } : null,
+    student: student ? { ...student, bodyTextLength: student.bodyText.length } : null,
+    studentScroll,
     pageErrors,
     failedAssets,
     consoleErrors,
@@ -187,13 +242,13 @@ if (!fixedHeader) {
     failures.push(`Cabeçalho não está fixed: ${beforeScroll.position}/${afterScroll.position}`);
   }
   if (afterScroll.scrollY < 100) {
-    failures.push(`A página não rolou o suficiente para validar o cabeçalho: ${afterScroll.scrollY}px.`);
+    failures.push(`A Home não rolou o suficiente para validar o cabeçalho: ${afterScroll.scrollY}px.`);
   }
   for (const key of ['headerTop', 'logoTop', 'academyTop']) {
     const before = beforeScroll[key];
     const after = afterScroll[key];
     if (before === null || after === null || Math.abs(before - after) > 1) {
-      failures.push(`${key} se moveu durante a rolagem: ${before} → ${after}.`);
+      failures.push(`${key} se moveu durante a rolagem da Home: ${before} → ${after}.`);
     }
   }
   if (Math.abs(afterScroll.headerTop ?? Number.POSITIVE_INFINITY) > 1) {
@@ -210,6 +265,63 @@ if (
 ) {
   failures.push('A rota pública /academia não foi renderizada.');
 }
+
+if (
+  !student ||
+  student.path !== '/aluno' ||
+  student.rootChildCount === 0 ||
+  student.bodyText.length < 100 ||
+  student.bodyText.includes('ERRO 404')
+) {
+  failures.push('O portal do aluno não foi renderizado.');
+}
+
+if (!studentScroll) {
+  failures.push('A rolagem isolada do portal do aluno não foi validada.');
+} else {
+  const { beforeContentScroll, afterContentScroll } = studentScroll;
+  if (
+    beforeContentScroll.headerPosition !== 'fixed' ||
+    afterContentScroll.headerPosition !== 'fixed'
+  ) {
+    failures.push(
+      `Cabeçalho do portal não está fixed: ${beforeContentScroll.headerPosition}/${afterContentScroll.headerPosition}.`,
+    );
+  }
+  if (afterContentScroll.contentOverflowY !== 'auto') {
+    failures.push(`O conteúdo do portal não controla a rolagem: ${afterContentScroll.contentOverflowY}.`);
+  }
+  if ((afterContentScroll.contentScrollTop ?? 0) < 100) {
+    failures.push(
+      `A área interna do portal não rolou o suficiente: ${afterContentScroll.contentScrollTop}px.`,
+    );
+  }
+  if (afterContentScroll.windowScrollY !== 0) {
+    failures.push(`O documento rolou junto com o portal: ${afterContentScroll.windowScrollY}px.`);
+  }
+  if (afterContentScroll.documentScrollHeight > afterContentScroll.viewportHeight + 1) {
+    failures.push(
+      `O documento ainda possui scrollbar global: ${afterContentScroll.documentScrollHeight}px para viewport de ${afterContentScroll.viewportHeight}px.`,
+    );
+  }
+  for (const key of ['headerTop', 'logoTop']) {
+    const before = beforeContentScroll[key];
+    const after = afterContentScroll[key];
+    if (before === null || after === null || Math.abs(before - after) > 1) {
+      failures.push(`${key} se moveu durante a rolagem interna: ${before} → ${after}.`);
+    }
+  }
+  if (
+    beforeContentScroll.headerBottom === null ||
+    beforeContentScroll.contentTop === null ||
+    beforeContentScroll.contentTop < beforeContentScroll.headerBottom - 1
+  ) {
+    failures.push(
+      `A área rolável começa por trás do cabeçalho: header=${beforeContentScroll.headerBottom}, conteúdo=${beforeContentScroll.contentTop}.`,
+    );
+  }
+}
+
 if (pageErrors.length > 0) failures.push(`Erros JavaScript: ${pageErrors.join(' | ')}`);
 if (failedAssets.length > 0) {
   failures.push(`Requisições falharam: ${failedAssets.join(' | ')}`);
