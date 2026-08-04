@@ -1,5 +1,5 @@
-import { basename, readdir, readFile } from 'node:fs/promises';
-import { join, relative } from 'node:path';
+import { readdir, readFile } from 'node:fs/promises';
+import { basename, join, relative } from 'node:path';
 
 const ROOT = 'src';
 const MODAL_CONTENT_TAGS = ['DialogContent', 'AlertDialogContent', 'SheetContent'];
