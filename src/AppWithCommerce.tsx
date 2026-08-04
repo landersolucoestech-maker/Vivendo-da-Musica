@@ -98,7 +98,6 @@ const InstructorReportsPage = lazy(() => import('@/modules/instructor/pages/Inst
 const InstructorFinancePage = lazy(() => import('@/modules/instructor/pages/InstructorFinancePage'));
 
 const ProducerServicesPage = lazy(() => import('@/modules/services/pages/ProducerServicesPage'));
-const ProducerServiceCatalogPage = lazy(() => import('@/modules/services/pages/ProducerServiceCatalogPage'));
 const ProducerServiceRequestsPage = lazy(() => import('@/modules/services/pages/ProducerServiceRequestsPage'));
 
 const CompanyDashboardPage = lazy(() => import('@/modules/company/pages/CompanyDashboardPage'));
@@ -199,7 +198,6 @@ const AppWithCommerce = () => (
                 <Route path={ROUTES.producerProducts} element={producerRoute(<ProducerProductsPage />)} />
                 <Route path={ROUTES.producerOrders} element={producerRoute(<ProducerOrdersPage />)} />
                 <Route path={ROUTES.producerServices} element={producerRoute(<ProducerServicesPage />)} />
-                <Route path={ROUTES.producerServiceCatalog} element={producerRoute(<ProducerServiceCatalogPage />)} />
                 <Route path={ROUTES.producerServiceRequests} element={producerRoute(<ProducerServiceRequestsPage />)} />
 
                 <Route path={ROUTES.affiliate} element={affiliateRoute(<AffiliatePortalPage />)} />
