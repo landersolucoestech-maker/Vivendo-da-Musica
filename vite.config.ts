@@ -6,6 +6,7 @@ const isAbsoluteHttpUrl = (value: string): boolean => /^https?:\/\//i.test(value
 
 const normalizeBasePath = (value?: string): string => {
   if (!value || value === '/') return '/';
+  if (value === './') return './';
   if (isAbsoluteHttpUrl(value)) return value.endsWith('/') ? value : `${value}/`;
 
   const withLeadingSlash = value.startsWith('/') ? value : `/${value}`;
