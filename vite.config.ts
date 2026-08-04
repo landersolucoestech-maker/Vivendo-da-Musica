@@ -14,9 +14,13 @@ const normalizeBasePath = (value?: string): string => {
 };
 
 const basePath = normalizeBasePath(process.env.VITE_BASE_PATH);
+const routerMode = process.env.VITE_ROUTER_MODE ?? 'browser';
 
 export default defineConfig({
   base: basePath,
+  define: {
+    'import.meta.env.VITE_ROUTER_MODE': JSON.stringify(routerMode),
+  },
   server: {
     host: '::',
     port: 8080,
