@@ -22,7 +22,17 @@ const requiredFiles = new Map([
       'echo "SUPABASE_PROJECT_REF=${DEV_SUPABASE_PROJECT_REF}" >> "$GITHUB_ENV"',
     ],
   ],
+  [
+    'scripts/deploy-supabase-functions.mjs',
+    [
+      "const entries = await readdir(functionsDirectory, { withFileTypes: true });",
+      ".filter((entry) => entry.isDirectory() && !entry.name.startsWith('_'))",
+      "'api-v1',",
+      "'payment-webhook',",
+    ],
+  ],
   ['scripts/assert-production-safe.mjs', [`const DEV_PROJECT_REF = '${DEV_PROJECT_REF}';`]],
+  ['supabase/functions/api-v1/openapi.yaml', [`url: ${DEV_PROJECT_URL}/functions/v1/api-v1/v1`]],
 ]);
 
 const searchableExtensions = new Set([
