@@ -66,8 +66,6 @@ run_diff() {
   fi
 }
 
-# Generate both directions explicitly. These files are diagnostics only and are
-# never executed by this script.
 run_diff migrations linked "$canonical_to_remote_diff" "canonical-to-remote"
 run_diff linked migrations "$remote_to_canonical_diff" "remote-to-canonical"
 
@@ -76,8 +74,16 @@ node scripts/classify-supabase-schema-diff.mjs \
 node scripts/classify-supabase-schema-diff.mjs \
   "$remote_to_canonical_diff" "$remote_to_canonical_report"
 
-canonical_to_remote_empty="$(node -e "const r=require('./${canonical_to_remote_report}'); process.stdout.write(String(r.empty))")"
-remote_to_canonical_empty="$(node -e "const r=require('./${remote_to_canonical_report}'); process.stdout.write(String(r.empty))")"
+read_report_empty() {
+  node -e '
+    const fs = require("node:fs");
+    const report = JSON.parse(fs.readFileSync(process.argv[1], "utf8"));
+    process.stdout.write(String(report.empty));
+  ' "$1"
+}
+
+canonical_to_remote_empty="$(read_report_empty "$canonical_to_remote_report")"
+remote_to_canonical_empty="$(read_report_empty "$remote_to_canonical_report")"
 
 if [[ "$canonical_to_remote_empty" != "true" || "$remote_to_canonical_empty" != "true" ]]; then
   echo "::group::Remote-to-canonical risk report"
@@ -87,8 +93,6 @@ if [[ "$canonical_to_remote_empty" != "true" || "$remote_to_canonical_empty" != 
   exit 2
 fi
 
-# Full bidirectional equivalence has been proved. Remote-only migration files may
-# now be accepted in the disposable checkout so the histories can be reconciled.
 printf 'y\n' | env -u SUPABASE_DB_PASSWORD npx supabase migration fetch --linked
 
 mapfile -t remote_versions < <(
