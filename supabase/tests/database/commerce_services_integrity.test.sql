@@ -29,15 +29,17 @@ select ok(
   not exists (
     select 1
     from public.commercial_parameters parameter
-    where parameter.active
+    where parameter.status = 'active'
       and not exists (
         select 1
         from public.commercial_parameter_versions version
         where version.parameter_id = parameter.id
-          and version.status in ('approved', 'active')
+          and version.status = 'published'
+          and version.effective_from <= now()
+          and (version.effective_until is null or version.effective_until > now())
       )
   ),
-  'every active commercial parameter has an approved or active version'
+  'every active commercial parameter has a currently published version'
 );
 
 select is(
@@ -77,17 +79,8 @@ select is(
   'every published service package has an active canonical offer'
 );
 
-select is(
-  (select public from storage.buckets where id = 'lesson-videos'),
-  false,
-  'lesson video bucket remains private'
-);
-
-select is(
-  (select public from storage.buckets where id = 'service-deliveries'),
-  false,
-  'service delivery bucket remains private'
-);
+select is((select public from storage.buckets where id = 'lesson-videos'), false, 'lesson video bucket remains private');
+select is((select public from storage.buckets where id = 'service-deliveries'), false, 'service delivery bucket remains private');
 
 select is(
   (
@@ -147,8 +140,10 @@ select is(
     from public.company_credit_lots lot
     where lot.source_order_id is not null
       and not exists (
-        select 1 from public.commerce_orders orders
-        where orders.id = lot.source_order_id and orders.status = 'paid'
+        select 1
+        from public.commerce_orders orders
+        where orders.id = lot.source_order_id
+          and orders.status = 'paid'
       )
   ),
   0::bigint,
