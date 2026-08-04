@@ -13,6 +13,7 @@ const layoutFiles = [
 ];
 
 const failures = [];
+const directPaddingPattern = /(?:^|\s)(?:[a-z]+:)*p(?:[trblxy])?-[^\s]+/;
 
 for (const path of layoutFiles) {
   const source = await readFile(path, 'utf8');
@@ -42,6 +43,17 @@ for (const path of layoutFiles) {
   if (navigationIndex === -1 || scrollingIndex === -1 || navigationIndex > scrollingIndex) {
     failures.push(`${path}: o cabeçalho deve estar antes e fora do contêiner rolável.`);
   }
+
+  const scrollSurfaceMatch = source.match(
+    /<(?:main|div)[^>]*data-testid="[^"]*-content-scroll"[^>]*className="([^"]+)"/s,
+  );
+  if (!scrollSurfaceMatch) {
+    failures.push(`${path}: a superfície principal de rolagem não foi identificada.`);
+  } else if (directPaddingPattern.test(scrollSurfaceMatch[1])) {
+    failures.push(
+      `${path}: padding aplicado diretamente à scrollbar cria uma faixa que encobre o conteúdo. Use um contêiner interno.`,
+    );
+  }
 }
 
 const navigationSource = await readFile('src/shared/components/Navigation.tsx', 'utf8');
@@ -56,4 +68,4 @@ if (failures.length > 0) {
   throw new Error(failures.join('\n'));
 }
 
-console.log(`Cabeçalho fixo validado em ${layoutFiles.length} estruturas.`);
+console.log(`Cabeçalho fixo e superfícies sem faixa de sobreposição validados em ${layoutFiles.length} estruturas.`);
