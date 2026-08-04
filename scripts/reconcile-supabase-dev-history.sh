@@ -4,143 +4,122 @@ set -euo pipefail
 : "${SUPABASE_PROJECT_REF:?SUPABASE_PROJECT_REF is required}"
 : "${SUPABASE_ACCESS_TOKEN:?SUPABASE_ACCESS_TOKEN is required}"
 
-baseline_version="20260804103000"
 artifact_dir="${GITHUB_WORKSPACE:-.}/artifacts/supabase-dev"
-canonical_to_remote_diff="${artifact_dir}/canonical-to-remote.sql"
+remote_dump="${artifact_dir}/remote-schema.sql"
 remote_to_canonical_diff="${artifact_dir}/remote-to-canonical.sql"
-canonical_to_remote_report="${artifact_dir}/canonical-to-remote.report.json"
 remote_to_canonical_report="${artifact_dir}/remote-to-canonical.report.json"
-list_before="${artifact_dir}/migration-list-before.txt"
-list_after="${artifact_dir}/migration-list-after.txt"
+migration_list="${artifact_dir}/migration-list-before.txt"
+selected_schemas=(auth storage public app_private authz_private)
 mkdir -p "$artifact_dir"
+: >"$remote_to_canonical_diff"
 
-mapfile -t canonical_versions < <(
-  find supabase/migrations -maxdepth 1 -type f -printf '%f\n' \
-    | sed -nE 's/^([0-9]{14})_[A-Za-z0-9._-]+\.sql$/\1/p' \
-    | sort -u
-)
+cleanup() {
+  npx supabase stop --no-backup >/dev/null 2>&1 || true
+}
+trap cleanup EXIT
 
-env -u SUPABASE_DB_PASSWORD npx supabase migration list --linked | tee "$list_before"
+echo "Recording linked migration history..."
+env -u SUPABASE_DB_PASSWORD npx supabase migration list --linked | tee "$migration_list"
 
-remote_has_baseline=false
-if awk -F'|' -v baseline="$baseline_version" '
-  NF >= 2 {
-    remote=$2
-    gsub(/[^0-9]/, "", remote)
-    if (remote == baseline) found=1
-  }
-  END { exit(found ? 0 : 1) }
-' "$list_before"; then
-  remote_has_baseline=true
+echo "Starting the isolated local Postgres service..."
+timeout --signal=TERM --kill-after=30s 10m npx supabase db start
+
+echo "Rebuilding the canonical DEV schema from every migration..."
+timeout --signal=TERM --kill-after=30s 15m npx supabase db reset --local
+
+local_db_container="$(docker ps --filter 'name=supabase_db_' --format '{{.Names}}' | head -n 1)"
+if [[ -z "$local_db_container" ]]; then
+  echo "::error title=Local Supabase database unavailable::Could not identify the local Postgres container."
+  exit 1
 fi
 
-if [[ "$remote_has_baseline" == "true" ]]; then
-  printf 'y\n' | env -u SUPABASE_DB_PASSWORD npx supabase migration fetch --linked
-  echo "Canonical DEV migration baseline is already established. Applying only migrations newer than the baseline."
-  env -u SUPABASE_DB_PASSWORD npx supabase db push --linked --include-all
-  env -u SUPABASE_DB_PASSWORD npx supabase migration list --linked | tee "$list_after"
+canonical_url="postgresql://postgres:postgres@127.0.0.1:54322/postgres"
+remote_snapshot_url="postgresql://postgres:postgres@127.0.0.1:54322/remote_snapshot"
+
+echo "Dumping the linked DEV schema without data..."
+env -u SUPABASE_DB_PASSWORD npx supabase db dump \
+  --linked \
+  --schema "$(IFS=,; echo "${selected_schemas[*]}")" \
+  --file "$remote_dump"
+
+if [[ ! -s "$remote_dump" ]]; then
+  echo "::error title=Remote schema dump is empty::The linked DEV schema could not be exported."
+  exit 1
+fi
+
+echo "Creating an isolated database for the remote schema snapshot..."
+docker exec -i "$local_db_container" psql \
+  --username postgres \
+  --dbname template1 \
+  --set ON_ERROR_STOP=1 <<'SQL'
+select pg_terminate_backend(pid)
+from pg_stat_activity
+where datname = 'remote_snapshot'
+  and pid <> pg_backend_pid();
+drop database if exists remote_snapshot;
+create database remote_snapshot template postgres;
+SQL
+
+echo "Removing canonical application schemas from the remote snapshot database..."
+docker exec -i "$local_db_container" psql \
+  --username postgres \
+  --dbname remote_snapshot \
+  --set ON_ERROR_STOP=1 <<'SQL'
+drop schema if exists auth cascade;
+drop schema if exists storage cascade;
+drop schema if exists public cascade;
+drop schema if exists app_private cascade;
+drop schema if exists authz_private cascade;
+create schema public authorization postgres;
+SQL
+
+echo "Restoring the linked DEV schema into the isolated snapshot database..."
+docker exec -i "$local_db_container" psql \
+  --username postgres \
+  --dbname remote_snapshot \
+  --set ON_ERROR_STOP=1 <"$remote_dump"
+
+migra_venv="${RUNNER_TEMP:-/tmp}/vivendo-migra-venv"
+python3 -m venv "$migra_venv"
+# Pin the stable migra release used for deterministic PostgreSQL schema diffs.
+"$migra_venv/bin/pip" install \
+  --disable-pip-version-check \
+  'migra==3.0.1663481299' \
+  'psycopg2-binary==2.9.10'
+
+for schema in "${selected_schemas[@]}"; do
+  {
+    printf '\n-- ============================================================\n'
+    printf -- '-- Schema: %s | remote snapshot -> canonical migrations\n' "$schema"
+    printf -- '-- ============================================================\n\n'
+  } >>"$remote_to_canonical_diff"
+
+  "$migra_venv/bin/migra" \
+    --unsafe \
+    --schema "$schema" \
+    "$remote_snapshot_url" \
+    "$canonical_url" \
+    >>"$remote_to_canonical_diff"
+done
+
+node scripts/classify-supabase-schema-diff.mjs \
+  "$remote_to_canonical_diff" \
+  "$remote_to_canonical_report"
+
+echo "::group::Remote-to-canonical schema risk report"
+cat "$remote_to_canonical_report"
+echo "::endgroup::"
+
+report_empty="$(node -e '
+  const fs = require("node:fs");
+  const report = JSON.parse(fs.readFileSync(process.argv[1], "utf8"));
+  process.stdout.write(String(report.empty));
+' "$remote_to_canonical_report")"
+
+if [[ "$report_empty" == "true" ]]; then
+  echo "The linked DEV schema is equivalent to the canonical migrations."
   exit 0
 fi
 
-run_diff() {
-  local from="$1"
-  local to="$2"
-  local output="$3"
-  local label="$4"
-
-  echo "Generating ${label} schema diff (${from} -> ${to})..."
-  set +e
-  timeout --signal=TERM --kill-after=30s 25m \
-    env -u SUPABASE_DB_PASSWORD npx supabase db diff \
-      --from "$from" \
-      --to "$to" \
-      --schema auth,storage,public,app_private,authz_private \
-      --use-migra \
-      >"$output"
-  local status=$?
-  set -e
-
-  if [[ "$status" -ne 0 ]]; then
-    echo "::error title=Supabase schema comparison failed::Could not generate ${label} (${from} -> ${to})."
-    return "$status"
-  fi
-}
-
-run_diff migrations linked "$canonical_to_remote_diff" "canonical-to-remote"
-run_diff linked migrations "$remote_to_canonical_diff" "remote-to-canonical"
-
-node scripts/classify-supabase-schema-diff.mjs \
-  "$canonical_to_remote_diff" "$canonical_to_remote_report"
-node scripts/classify-supabase-schema-diff.mjs \
-  "$remote_to_canonical_diff" "$remote_to_canonical_report"
-
-read_report_empty() {
-  node -e '
-    const fs = require("node:fs");
-    const report = JSON.parse(fs.readFileSync(process.argv[1], "utf8"));
-    process.stdout.write(String(report.empty));
-  ' "$1"
-}
-
-canonical_to_remote_empty="$(read_report_empty "$canonical_to_remote_report")"
-remote_to_canonical_empty="$(read_report_empty "$remote_to_canonical_report")"
-
-if [[ "$canonical_to_remote_empty" != "true" || "$remote_to_canonical_empty" != "true" ]]; then
-  echo "::group::Remote-to-canonical risk report"
-  cat "$remote_to_canonical_report"
-  echo "::endgroup::"
-  echo "::error title=Supabase DEV schema drift::Bidirectional diagnostics were generated. Migration history and remote schema were not modified."
-  exit 2
-fi
-
-printf 'y\n' | env -u SUPABASE_DB_PASSWORD npx supabase migration fetch --linked
-
-mapfile -t remote_versions < <(
-  awk -F'|' '
-    NF >= 2 {
-      remote=$2
-      gsub(/[^0-9]/, "", remote)
-      if (remote ~ /^[0-9]{14}$/) print remote
-    }
-  ' "$list_before" | sort -u
-)
-
-declare -A remote_set=()
-for version in "${remote_versions[@]}"; do
-  remote_set["$version"]=1
-done
-
-missing_versions=()
-for version in "${canonical_versions[@]}"; do
-  if [[ -z "${remote_set[$version]+x}" ]]; then
-    missing_versions+=("$version")
-  fi
-done
-
-if [[ "${#missing_versions[@]}" -eq 0 ]]; then
-  echo "::error title=Supabase migration baseline missing::Schemas are equivalent, but no canonical migration records require reconciliation."
-  exit 3
-fi
-
-if [[ ! " ${missing_versions[*]} " =~ " ${baseline_version} " ]]; then
-  echo "::error title=Supabase baseline invariant failed::The baseline migration is not among the missing canonical history records."
-  exit 4
-fi
-
-echo "Canonical schemas are equivalent. Repairing ${#missing_versions[@]} missing canonical migration-history records."
-batch=()
-for version in "${missing_versions[@]}"; do
-  batch+=("$version")
-  if [[ "${#batch[@]}" -ge 40 ]]; then
-    env -u SUPABASE_DB_PASSWORD npx supabase migration repair --linked --status applied "${batch[@]}"
-    batch=()
-  fi
-done
-if [[ "${#batch[@]}" -gt 0 ]]; then
-  env -u SUPABASE_DB_PASSWORD npx supabase migration repair --linked --status applied "${batch[@]}"
-fi
-
-env -u SUPABASE_DB_PASSWORD npx supabase migration list --linked | tee "$list_after"
-env -u SUPABASE_DB_PASSWORD npx supabase db push --linked --include-all --dry-run
-
-echo "Supabase DEV schema and migration history reconciled safely at baseline ${baseline_version}."
+echo "::error title=Supabase DEV schema drift::A stable remote-to-canonical SQL diff was generated. No remote schema or migration-history changes were executed."
+exit 2
