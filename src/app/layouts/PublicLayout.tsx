@@ -10,15 +10,22 @@ const PublicLayout = ({ children }: { children: ReactNode }) => {
   const isLegalDocument = pathname === ROUTES.privacyPolicy || pathname === ROUTES.termsOfUse;
 
   return (
-    <div className="vdm-page min-h-screen overflow-x-clip bg-background text-foreground">
+    <div className="vdm-page h-dvh overflow-hidden bg-background text-foreground">
       <Navigation />
-      <main className="relative pt-16 sm:pt-20">
-        <div className="pointer-events-none absolute inset-x-0 top-0 h-72 bg-[radial-gradient(circle_at_top,rgba(138,43,226,0.12),transparent_68%)]" />
-        <div className={`vdm-container relative ${isLegalDocument ? '!max-w-[1760px]' : ''}`}>
-          {children}
+      <div className="h-full pt-16 sm:pt-20">
+        <div
+          data-testid="public-content-scroll"
+          className="h-full overflow-y-auto overscroll-contain [scrollbar-gutter:stable]"
+        >
+          <main className="relative">
+            <div className="pointer-events-none absolute inset-x-0 top-0 h-72 bg-[radial-gradient(circle_at_top,rgba(138,43,226,0.12),transparent_68%)]" />
+            <div className={`vdm-container relative ${isLegalDocument ? '!max-w-[1760px]' : ''}`}>
+              {children}
+            </div>
+          </main>
+          <Footer />
         </div>
-      </main>
-      <Footer />
+      </div>
     </div>
   );
 };
