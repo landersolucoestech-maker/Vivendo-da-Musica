@@ -4,6 +4,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.50.0';
 const DEV_PROJECT_REF = 'ywirfqvobfnunlcsnptm';
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const BEAT_BUCKETS = new Set(['beat-masters', 'beat-stems']);
+const CONTRACT_BUCKET = 'beat-license-contracts';
 const emptyZip = new Uint8Array([80, 75, 5, 6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
 const emptyWav = new Uint8Array([82, 73, 70, 70, 36, 0, 0, 0, 87, 65, 86, 69, 102, 109, 116, 32, 16, 0, 0, 0, 1, 0, 1, 0, 68, 172, 0, 0, 136, 88, 1, 0, 2, 0, 16, 0, 100, 97, 116, 97, 0, 0, 0, 0]);
 
@@ -80,7 +81,7 @@ Deno.serve(async (request) => {
     if (kind === 'beat') {
       const { data, error } = await admin
         .from('beat_deliveries')
-        .select('id,storage_bucket,storage_path,file_label,expires_at,download_count,purchase:beat_license_purchases!inner(id,buyer_id,contract_number,status,issued_at,beat:beats!inner(title,is_demo),license:beat_licenses!inner(name,usage_rights,deliverables))')
+        .select('id,storage_bucket,storage_path,file_label,expires_at,download_count,purchase:beat_license_purchases!inner(id,buyer_id,contract_number,status,issued_at,beat:beats!inner(title,is_demo),license:beat_licenses!inner(name,usage_rights,deliverables,license_contract_path,license_contract_file_name,license_contract_mime_type,license_contract_size_bytes,license_contract_updated_at))')
         .eq('id', id)
         .single();
       if (error || !data) return json({ error: 'Entrega não encontrada.' }, 404, origin);
@@ -92,14 +93,48 @@ Deno.serve(async (request) => {
         status: string;
         issued_at: string;
         beat: { title: string; is_demo: boolean };
-        license: { name: string; usage_rights: unknown; deliverables: unknown };
+        license: {
+          name: string;
+          usage_rights: unknown;
+          deliverables: unknown;
+          license_contract_path: string | null;
+          license_contract_file_name: string | null;
+          license_contract_mime_type: string | null;
+          license_contract_size_bytes: number | null;
+          license_contract_updated_at: string | null;
+        };
       };
       const demoAccess = isDevProject && purchase.beat.is_demo;
       const ownerAccess = Boolean(authenticatedUserId && purchase.buyer_id === authenticatedUserId);
       if (purchase.status !== 'active' || (!demoAccess && !ownerAccess)) return json({ error: 'Acesso negado.' }, 403, origin);
-      if (data.expires_at && Date.parse(data.expires_at) <= Date.now()) return json({ error: 'O prazo deste download expirou.' }, 410, origin);
 
       if (action === 'contract') {
+        if (purchase.license.license_contract_path && purchase.license.license_contract_file_name) {
+          const signed = await admin.storage
+            .from(CONTRACT_BUCKET)
+            .createSignedUrl(purchase.license.license_contract_path, 300, {
+              download: purchase.license.license_contract_file_name,
+            });
+          if (signed.error || !signed.data?.signedUrl) {
+            return json({ error: 'O contrato enviado pelo produtor não está disponível no Storage.' }, 404, origin);
+          }
+
+          return json({
+            contractNumber: purchase.contract_number,
+            issuedAt: purchase.issued_at,
+            beatTitle: purchase.beat.title,
+            licenseName: purchase.license.name,
+            usageRights: purchase.license.usage_rights,
+            deliverables: purchase.license.deliverables,
+            url: signed.data.signedUrl,
+            fileName: purchase.license.license_contract_file_name,
+            mimeType: purchase.license.license_contract_mime_type,
+            sizeBytes: purchase.license.license_contract_size_bytes,
+            uploadedAt: purchase.license.license_contract_updated_at,
+            source: 'producer_upload',
+          }, 200, origin);
+        }
+
         return json({
           contractNumber: purchase.contract_number,
           issuedAt: purchase.issued_at,
@@ -107,8 +142,11 @@ Deno.serve(async (request) => {
           licenseName: purchase.license.name,
           usageRights: purchase.license.usage_rights,
           deliverables: purchase.license.deliverables,
+          source: 'generated_fallback',
         }, 200, origin);
       }
+
+      if (data.expires_at && Date.parse(data.expires_at) <= Date.now()) return json({ error: 'O prazo deste download expirou.' }, 410, origin);
 
       let signed = await admin.storage.from(data.storage_bucket).createSignedUrl(data.storage_path, 300, { download: data.file_label });
       if ((signed.error || !signed.data?.signedUrl) && demoAccess) {
