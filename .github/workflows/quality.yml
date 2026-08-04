@@ -157,7 +157,7 @@ jobs:
 
           set +e
           timeout --signal=TERM --kill-after=30s 15m \
-            npx supabase db push --linked --include-all 2>&1 | tee "$passwordless_log"
+            env -u SUPABASE_DB_PASSWORD npx supabase db push --linked --include-all 2>&1 | tee "$passwordless_log"
           passwordless_status=${PIPESTATUS[0]}
           set -e
 
