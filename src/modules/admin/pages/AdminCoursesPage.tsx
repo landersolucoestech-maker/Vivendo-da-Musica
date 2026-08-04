@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Eye, Pencil, Plus } from 'lucide-react';
 import AdminLayout from '@/app/layouts/AdminLayout';
@@ -17,13 +17,19 @@ const STATUS_FILTERS = ['Todos', 'published', 'draft', 'archived'];
 const formatPrice = (value: number) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value / 100);
 
-const AdminCoursesPage = () => {
+interface AdminCoursesPageProps {
+  initialMode?: CourseDialogMode;
+  initialCourseId?: string;
+}
+
+const AdminCoursesPage = ({ initialMode, initialCourseId }: AdminCoursesPageProps = {}) => {
   const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('Todos');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [dialogMode, setDialogMode] = useState<CourseDialogMode>('create');
   const [selectedCourse, setSelectedCourse] = useState<ManagedCourse | null>(null);
+  const initialDialogHandled = useRef(false);
 
   const coursesQuery = useQuery({
     queryKey: ['managed-courses'],
@@ -49,11 +55,20 @@ const AdminCoursesPage = () => {
     setDialogOpen(true);
   };
 
+  useEffect(() => {
+    if (initialDialogHandled.current || !initialMode) return;
+    if (initialMode !== 'create' && coursesQuery.isLoading) return;
+
+    const course = initialCourseId ? rows.find((item) => item.id === initialCourseId) : undefined;
+    openDialog(initialMode, course);
+    initialDialogHandled.current = true;
+  }, [coursesQuery.isLoading, initialCourseId, initialMode, rows]);
+
   return (
     <AdminLayout>
       <PageHeader
         title="Cursos"
-        subtitle="Crie cursos e gerencie módulos, aulas e materiais sem sair desta página."
+        subtitle="Crie cursos e gerencie módulos, aulas e materiais somente em popups centralizados."
         actions={
           <Button onClick={() => openDialog('create')}>
             <Plus className="mr-2 h-4 w-4" />
