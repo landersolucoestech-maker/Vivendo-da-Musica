@@ -1,6 +1,6 @@
 project_ref=ywirfqvobfnunlcsnptm
-requested_at=2026-08-04T10:58:00Z
+requested_at=2026-08-04T11:15:00Z
 source_branch=dev
 pipeline=quality-gates-pr
-mode=isolated-local-snapshot-migra
+mode=template0-isolated-snapshot-migra
 apply=false
