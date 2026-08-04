@@ -104,6 +104,7 @@ python3 -m venv "$migra_venv"
 # Pin the stable migra release used for deterministic PostgreSQL schema diffs.
 "$migra_venv/bin/pip" install \
   --disable-pip-version-check \
+  'setuptools==75.8.0' \
   'migra==3.0.1663481299' \
   'psycopg2-binary==2.9.10'
 
