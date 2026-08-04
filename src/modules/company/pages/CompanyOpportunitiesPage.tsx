@@ -116,19 +116,19 @@ const CompanyOpportunitiesPage = () => {
   };
 
   const openNewOpportunity = () => {
-    if (availableCredits < 1) {
-      toast({
-        title: 'Sem créditos disponíveis',
-        description: 'Adquira um pacote de publicações antes de criar uma nova oportunidade.',
-        variant: 'destructive',
-      });
-      return;
-    }
     setForm({ ...EMPTY_FORM });
   };
 
   const save = async () => {
     if (!form) return;
+    if (!form.id && creditBalance && availableCredits < 1) {
+      toast({
+        title: 'Sem créditos disponíveis',
+        description: 'Adquira um pacote de publicações antes de publicar uma nova oportunidade.',
+        variant: 'destructive',
+      });
+      return;
+    }
     if (form.title.trim().length < 3 || form.description.trim().length < 20 || !form.location.trim() || !form.engagementType.trim()) {
       toast({ title: 'Preencha os campos obrigatórios', description: 'Informe título, localização, contratação e uma descrição completa.', variant: 'destructive' });
       return;
@@ -170,7 +170,7 @@ const CompanyOpportunitiesPage = () => {
   };
 
   const toggleStatus = async (item: CompanyOpportunity) => {
-    if (item.status === 'closed' && availableCredits < 1) {
+    if (item.status === 'closed' && creditBalance && availableCredits < 1) {
       toast({
         title: 'Sem crédito para renovar',
         description: 'A renovação da oportunidade exige um novo crédito de publicação.',
@@ -214,7 +214,7 @@ const CompanyOpportunitiesPage = () => {
           <h1 className="vdm-page-title mt-2">Oportunidades</h1>
           <p className="vdm-page-description">Cada publicação ou renovação utiliza um crédito da empresa.</p>
         </div>
-        <Button onClick={openNewOpportunity} disabled={availableCredits < 1}>
+        <Button onClick={openNewOpportunity}>
           <Plus className="size-4" />Nova oportunidade
         </Button>
       </header>
@@ -300,7 +300,7 @@ const CompanyOpportunitiesPage = () => {
                 </div>
                 <div className="mt-5 flex flex-wrap gap-2 border-t border-white/8 pt-4">
                   <Button variant="outline" size="sm" onClick={() => setForm(toForm(item))}><Pencil className="size-4" />Editar</Button>
-                  <Button variant="outline" size="sm" onClick={() => void toggleStatus(item)} disabled={item.status === 'closed' && availableCredits < 1}>
+                  <Button variant="outline" size="sm" onClick={() => void toggleStatus(item)}>
                     <Power className="size-4" />{item.status === 'open' ? 'Encerrar' : 'Renovar — 1 crédito'}
                   </Button>
                   <Button variant="ghost" size="sm" className="text-red-300 hover:text-red-200" onClick={() => setPendingDelete(item)}><Trash2 className="size-4" />Excluir</Button>
