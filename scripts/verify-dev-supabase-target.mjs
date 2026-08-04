@@ -31,6 +31,13 @@ const requiredFiles = new Map([
       "'payment-webhook',",
     ],
   ],
+  [
+    'scripts/generate-supabase-types.mjs',
+    [
+      "readFileSync(resolve('supabase/config.toml'), 'utf8')",
+      'process.env.SUPABASE_PROJECT_REF?.trim() || configuredProjectRef',
+    ],
+  ],
   ['scripts/assert-production-safe.mjs', [`const DEV_PROJECT_REF = '${DEV_PROJECT_REF}';`]],
   ['supabase/functions/api-v1/openapi.yaml', [`url: ${DEV_PROJECT_URL}/functions/v1/api-v1/v1`]],
 ]);
