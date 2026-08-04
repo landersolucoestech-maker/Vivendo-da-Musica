@@ -3,15 +3,13 @@ name: Dev Static Preview
 on:
   push:
     branches: [dev]
-  pull_request:
-    branches: [main]
   workflow_dispatch:
 
 permissions:
   contents: write
 
 concurrency:
-  group: dev-static-preview-${{ github.event_name }}
+  group: dev-static-preview
   cancel-in-progress: true
 
 env:
@@ -20,7 +18,6 @@ env:
 jobs:
   publish:
     name: Build and publish dev preview
-    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch' || github.head_ref == 'dev'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     outputs:
