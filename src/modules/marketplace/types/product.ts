@@ -30,6 +30,14 @@ export type ProductLicense = 'Padrao' | 'Estendida' | 'Exclusiva';
 
 export type BeatLicenseType = 'basic' | 'pro' | 'unlimited' | 'exclusive';
 
+export interface BeatLicenseContract {
+  path: string;
+  fileName: string;
+  mimeType: string;
+  sizeBytes: number;
+  updatedAt: string;
+}
+
 export interface BeatLicense {
   id: string;
   type: BeatLicenseType;
@@ -41,6 +49,7 @@ export interface BeatLicense {
   maxCopies?: number;
   isExclusive: boolean;
   available: boolean;
+  contract?: BeatLicenseContract;
 }
 
 export interface Beat {
