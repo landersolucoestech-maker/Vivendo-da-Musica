@@ -11,13 +11,13 @@ list_after="${artifact_dir}/migration-list-after.txt"
 mkdir -p "$artifact_dir"
 
 # Compare the canonical migration chain with the linked database without using
-# the remote migration history as a source of truth. A non-empty SQL diff means
-# the schemas are not equivalent and history must not be repaired automatically.
+# the remote migration history as a source of truth. Authentication triggers,
+# storage buckets/policies and private authorization schemas are included.
 set +e
 timeout --signal=TERM --kill-after=30s 20m \
   env -u SUPABASE_DB_PASSWORD npx supabase db diff \
     --linked \
-    --schema public,app_private,authz_private \
+    --schema auth,storage,public,app_private,authz_private \
     --use-pg-delta \
     >"$diff_file"
 diff_status=$?
