@@ -6,13 +6,14 @@ set -euo pipefail
 
 baseline_version="20260804103000"
 artifact_dir="${GITHUB_WORKSPACE:-.}/artifacts/supabase-dev"
-diff_file="${artifact_dir}/canonical-vs-remote.sql"
+canonical_to_remote_diff="${artifact_dir}/canonical-to-remote.sql"
+remote_to_canonical_diff="${artifact_dir}/remote-to-canonical.sql"
+canonical_to_remote_report="${artifact_dir}/canonical-to-remote.report.json"
+remote_to_canonical_report="${artifact_dir}/remote-to-canonical.report.json"
 list_before="${artifact_dir}/migration-list-before.txt"
 list_after="${artifact_dir}/migration-list-after.txt"
 mkdir -p "$artifact_dir"
 
-# Capture canonical versions before the disposable runner worktree receives any
-# remote-only migration files.
 mapfile -t canonical_versions < <(
   find supabase/migrations -maxdepth 1 -type f -printf '%f\n' \
     | sed -nE 's/^([0-9]{14})_[A-Za-z0-9._-]+\.sql$/\1/p' \
@@ -34,9 +35,6 @@ if awk -F'|' -v baseline="$baseline_version" '
 fi
 
 if [[ "$remote_has_baseline" == "true" ]]; then
-  # The one-time equivalence gate already passed on a previous deployment.
-  # Accept remote-only history files in this disposable checkout, then apply
-  # only canonical migrations added after the baseline.
   printf 'y\n' | env -u SUPABASE_DB_PASSWORD npx supabase migration fetch --linked
   echo "Canonical DEV migration baseline is already established. Applying only migrations newer than the baseline."
   env -u SUPABASE_DB_PASSWORD npx supabase db push --linked --include-all
@@ -44,42 +42,55 @@ if [[ "$remote_has_baseline" == "true" ]]; then
   exit 0
 fi
 
-# First-time reconciliation: compare the complete canonical migration chain
-# with the linked database without trusting either migration history. Include
-# authentication triggers, storage policies/buckets and private auth schemas.
-# Use the stable migra engine; pg-delta is still experimental and can fail on
-# otherwise valid dependency cycles involving altered enum-backed columns.
-set +e
-timeout --signal=TERM --kill-after=30s 20m \
-  env -u SUPABASE_DB_PASSWORD npx supabase db diff \
-    --linked \
-    --schema auth,storage,public,app_private,authz_private \
-    --use-migra \
-    >"$diff_file"
-diff_status=$?
-set -e
+run_diff() {
+  local from="$1"
+  local to="$2"
+  local output="$3"
+  local label="$4"
 
-if [[ "$diff_status" -ne 0 ]]; then
-  echo "::error title=Supabase schema comparison failed::The canonical shadow database could not be compared with the linked DEV database."
-  exit "$diff_status"
-fi
+  echo "Generating ${label} schema diff (${from} -> ${to})..."
+  set +e
+  timeout --signal=TERM --kill-after=30s 25m \
+    env -u SUPABASE_DB_PASSWORD npx supabase db diff \
+      --from "$from" \
+      --to "$to" \
+      --schema auth,storage,public,app_private,authz_private \
+      --use-migra \
+      >"$output"
+  local status=$?
+  set -e
 
-# Remove blank lines and CLI-only comments before deciding equivalence.
-meaningful_diff="$(sed -E '/^[[:space:]]*$/d; /^[[:space:]]*--/d' "$diff_file")"
-if [[ -n "$meaningful_diff" ]]; then
-  echo "::group::Canonical versus remote schema diff"
-  sed -n '1,500p' "$diff_file"
+  if [[ "$status" -ne 0 ]]; then
+    echo "::error title=Supabase schema comparison failed::Could not generate ${label} (${from} -> ${to})."
+    return "$status"
+  fi
+}
+
+# Generate both directions explicitly. These files are diagnostics only and are
+# never executed by this script.
+run_diff migrations linked "$canonical_to_remote_diff" "canonical-to-remote"
+run_diff linked migrations "$remote_to_canonical_diff" "remote-to-canonical"
+
+node scripts/classify-supabase-schema-diff.mjs \
+  "$canonical_to_remote_diff" "$canonical_to_remote_report"
+node scripts/classify-supabase-schema-diff.mjs \
+  "$remote_to_canonical_diff" "$remote_to_canonical_report"
+
+canonical_to_remote_empty="$(node -e "const r=require('./${canonical_to_remote_report}'); process.stdout.write(String(r.empty))")"
+remote_to_canonical_empty="$(node -e "const r=require('./${remote_to_canonical_report}'); process.stdout.write(String(r.empty))")"
+
+if [[ "$canonical_to_remote_empty" != "true" || "$remote_to_canonical_empty" != "true" ]]; then
+  echo "::group::Remote-to-canonical risk report"
+  cat "$remote_to_canonical_report"
   echo "::endgroup::"
-  echo "::error title=Supabase DEV schema drift::The linked database is not equivalent to the canonical dev migrations. Migration history was not modified."
+  echo "::error title=Supabase DEV schema drift::Bidirectional diagnostics were generated. Migration history and remote schema were not modified."
   exit 2
 fi
 
-# Schema equivalence has been proved. Remote-only migration files may now be
-# accepted in the disposable checkout so db push can evaluate both histories.
+# Full bidirectional equivalence has been proved. Remote-only migration files may
+# now be accepted in the disposable checkout so the histories can be reconciled.
 printf 'y\n' | env -u SUPABASE_DB_PASSWORD npx supabase migration fetch --linked
 
-# Extract remote migration versions from the original list. Only canonical
-# versions missing from the remote history are marked as applied.
 mapfile -t remote_versions < <(
   awk -F'|' '
     NF >= 2 {
@@ -103,7 +114,7 @@ for version in "${canonical_versions[@]}"; do
 done
 
 if [[ "${#missing_versions[@]}" -eq 0 ]]; then
-  echo "::error title=Supabase migration baseline missing::Schemas are equivalent, but no canonical migration records require reconciliation. Baseline was not modified."
+  echo "::error title=Supabase migration baseline missing::Schemas are equivalent, but no canonical migration records require reconciliation."
   exit 3
 fi
 
@@ -126,8 +137,6 @@ if [[ "${#batch[@]}" -gt 0 ]]; then
 fi
 
 env -u SUPABASE_DB_PASSWORD npx supabase migration list --linked | tee "$list_after"
-
-# This must be a no-op after an equivalent-schema history reconciliation.
 env -u SUPABASE_DB_PASSWORD npx supabase db push --linked --include-all --dry-run
 
 echo "Supabase DEV schema and migration history reconciled safely at baseline ${baseline_version}."
