@@ -31,7 +31,10 @@ const Navigation = () => {
   };
 
   return (
-    <nav className="fixed inset-x-0 top-0 z-[100] w-full border-b border-white/10 bg-[#0D0D0D]/94 backdrop-blur-xl">
+    <nav
+      data-testid="public-header"
+      className="fixed inset-x-0 top-0 z-[100] w-full border-b border-white/10 bg-[#0D0D0D]/94 backdrop-blur-xl"
+    >
       <div className="mx-auto w-full max-w-[1920px] px-4 sm:px-6 lg:px-8">
         <div className="flex h-16 items-center justify-between gap-5 sm:h-20">
           <Link to={ROUTES.home} className="shrink-0" aria-label="Vivendo da Música — início">
