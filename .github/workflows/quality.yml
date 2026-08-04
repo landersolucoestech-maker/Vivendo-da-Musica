@@ -160,6 +160,15 @@ jobs:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
         run: node scripts/deploy-supabase-functions.mjs
 
+      - name: Upload Edge Function deployment diagnostics
+        if: always() && steps.trigger.outputs.deploy == 'true'
+        uses: actions/upload-artifact@v7
+        with:
+          name: supabase-edge-functions-${{ github.run_id }}
+          path: artifacts/supabase-functions
+          if-no-files-found: warn
+          retention-days: 7
+
       - name: Verify remote API health
         if: steps.trigger.outputs.deploy == 'true'
         shell: bash
