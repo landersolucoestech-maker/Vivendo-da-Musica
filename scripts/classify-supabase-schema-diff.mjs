@@ -9,8 +9,8 @@ if (!inputArgument || !outputArgument) {
 
 const inputPath = resolve(inputArgument);
 const outputPath = resolve(outputArgument);
-const sql = readFileSync(inputPath, 'utf8');
-const executableSql = sql
+const originalSql = readFileSync(inputPath, 'utf8');
+const executableSql = originalSql
   .split('\n')
   .filter((line) => !/^\s*(--|$)/.test(line))
   .join('\n')
@@ -134,12 +134,70 @@ const preservedForeignKeys = [
   },
 ];
 
+function rewriteAdminAuditLogIdentity(sourceSql) {
+  const identityPattern = /alter\s+table\s+"public"\."admin_audit_logs"\s+alter\s+column\s+"id"\s+add\s+generated\s+always\s+as\s+identity\s*;/i;
+  const typePattern = /alter\s+table\s+"public"\."admin_audit_logs"\s+alter\s+column\s+"id"\s+set\s+data\s+type\s+bigint\s+using\s+"id"::bigint\s*;/i;
+
+  if (!identityPattern.test(sourceSql) || !typePattern.test(sourceSql)) {
+    return { applied: false, sql: sourceSql };
+  }
+
+  let rewrittenSql = sourceSql
+    .replace(
+      /alter\s+table\s+"public"\."admin_audit_logs"\s+alter\s+column\s+"id"\s+drop\s+default\s*;\s*/i,
+      '',
+    )
+    .replace(identityPattern, '')
+    .replace(typePattern, '');
+
+  const rekeySql = `
+-- Preserve the UUID-keyed audit rows before converting to the canonical bigint identity.
+create schema if not exists "legacy_archive";
+revoke all on schema "legacy_archive" from public, anon, authenticated;
+create table if not exists "legacy_archive"."admin_audit_logs_before_bigint_rekey"
+as table "public"."admin_audit_logs" with data;
+revoke all on "legacy_archive"."admin_audit_logs_before_bigint_rekey"
+from public, anon, authenticated;
+
+alter table "public"."admin_audit_logs"
+  drop constraint if exists "admin_audit_logs_pkey";
+alter table "public"."admin_audit_logs"
+  add column "id_bigint" bigint;
+with ranked_audit_logs as (
+  select ctid, row_number() over (order by "created_at", "id")::bigint as replacement_id
+  from "public"."admin_audit_logs"
+)
+update "public"."admin_audit_logs" as audit_log
+set "id_bigint" = ranked_audit_logs.replacement_id
+from ranked_audit_logs
+where audit_log.ctid = ranked_audit_logs.ctid;
+alter table "public"."admin_audit_logs"
+  alter column "id_bigint" set not null;
+alter table "public"."admin_audit_logs"
+  drop column "id";
+alter table "public"."admin_audit_logs"
+  rename column "id_bigint" to "id";
+alter table "public"."admin_audit_logs"
+  alter column "id" add generated always as identity;
+select setval(
+  pg_get_serial_sequence('public.admin_audit_logs', 'id'),
+  greatest(coalesce((select max("id") from "public"."admin_audit_logs"), 0) + 1, 1),
+  false
+);
+alter table "public"."admin_audit_logs"
+  add constraint "admin_audit_logs_pkey" primary key ("id");
+`;
+
+  rewrittenSql = `${rekeySql.trim()}\n\n${rewrittenSql.trim()}\n`;
+  return { applied: true, sql: rewrittenSql };
+}
+
 function augmentDiffForConstraintReplacement(sourceSql) {
   const replacesLessonsPrimaryKey = /drop\s+constraint\s+"lessons_pkey"\s*;/i.test(sourceSql);
   const replacesProfilesPrimaryKey = /drop\s+constraint\s+"user_profiles_pkey"\s*;/i.test(sourceSql);
 
   if (!replacesLessonsPrimaryKey && !replacesProfilesPrimaryKey) {
-    return { applied: false, foreignKeys: [] };
+    return { applied: false, foreignKeys: [], sql: sourceSql };
   }
 
   const activeForeignKeys = preservedForeignKeys.filter(({ constraint }) => {
@@ -148,7 +206,7 @@ function augmentDiffForConstraintReplacement(sourceSql) {
   });
 
   if (activeForeignKeys.length === 0) {
-    return { applied: false, foreignKeys: [] };
+    return { applied: false, foreignKeys: [], sql: sourceSql };
   }
 
   const prelude = activeForeignKeys
@@ -176,7 +234,6 @@ function augmentDiffForConstraintReplacement(sourceSql) {
     '',
   ].join('\n');
 
-  writeFileSync(inputPath, augmentedSql, 'utf8');
   return {
     applied: true,
     foreignKeys: activeForeignKeys.map(({ table, constraint }) => ({
@@ -184,6 +241,7 @@ function augmentDiffForConstraintReplacement(sourceSql) {
       table,
       constraint,
     })),
+    sql: augmentedSql,
   };
 }
 
@@ -197,14 +255,29 @@ const objects = {
   created_tables: collect(objectPatterns.created_tables),
 };
 
-const dependencyCycle = augmentDiffForConstraintReplacement(sql);
+const identityRewrite = rewriteAdminAuditLogIdentity(originalSql);
+const dependencyCycle = augmentDiffForConstraintReplacement(identityRewrite.sql);
+if (identityRewrite.applied || dependencyCycle.applied) {
+  writeFileSync(inputPath, dependencyCycle.sql, 'utf8');
+}
+
 const report = {
   source_file: basename(inputPath),
   empty: executableSql.length === 0,
   statement_counts: counts,
   destructive_statement_count: destructiveCount,
   requires_manual_review: destructiveCount > 0,
-  dependency_cycle: dependencyCycle,
+  identity_rewrite: {
+    applied: identityRewrite.applied,
+    table: identityRewrite.applied ? 'public.admin_audit_logs' : null,
+    archived_to: identityRewrite.applied
+      ? 'legacy_archive.admin_audit_logs_before_bigint_rekey'
+      : null,
+  },
+  dependency_cycle: {
+    applied: dependencyCycle.applied,
+    foreignKeys: dependencyCycle.foreignKeys,
+  },
   objects,
 };
 
