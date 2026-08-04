@@ -40,11 +40,9 @@ for (const path of sourceFiles) {
   if (usesModal && /(?:slide-in-from|slide-out-to)-(?:left|right|top|bottom)/.test(source)) {
     failures.push(`${path}: modal usa animação lateral slide-in/slide-out.`);
   }
-}
-
-const mobileMenu = await readFile('src/shared/components/MobileSidebarMenu.tsx', 'utf8');
-if (/SheetContent\s+side=/.test(mobileMenu)) {
-  failures.push('src/shared/components/MobileSidebarMenu.tsx: a navegação mobile voltou a abrir como painel lateral.');
+  if (/SheetContent[\s\S]{0,180}\bside=/.test(source)) {
+    failures.push(`${path}: SheetContent ainda define lado e pode voltar a abrir como painel lateral.`);
+  }
 }
 
 const editor = await readFile('src/modules/marketplace/components/BeatLicenseEditor.tsx', 'utf8');
