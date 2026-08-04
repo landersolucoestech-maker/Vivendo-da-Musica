@@ -32,6 +32,23 @@ const getCompanyId = async (): Promise<string> => {
   return data.company_id;
 };
 
+const getPreviewBalanceFromLedger = async (companyId: string): Promise<number> => {
+  if (!isDevAuthBypassEnabled) return 0;
+
+  const { data, error } = await table('company_credit_events')
+    .select('balance_after')
+    .eq('company_id', companyId)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(`Não foi possível reconciliar o saldo demonstrativo: ${error.message}`);
+  }
+
+  return Number(data?.balance_after ?? 0);
+};
+
 export const companyCreditsService = {
   async getBalance(): Promise<CompanyCreditBalance> {
     const companyId = await getCompanyId();
@@ -49,11 +66,13 @@ export const companyCreditsService = {
     }
 
     const activeLots = data ?? [];
+    const lotBalance = activeLots.reduce(
+      (total: number, lot: { remaining_credits: number }) => total + Number(lot.remaining_credits ?? 0),
+      0,
+    );
+
     return {
-      availableCredits: activeLots.reduce(
-        (total: number, lot: { remaining_credits: number }) => total + Number(lot.remaining_credits ?? 0),
-        0,
-      ),
+      availableCredits: lotBalance > 0 ? lotBalance : await getPreviewBalanceFromLedger(companyId),
       nextExpirationAt: activeLots[0]?.expires_at ?? null,
     };
   },
