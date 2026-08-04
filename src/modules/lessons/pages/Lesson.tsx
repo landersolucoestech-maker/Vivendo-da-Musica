@@ -156,84 +156,86 @@ const Lesson = () => {
 
         <main
           data-testid="lesson-content-scroll"
-          className="min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain [scrollbar-gutter:stable] px-4 py-8 sm:px-6 lg:px-10"
+          className="min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain [scrollbar-gutter:stable]"
         >
-          <div className="mx-auto max-w-5xl">
-            <header className="mb-7">
-              <p className="vdm-eyebrow">{currentModule?.title ?? 'Aula'}</p>
-              <h1 className="mt-2 font-display text-3xl font-bold tracking-[-0.03em] text-white">{currentLesson.title}</h1>
-              {currentLesson.description && <p className="mt-3 max-w-3xl text-sm leading-6 text-muted-foreground">{currentLesson.description}</p>}
-            </header>
+          <div className="min-h-full px-4 py-8 sm:px-6 lg:px-10">
+            <div className="mx-auto max-w-5xl">
+              <header className="mb-7">
+                <p className="vdm-eyebrow">{currentModule?.title ?? 'Aula'}</p>
+                <h1 className="mt-2 font-display text-3xl font-bold tracking-[-0.03em] text-white">{currentLesson.title}</h1>
+                {currentLesson.description && <p className="mt-3 max-w-3xl text-sm leading-6 text-muted-foreground">{currentLesson.description}</p>}
+              </header>
 
-            <div className="mb-6 rounded-xl border border-white/8 bg-card p-4 lg:hidden">
-              <div className="mb-3 flex items-center justify-between gap-3">
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">Aulas do curso</p>
-                  <p className="mt-1 text-sm text-muted-foreground">{completedLessons} de {flatLessons.length} aulas concluídas</p>
+              <div className="mb-6 rounded-xl border border-white/8 bg-card p-4 lg:hidden">
+                <div className="mb-3 flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">Aulas do curso</p>
+                    <p className="mt-1 text-sm text-muted-foreground">{completedLessons} de {flatLessons.length} aulas concluídas</p>
+                  </div>
+                  <span className="text-sm font-semibold text-primary">{currentIndex + 1}/{flatLessons.length}</span>
                 </div>
-                <span className="text-sm font-semibold text-primary">{currentIndex + 1}/{flatLessons.length}</span>
+                <div className="flex gap-2 overflow-x-auto pb-1" aria-label="Navegação de aulas">
+                  {flatLessons.map((lesson, index) => {
+                    const isCurrent = lesson.id === lessonId;
+                    return (
+                      <Link
+                        key={lesson.id}
+                        to={ROUTES.lesson(lesson.id)}
+                        aria-current={isCurrent ? 'page' : undefined}
+                        className={`flex size-10 shrink-0 items-center justify-center rounded-lg border text-sm font-semibold ${
+                          isCurrent
+                            ? 'border-primary bg-primary/12 text-primary'
+                            : lesson.completed
+                              ? 'border-emerald-400/30 text-emerald-300'
+                              : 'border-white/10 text-muted-foreground'
+                        }`}
+                      >
+                        {index + 1}
+                      </Link>
+                    );
+                  })}
+                </div>
               </div>
-              <div className="flex gap-2 overflow-x-auto pb-1" aria-label="Navegação de aulas">
-                {flatLessons.map((lesson, index) => {
-                  const isCurrent = lesson.id === lessonId;
-                  return (
-                    <Link
-                      key={lesson.id}
-                      to={ROUTES.lesson(lesson.id)}
-                      aria-current={isCurrent ? 'page' : undefined}
-                      className={`flex size-10 shrink-0 items-center justify-center rounded-lg border text-sm font-semibold ${
-                        isCurrent
-                          ? 'border-primary bg-primary/12 text-primary'
-                          : lesson.completed
-                            ? 'border-emerald-400/30 text-emerald-300'
-                            : 'border-white/10 text-muted-foreground'
-                      }`}
-                    >
-                      {index + 1}
-                    </Link>
-                  );
-                })}
+
+              <div className="overflow-hidden rounded-xl border border-white/10 bg-black shadow-[0_24px_70px_rgba(0,0,0,0.38)]">
+                <VideoPlayer lesson={lessonForPlayer} />
               </div>
-            </div>
 
-            <div className="overflow-hidden rounded-xl border border-white/10 bg-black shadow-[0_24px_70px_rgba(0,0,0,0.38)]">
-              <VideoPlayer lesson={lessonForPlayer} />
-            </div>
+              <section className="mt-6 vdm-surface p-5">
+                <div className="mb-3 flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">Progresso assistido</span>
+                  <span className="font-semibold text-white">{watchProgress}%</span>
+                </div>
+                <Progress value={watchProgress} aria-label="Progresso assistido da aula" className="h-2" />
 
-            <section className="mt-6 vdm-surface p-5">
-              <div className="mb-3 flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">Progresso assistido</span>
-                <span className="font-semibold text-white">{watchProgress}%</span>
-              </div>
-              <Progress value={watchProgress} aria-label="Progresso assistido da aula" className="h-2" />
-
-              <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <Button variant="outline" disabled={!previousLesson} onClick={() => previousLesson && navigate(ROUTES.lesson(previousLesson.id))}>
-                  <ChevronLeft className="size-4" />
-                  Aula anterior
-                </Button>
-
-                {watchProgress < 100 ? (
-                  <Button onClick={() => void handleMarkComplete()} disabled={markingComplete}>
-                    <CheckCircle2 className="size-4" />
-                    {markingComplete ? 'Salvando...' : 'Marcar como concluída'}
+                <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <Button variant="outline" disabled={!previousLesson} onClick={() => previousLesson && navigate(ROUTES.lesson(previousLesson.id))}>
+                    <ChevronLeft className="size-4" />
+                    Aula anterior
                   </Button>
-                ) : (
-                  <span className="inline-flex items-center justify-center gap-2 rounded-full border border-emerald-400/25 bg-emerald-400/10 px-4 py-2 text-sm font-semibold text-emerald-300">
-                    <CheckCircle2 className="size-4" />
-                    Aula concluída
-                  </span>
-                )}
 
-                <Button variant="outline" disabled={!nextLesson} onClick={() => nextLesson && navigate(ROUTES.lesson(nextLesson.id))}>
-                  Próxima aula
-                  <ChevronRight className="size-4" />
-                </Button>
+                  {watchProgress < 100 ? (
+                    <Button onClick={() => void handleMarkComplete()} disabled={markingComplete}>
+                      <CheckCircle2 className="size-4" />
+                      {markingComplete ? 'Salvando...' : 'Marcar como concluída'}
+                    </Button>
+                  ) : (
+                    <span className="inline-flex items-center justify-center gap-2 rounded-full border border-emerald-400/25 bg-emerald-400/10 px-4 py-2 text-sm font-semibold text-emerald-300">
+                      <CheckCircle2 className="size-4" />
+                      Aula concluída
+                    </span>
+                  )}
+
+                  <Button variant="outline" disabled={!nextLesson} onClick={() => nextLesson && navigate(ROUTES.lesson(nextLesson.id))}>
+                    Próxima aula
+                    <ChevronRight className="size-4" />
+                  </Button>
+                </div>
+              </section>
+
+              <div className="mt-8">
+                <LessonComments lessonId={currentLesson.id} />
               </div>
-            </section>
-
-            <div className="mt-8">
-              <LessonComments lessonId={currentLesson.id} />
             </div>
           </div>
         </main>
