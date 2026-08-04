@@ -1,6 +1,6 @@
 project_ref=ywirfqvobfnunlcsnptm
-requested_at=2026-08-04T11:24:00Z
+requested_at=2026-08-04T12:08:00Z
 source_branch=dev
 pipeline=quality-gates-pr
-mode=template0-snapshot-with-local-owner-roles
+mode=template0-snapshot-with-normalized-owners
 apply=false
