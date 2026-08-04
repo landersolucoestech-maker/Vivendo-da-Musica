@@ -64,7 +64,7 @@ jobs:
           app = Path('src/App.tsx')
           source = app.read_text(encoding='utf-8')
           current = "const Router = import.meta.env.VITE_ROUTER_MODE === 'hash' ? HashRouter : BrowserRouter;"
-          replacement = "const Router = document.querySelector('meta[name=\"vdm-preview-commit\"]') ? HashRouter : BrowserRouter;"
+          replacement = "const Router = HashRouter;"
           if current not in source:
               raise SystemExit('A seleção esperada do Router não foi encontrada em src/App.tsx.')
           app.write_text(source.replace(current, replacement, 1), encoding='utf-8')
