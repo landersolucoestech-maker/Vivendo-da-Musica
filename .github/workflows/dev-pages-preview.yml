@@ -16,8 +16,9 @@ concurrency:
 
 env:
   STATIC_BRANCH: dev-preview-static
-  STATIC_PREVIEW_URL: https://raw.githack.com/landersolucoestech-maker/Vivendo-da-Musica/dev-preview-static/index.html
+  STATIC_PREVIEW_URL: https://ywirfqvobfnunlcsnptm.supabase.co/functions/v1/vivendo-preview
   STATIC_ASSET_BASE: https://cdn.jsdelivr.net/gh/landersolucoestech-maker/Vivendo-da-Musica@dev-preview-static/
+  STATIC_ROUTER_BASE: /functions/v1/vivendo-preview
 
 jobs:
   publish:
@@ -32,6 +33,7 @@ jobs:
       VITE_PREVIEW_MODE: "true"
       VITE_USE_MOCK_DATA: "false"
       VITE_BASE_PATH: https://cdn.jsdelivr.net/gh/landersolucoestech-maker/Vivendo-da-Musica@dev-preview-static/
+      VITE_ROUTER_BASE_PATH: /functions/v1/vivendo-preview
     steps:
       - name: Checkout dev
         uses: actions/checkout@v6
@@ -50,32 +52,27 @@ jobs:
       - name: Build hosted preview
         run: npm run build
 
-      - name: Normalize document route and add fallback
+      - name: Stamp build and add fallback
         run: |
           python - <<'PY'
+          import os
           from pathlib import Path
 
           index = Path('dist/index.html')
           content = index.read_text(encoding='utf-8')
-          normalizer = """<script>
-            if (window.location.pathname !== '/') {
-              window.history.replaceState(
-                null,
-                '',
-                '/' + window.location.search + window.location.hash,
-              );
-            }
-          </script>"""
-          content = content.replace('<head>', '<head>\n    ' + normalizer, 1)
+          stamp = f'<meta name="vdm-preview-commit" content="{os.environ["GITHUB_SHA"]}" />'
+          content = content.replace('<head>', '<head>\n    ' + stamp, 1)
           index.write_text(content, encoding='utf-8')
           Path('dist/404.html').write_text(content, encoding='utf-8')
           Path('dist/.nojekyll').touch()
           PY
 
-      - name: Validate compiled document
+      - name: Validate compiled document and router
         run: |
+          grep --quiet "vdm-preview-commit.*${GITHUB_SHA}" dist/index.html
           grep --quiet 'https://cdn.jsdelivr.net/gh/landersolucoestech-maker/Vivendo-da-Musica@dev-preview-static/assets/' dist/index.html
           grep --quiet '<div id="root"></div>' dist/index.html
+          grep -R --quiet '/functions/v1/vivendo-preview' dist/assets/*.js
 
       - name: Upload compiled preview artifact
         uses: actions/upload-artifact@v7
@@ -103,24 +100,26 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     env:
-      PREVIEW_URL: https://raw.githack.com/landersolucoestech-maker/Vivendo-da-Musica/dev-preview-static/index.html
+      PREVIEW_URL: https://ywirfqvobfnunlcsnptm.supabase.co/functions/v1/vivendo-preview
+      EXPECTED_PATH: /functions/v1/vivendo-preview
     steps:
       - name: Checkout dev
         uses: actions/checkout@v6
         with:
           ref: dev
 
-      - name: Wait for HTML host and validate bundle MIME
+      - name: Wait for Edge host and validate bundle MIME
         run: |
           for attempt in $(seq 1 30); do
             if curl --fail --silent --show-error "${PREVIEW_URL}?commit=${GITHUB_SHA}" --output /tmp/preview.html \
+              && grep --quiet "vdm-preview-commit.*${GITHUB_SHA}" /tmp/preview.html \
               && grep --quiet '<div id="root"></div>' /tmp/preview.html \
               && grep --quiet 'https://cdn.jsdelivr.net/' /tmp/preview.html; then
               break
             fi
             sleep 4
           done
-          test -s /tmp/preview.html
+          grep --quiet "vdm-preview-commit.*${GITHUB_SHA}" /tmp/preview.html
           ASSET_URL=$(grep -o 'src="https://cdn.jsdelivr.net/[^"]*\.js"' /tmp/preview.html | head -1 | cut -d'"' -f2)
           test -n "${ASSET_URL}"
           curl --fail --silent --show-error --dump-header /tmp/asset.headers "${ASSET_URL}" --output /tmp/main.js
@@ -187,6 +186,7 @@ jobs:
             scriptCount: Array.from(document.scripts).filter((script) => Boolean(script.src)).length,
             stylesheetCount: document.querySelectorAll('link[rel="stylesheet"]').length,
             path: window.location.pathname,
+            commit: document.querySelector('meta[name="vdm-preview-commit"]')?.getAttribute('content') ?? '',
           }));
 
           await page.screenshot({ path: 'artifacts/preview-audit/home.png', fullPage: true });
@@ -205,7 +205,8 @@ jobs:
           const failures = [];
           if (navigationError) failures.push(navigationError);
           if (report.status !== 200) failures.push(`HTTP ${report.status}`);
-          if (report.path !== '/') failures.push(`Rota inicial inesperada: ${report.path}`);
+          if (report.path !== process.env.EXPECTED_PATH) failures.push(`Rota inicial inesperada: ${report.path}`);
+          if (report.commit !== process.env.COMMIT_SHA) failures.push(`Build inesperado: ${report.commit}`);
           if (report.rootChildCount === 0) failures.push('React não montou conteúdo no #root.');
           if (report.bodyTextLength < 100) failures.push(`Conteúdo visível insuficiente: ${report.bodyTextLength} caracteres.`);
           if (report.scriptCount === 0 || report.stylesheetCount === 0) failures.push('Bundles JavaScript ou CSS ausentes.');
@@ -218,6 +219,14 @@ jobs:
           console.log(JSON.stringify(report, null, 2));
           if (failures.length > 0) throw new Error(failures.join('\n'));
           JS
+
+      - name: Verify direct SPA route
+        env:
+          COMMIT_SHA: ${{ github.sha }}
+        run: |
+          curl --fail --silent --show-error "${PREVIEW_URL}/cursos?commit=${COMMIT_SHA}" --output /tmp/direct-route.html
+          grep --quiet "vdm-preview-commit.*${COMMIT_SHA}" /tmp/direct-route.html
+          grep --quiet '<div id="root"></div>' /tmp/direct-route.html
 
       - name: Upload preview audit report
         if: always()
