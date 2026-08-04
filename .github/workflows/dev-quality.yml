@@ -64,34 +64,63 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version: 22
+          cache: npm
 
-      - name: Start local Postgres with retry
+      - name: Prepare database tooling
         shell: bash
         run: |
           set -euo pipefail
-          for attempt in 1 2 3 4; do
-            echo "Starting local Supabase Postgres — attempt ${attempt}/4"
-            if npx --yes "supabase@${SUPABASE_CLI_VERSION}" db start; then
+          docker info >/dev/null
+          timeout --signal=TERM --kill-after=30s 3m \
+            npx --yes "supabase@${SUPABASE_CLI_VERSION}" --version
+
+      - name: Start local Postgres with bounded retry
+        shell: bash
+        run: |
+          set -uo pipefail
+
+          print_diagnostics() {
+            echo "::group::Docker diagnostics"
+            docker ps -a || true
+            docker images || true
+            docker system df || true
+            df -h || true
+            echo "::endgroup::"
+          }
+
+          for attempt in 1 2 3; do
+            echo "Starting local Supabase Postgres — attempt ${attempt}/3"
+
+            if timeout --signal=TERM --kill-after=30s 7m \
+              npx --yes "supabase@${SUPABASE_CLI_VERSION}" db start; then
+              npx --yes "supabase@${SUPABASE_CLI_VERSION}" status || true
               exit 0
             fi
 
-            npx --yes "supabase@${SUPABASE_CLI_VERSION}" stop --no-backup || true
-            if [ "${attempt}" -eq 4 ]; then
-              echo "Unable to start local Postgres after four attempts."
-              exit 1
+            exit_code=$?
+            echo "Attempt ${attempt} failed or timed out with exit code ${exit_code}."
+            print_diagnostics
+
+            timeout --signal=TERM --kill-after=30s 2m \
+              npx --yes "supabase@${SUPABASE_CLI_VERSION}" stop --no-backup || true
+
+            if [ "${attempt}" -lt 3 ]; then
+              sleep $((attempt * 15))
             fi
-            sleep $((attempt * 20))
           done
 
+          echo "Unable to start local Postgres after three bounded attempts."
+          exit 1
+
       - name: Rebuild local database
-        run: npx --yes "supabase@${SUPABASE_CLI_VERSION}" db reset --local
+        run: timeout --signal=TERM --kill-after=30s 10m npx --yes "supabase@${SUPABASE_CLI_VERSION}" db reset --local
 
       - name: Lint local database
-        run: npx --yes "supabase@${SUPABASE_CLI_VERSION}" db lint --local
+        run: timeout --signal=TERM --kill-after=30s 5m npx --yes "supabase@${SUPABASE_CLI_VERSION}" db lint --local
 
       - name: Run pgTAP database tests
-        run: npx --yes "supabase@${SUPABASE_CLI_VERSION}" test db --local
+        run: timeout --signal=TERM --kill-after=30s 8m npx --yes "supabase@${SUPABASE_CLI_VERSION}" test db --local
 
       - name: Stop local Supabase
         if: always()
-        run: npx --yes "supabase@${SUPABASE_CLI_VERSION}" stop --no-backup || true
+        run: timeout --signal=TERM --kill-after=30s 2m npx --yes "supabase@${SUPABASE_CLI_VERSION}" stop --no-backup || true
