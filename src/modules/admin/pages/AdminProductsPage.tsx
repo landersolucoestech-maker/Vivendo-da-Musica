@@ -1,8 +1,8 @@
 import { useMemo, useState } from 'react';
-import { Pencil, Plus } from 'lucide-react';
+import { Eye, Pencil, Plus } from 'lucide-react';
 
 import AdminLayout from '@/app/layouts/AdminLayout';
-import ProductManagementDialog from '@/modules/admin/components/ProductManagementDialog';
+import ProductManagementDialog, { type ProductManagementMode } from '@/modules/admin/components/ProductManagementDialog';
 import { useManagedProducts, useProductCategories } from '@/modules/marketplace/hooks/useProducts';
 import DataTable from '@/shared/components/DataTable';
 import FilterBar from '@/shared/components/FilterBar';
@@ -21,6 +21,7 @@ const AdminProductsPage = () => {
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState('Todos');
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [dialogMode, setDialogMode] = useState<ProductManagementMode>('create');
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
 
   const filtered = useMemo(() => {
@@ -31,12 +32,8 @@ const AdminProductsPage = () => {
     });
   }, [products, search, category]);
 
-  const openCreateDialog = () => {
-    setSelectedProductId(null);
-    setDialogOpen(true);
-  };
-
-  const openEditDialog = (productId: string) => {
+  const openDialog = (mode: ProductManagementMode, productId: string | null = null) => {
+    setDialogMode(mode);
     setSelectedProductId(productId);
     setDialogOpen(true);
   };
@@ -45,9 +42,9 @@ const AdminProductsPage = () => {
     <AdminLayout>
       <PageHeader
         title="Produtos"
-        subtitle="Catálogo do Marketplace."
+        subtitle="Crie, visualize e edite o catálogo do Marketplace somente em popups centralizados."
         actions={
-          <Button onClick={openCreateDialog} disabled={categoriesQuery.isLoading || categoriesQuery.isError}>
+          <Button onClick={() => openDialog('create')} disabled={categoriesQuery.isLoading || categoriesQuery.isError}>
             <Plus className="mr-2 h-4 w-4" />
             Novo produto
           </Button>
@@ -91,10 +88,16 @@ const AdminProductsPage = () => {
           {
             header: 'Ações',
             cell: (product) => (
-              <Button size="sm" variant="outline" className="border-border" onClick={() => openEditDialog(product.id)}>
-                <Pencil className="mr-2 h-4 w-4" />
-                Editar
-              </Button>
+              <div className="flex flex-wrap gap-2">
+                <Button size="sm" variant="outline" className="border-border" onClick={() => openDialog('view', product.id)}>
+                  <Eye className="mr-2 h-4 w-4" />
+                  Visualizar
+                </Button>
+                <Button size="sm" variant="outline" className="border-border" onClick={() => openDialog('edit', product.id)}>
+                  <Pencil className="mr-2 h-4 w-4" />
+                  Editar
+                </Button>
+              </div>
             ),
           },
         ]}
@@ -102,7 +105,9 @@ const AdminProductsPage = () => {
 
       <ProductManagementDialog
         open={dialogOpen}
+        mode={dialogMode}
         productId={selectedProductId}
+        onModeChange={setDialogMode}
         onOpenChange={setDialogOpen}
       />
     </AdminLayout>
