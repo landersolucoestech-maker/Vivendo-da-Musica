@@ -48,16 +48,21 @@ const DownloadsPage = () => {
   const downloadContract = async (deliveryId: string, contractNumber: string) => {
     setContractId(deliveryId);
     try {
-      const blob = await downloadsService.getBeatLicenseContract(deliveryId);
-      const url = URL.createObjectURL(blob);
+      const contract = await downloadsService.getBeatLicenseContract(deliveryId);
+      const url = URL.createObjectURL(contract.blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `${contractNumber}.pdf`;
+      link.download = contract.fileName || `${contractNumber}.pdf`;
       document.body.appendChild(link);
       link.click();
       link.remove();
       URL.revokeObjectURL(url);
-      toast({ title: 'Contrato emitido', description: contractNumber });
+      toast({
+        title: 'Contrato baixado',
+        description: contract.source === 'producer_upload'
+          ? 'Documento enviado pelo produtor.'
+          : `${contractNumber} — PDF automático de contingência.`,
+      });
     } catch (contractError) {
       toast({
         variant: 'destructive',
