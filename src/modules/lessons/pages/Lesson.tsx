@@ -101,9 +101,12 @@ const Lesson = () => {
     <div className="h-dvh overflow-hidden bg-background text-foreground">
       <Navigation />
 
-      <div className="flex h-full overflow-hidden pt-16 sm:pt-20">
-        <aside className="hidden h-full w-80 shrink-0 border-r border-white/8 bg-[#090909] lg:block">
-          <div className="h-full overflow-y-auto p-5">
+      <div className="fixed bottom-0 left-0 right-0 top-16 flex overflow-hidden sm:top-20">
+        <aside
+          data-testid="lesson-sidebar-scroll"
+          className="hidden h-full w-80 shrink-0 overflow-y-auto border-r border-white/8 bg-[#090909] [scrollbar-gutter:stable] lg:block"
+        >
+          <div className="min-h-full p-5">
             <Button variant="ghost" size="sm" onClick={() => navigate(ROUTES.dashboard)} className="mb-5 -ml-2 text-muted-foreground hover:text-white">
               <ArrowLeft className="size-4" />
               Voltar ao portal
@@ -156,7 +159,7 @@ const Lesson = () => {
 
         <main
           data-testid="lesson-content-scroll"
-          className="min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain [scrollbar-gutter:stable]"
+          className="h-full min-w-0 flex-1 overflow-y-auto overscroll-contain [scrollbar-gutter:stable]"
         >
           <div className="min-h-full px-4 py-8 sm:px-6 lg:px-10">
             <div className="mx-auto max-w-5xl">
