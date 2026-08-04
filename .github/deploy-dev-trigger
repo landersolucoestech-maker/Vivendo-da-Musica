@@ -1,6 +1,6 @@
 project_ref=ywirfqvobfnunlcsnptm
-requested_at=2026-08-04T10:08:00Z
+requested_at=2026-08-04T10:20:00Z
 source_branch=dev
 pipeline=quality-gates-pr
-authentication=passwordless
-migration_history=fetch-remote-before-push
+mode=full-schema-equivalence-before-history-repair
+baseline=20260804103000
