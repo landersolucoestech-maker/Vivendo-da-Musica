@@ -43,6 +43,7 @@ let stage = 'navigation';
 let caughtError = null;
 let home = null;
 let academy = null;
+let fixedHeader = null;
 
 const snapshotPage = async () =>
   page.evaluate(() => ({
@@ -60,6 +61,23 @@ const snapshotPage = async () =>
     sourceUrl: window.__VDM_PREVIEW_DOCUMENT_URL__ ?? '',
   }));
 
+const captureHeaderPosition = async () =>
+  page.evaluate(() => {
+    const header = document.querySelector('[data-testid="public-header"]');
+    const logo = header?.querySelector('[aria-label="Vivendo da Música — início"]');
+    const academyLink = Array.from(header?.querySelectorAll('a') ?? []).find(
+      (link) => link.textContent?.trim() === 'Academia',
+    );
+
+    return {
+      position: header ? getComputedStyle(header).position : '',
+      headerTop: header?.getBoundingClientRect().top ?? null,
+      logoTop: logo?.getBoundingClientRect().top ?? null,
+      academyTop: academyLink?.getBoundingClientRect().top ?? null,
+      scrollY: window.scrollY,
+    };
+  });
+
 try {
   const response = await page.goto(previewUrl, {
     waitUntil: 'domcontentloaded',
@@ -69,8 +87,20 @@ try {
 
   stage = 'home';
   await page.locator('.vdm-page').waitFor({ state: 'visible', timeout: 30_000 });
+  await page.locator('[data-testid="public-header"]').waitFor({ state: 'visible', timeout: 10_000 });
   await page.waitForTimeout(2_000);
   home = await snapshotPage();
+
+  stage = 'fixed-header';
+  const beforeScroll = await captureHeaderPosition();
+  await page.evaluate(() => {
+    const maximumScroll = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
+    window.scrollTo(0, Math.min(1_200, maximumScroll));
+  });
+  await page.waitForTimeout(500);
+  const afterScroll = await captureHeaderPosition();
+  fixedHeader = { beforeScroll, afterScroll };
+  await page.evaluate(() => window.scrollTo(0, 0));
 
   stage = 'academy';
   await page.evaluate(() => {
@@ -111,6 +141,7 @@ try {
     stage,
     caughtError,
     home: home ? { ...home, bodyTextLength: home.bodyText.length } : null,
+    fixedHeader,
     academy: academy ? { ...academy, bodyTextLength: academy.bodyText.length } : null,
     pageErrors,
     failedAssets,
@@ -147,6 +178,29 @@ if (!home) {
     failures.push('Aplicação permaneceu no bootstrap.');
   }
 }
+
+if (!fixedHeader) {
+  failures.push('A posição do cabeçalho não foi validada.');
+} else {
+  const { beforeScroll, afterScroll } = fixedHeader;
+  if (beforeScroll.position !== 'fixed' || afterScroll.position !== 'fixed') {
+    failures.push(`Cabeçalho não está fixed: ${beforeScroll.position}/${afterScroll.position}`);
+  }
+  if (afterScroll.scrollY < 100) {
+    failures.push(`A página não rolou o suficiente para validar o cabeçalho: ${afterScroll.scrollY}px.`);
+  }
+  for (const key of ['headerTop', 'logoTop', 'academyTop']) {
+    const before = beforeScroll[key];
+    const after = afterScroll[key];
+    if (before === null || after === null || Math.abs(before - after) > 1) {
+      failures.push(`${key} se moveu durante a rolagem: ${before} → ${after}.`);
+    }
+  }
+  if (Math.abs(afterScroll.headerTop ?? Number.POSITIVE_INFINITY) > 1) {
+    failures.push(`Cabeçalho saiu do topo da viewport: ${afterScroll.headerTop}px.`);
+  }
+}
+
 if (
   !academy ||
   academy.path !== '/academia' ||
