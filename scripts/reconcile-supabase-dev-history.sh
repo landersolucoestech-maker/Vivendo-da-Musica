@@ -7,6 +7,7 @@ set -euo pipefail
 artifact_dir="${GITHUB_WORKSPACE:-.}/artifacts/supabase-dev"
 remote_dump="${artifact_dir}/remote-schema.sql"
 remote_snapshot_dump="${artifact_dir}/remote-schema.snapshot.sql"
+remote_restore_log="${artifact_dir}/remote-schema.restore.log"
 remote_to_canonical_diff="${artifact_dir}/remote-to-canonical.sql"
 remote_to_canonical_report="${artifact_dir}/remote-to-canonical.report.json"
 migration_list="${artifact_dir}/migration-list-before.txt"
@@ -91,7 +92,9 @@ echo "Restoring the linked DEV schema into the isolated snapshot database..."
 docker exec -i "$local_db_container" psql \
   --username postgres \
   --dbname remote_snapshot \
-  --set ON_ERROR_STOP=1 <"$remote_snapshot_dump"
+  --set ON_ERROR_STOP=1 \
+  --echo-errors \
+  <"$remote_snapshot_dump" 2>&1 | tee "$remote_restore_log"
 
 migra_venv="${RUNNER_TEMP:-/tmp}/vivendo-migra-venv"
 python3 -m venv "$migra_venv"
