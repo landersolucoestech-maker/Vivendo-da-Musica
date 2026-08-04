@@ -6,6 +6,7 @@ set -euo pipefail
 
 artifact_dir="${GITHUB_WORKSPACE:-.}/artifacts/supabase-dev"
 remote_dump="${artifact_dir}/remote-schema.sql"
+remote_snapshot_dump="${artifact_dir}/remote-schema.snapshot.sql"
 remote_to_canonical_diff="${artifact_dir}/remote-to-canonical.sql"
 remote_to_canonical_report="${artifact_dir}/remote-to-canonical.report.json"
 migration_list="${artifact_dir}/migration-list-before.txt"
@@ -47,15 +48,15 @@ if [[ ! -s "$remote_dump" ]]; then
   exit 1
 fi
 
-echo "Preparing local ownership roles for the disposable remote snapshot..."
-docker exec -i "$local_db_container" psql \
-  --username postgres \
-  --dbname template1 \
-  --set ON_ERROR_STOP=1 <<'SQL'
-grant supabase_admin to postgres;
-grant supabase_auth_admin to postgres;
-grant supabase_storage_admin to postgres;
-SQL
+echo "Normalizing ownership only for the disposable remote snapshot..."
+sed -E \
+  's/OWNER TO "(pg_database_owner|supabase_admin|supabase_auth_admin|supabase_storage_admin)"/OWNER TO "postgres"/g' \
+  "$remote_dump" >"$remote_snapshot_dump"
+
+if [[ ! -s "$remote_snapshot_dump" ]]; then
+  echo "::error title=Normalized remote schema dump is empty::The disposable snapshot dump could not be generated."
+  exit 1
+fi
 
 echo "Creating an isolated database for the remote schema snapshot..."
 docker exec -i "$local_db_container" psql \
@@ -90,7 +91,7 @@ echo "Restoring the linked DEV schema into the isolated snapshot database..."
 docker exec -i "$local_db_container" psql \
   --username postgres \
   --dbname remote_snapshot \
-  --set ON_ERROR_STOP=1 <"$remote_dump"
+  --set ON_ERROR_STOP=1 <"$remote_snapshot_dump"
 
 migra_venv="${RUNNER_TEMP:-/tmp}/vivendo-migra-venv"
 python3 -m venv "$migra_venv"
