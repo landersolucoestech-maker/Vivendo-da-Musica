@@ -19,8 +19,8 @@ O baseline técnico foi executado e o projeto foi registrado no repositório ofi
 - Node: `v24.15.0`
 - npm/npx: `11.12.1`
 - Supabase CLI: `2.109.1`
-- Projeto Supabase configurado: `ehaehioqaqvyfgcetylh`
-- URL configurada: host corresponde ao project ref.
+- Projeto Supabase configurado na época: instância anterior ao ambiente `dev` atual; o identificador foi removido deste relatório para evitar reuso acidental.
+- URL configurada: host correspondia ao project ref vigente naquele baseline.
 - Chave pública: presente, 46 caracteres, aceita pelo health check remoto; valor não registrado.
 - API remota: `healthy`, versão `1`.
 
