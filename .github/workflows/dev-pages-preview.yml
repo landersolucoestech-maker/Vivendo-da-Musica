@@ -16,8 +16,7 @@ concurrency:
 
 env:
   STATIC_BRANCH: dev-preview-static
-  STABLE_PREVIEW_URL: https://ywirfqvobfnunlcsnptm.supabase.co/functions/v1/vivendo-preview
-  STATIC_ASSET_BASE: https://cdn.jsdelivr.net/gh/landersolucoestech-maker/Vivendo-da-Musica@dev-preview-static/
+  ASSET_BASE: https://cdn.jsdelivr.net/gh/landersolucoestech-maker/Vivendo-da-Musica@dev-preview-static/
 
 jobs:
   publish:
@@ -26,8 +25,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     outputs:
-      build_sha: ${{ steps.resolve.outputs.sha }}
-      static_sha: ${{ steps.publish.outputs.sha }}
+      build_sha: ${{ steps.build_ref.outputs.sha }}
+      static_sha: ${{ steps.publish_ref.outputs.sha }}
     env:
       VITE_SUPABASE_URL: https://ywirfqvobfnunlcsnptm.supabase.co
       VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable_Oi717_T80P5TFfreKGATEg_qL1bEaVf
@@ -43,7 +42,7 @@ jobs:
           ref: dev
 
       - name: Resolve build commit
-        id: resolve
+        id: build_ref
         run: |
           BUILD_SHA=$(git rev-parse HEAD)
           echo "BUILD_SHA=${BUILD_SHA}" >> "${GITHUB_ENV}"
@@ -61,37 +60,37 @@ jobs:
       - name: Build hosted preview
         run: npm run build
 
-      - name: Stamp build and add SPA fallback
+      - name: Stamp and validate build
         run: |
           python - <<'PY'
           import os
           from pathlib import Path
 
           index = Path('dist/index.html')
-          content = index.read_text(encoding='utf-8')
-          stamp = f'<meta name="vdm-preview-commit" content="{os.environ["BUILD_SHA"]}" />'
-          content = content.replace('<head>', '<head>\n    ' + stamp, 1)
-          index.write_text(content, encoding='utf-8')
-          Path('dist/404.html').write_text(content, encoding='utf-8')
+          html = index.read_text(encoding='utf-8')
+          html = html.replace(
+              '<head>',
+              f'<head>\n    <meta name="vdm-preview-commit" content="{os.environ["BUILD_SHA"]}" />',
+              1,
+          )
+          index.write_text(html, encoding='utf-8')
+          Path('dist/404.html').write_text(html, encoding='utf-8')
           Path('dist/.nojekyll').touch()
           PY
-
-      - name: Validate compiled document
-        run: |
           grep --quiet "vdm-preview-commit.*${BUILD_SHA}" dist/index.html
-          grep --quiet 'https://cdn.jsdelivr.net/gh/landersolucoestech-maker/Vivendo-da-Musica@dev-preview-static/assets/' dist/index.html
+          grep --quiet "${ASSET_BASE}assets/" dist/index.html
           grep --quiet '<div id="root"></div>' dist/index.html
 
-      - name: Upload compiled preview artifact
+      - name: Upload compiled artifact
         uses: actions/upload-artifact@v7
         with:
-          name: dev-static-preview-${{ steps.resolve.outputs.sha }}
+          name: dev-static-preview-${{ steps.build_ref.outputs.sha }}
           path: dist
           if-no-files-found: error
           retention-days: 7
 
       - name: Publish immutable static commit
-        id: publish
+        id: publish_ref
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -106,23 +105,22 @@ jobs:
           echo "sha=${STATIC_SHA}" >> "${GITHUB_OUTPUT}"
 
   verify:
-    name: Verify published dev preview
+    name: Verify executable dev preview
     needs: publish
     runs-on: ubuntu-latest
     timeout-minutes: 12
     env:
       BUILD_SHA: ${{ needs.publish.outputs.build_sha }}
       STATIC_SHA: ${{ needs.publish.outputs.static_sha }}
-      STABLE_PREVIEW_URL: https://ywirfqvobfnunlcsnptm.supabase.co/functions/v1/vivendo-preview
     steps:
       - name: Checkout dev
         uses: actions/checkout@v6
         with:
           ref: dev
 
-      - name: Wait for immutable CDN document
+      - name: Validate HTML and bundle delivery
         run: |
-          PREVIEW_URL="https://rawcdn.githack.com/${GITHUB_REPOSITORY}/${STATIC_SHA}/index.html"
+          PREVIEW_URL="https://cdn.githubraw.com/${GITHUB_REPOSITORY}/${STATIC_SHA}/index.html"
           echo "PREVIEW_URL=${PREVIEW_URL}" >> "${GITHUB_ENV}"
           for attempt in $(seq 1 30); do
             if curl --fail --silent --show-error --dump-header /tmp/preview.headers \
@@ -148,13 +146,12 @@ jobs:
           node-version: 22
           cache: npm
 
-      - name: Install dependencies
-        run: npm ci
+      - name: Install browser test dependencies
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
 
-      - name: Install Chromium
-        run: npx playwright install --with-deps chromium
-
-      - name: Verify visible Home and navigation
+      - name: Verify React rendering and navigation
         run: |
           mkdir -p artifacts/preview-audit
           node --input-type=module <<'JS'
@@ -177,23 +174,16 @@ jobs:
             }
           });
 
-          let status = 0;
-          let navigationError = null;
-          try {
-            const response = await page.goto(process.env.PREVIEW_URL, {
-              waitUntil: 'domcontentloaded',
-              timeout: 45_000,
-            });
-            status = response?.status() ?? 0;
-            await page.waitForFunction(
-              () => document.querySelector('#root')?.childElementCount > 0,
-              undefined,
-              { timeout: 30_000 },
-            );
-            await page.waitForTimeout(2_000);
-          } catch (error) {
-            navigationError = error instanceof Error ? error.message : String(error);
-          }
+          const response = await page.goto(process.env.PREVIEW_URL, {
+            waitUntil: 'domcontentloaded',
+            timeout: 45_000,
+          });
+          await page.waitForFunction(
+            () => document.querySelector('#root')?.childElementCount > 0,
+            undefined,
+            { timeout: 30_000 },
+          );
+          await page.waitForTimeout(2_000);
 
           const home = await page.evaluate(() => ({
             title: document.title,
@@ -209,6 +199,7 @@ jobs:
           });
           await page.waitForFunction(() => window.location.hash === '#/cursos', undefined, { timeout: 10_000 });
           await page.waitForTimeout(1_000);
+
           const navigation = await page.evaluate(() => ({
             hash: window.location.hash,
             bodyTextLength: document.body.innerText.trim().length,
@@ -218,8 +209,7 @@ jobs:
           await page.screenshot({ path: 'artifacts/preview-audit/home.png', fullPage: true });
           const report = {
             url: process.env.PREVIEW_URL,
-            status,
-            navigationError,
+            status: response?.status() ?? 0,
             home: { ...home, bodyTextLength: home.bodyText.length },
             navigation,
             pageErrors,
@@ -229,11 +219,9 @@ jobs:
           await writeFile('artifacts/preview-audit/report.json', JSON.stringify(report, null, 2));
 
           const failures = [];
-          if (navigationError) failures.push(navigationError);
-          if (status !== 200) failures.push(`HTTP ${status}`);
+          if (report.status !== 200) failures.push(`HTTP ${report.status}`);
           if (home.commit !== process.env.BUILD_SHA) failures.push(`Build inesperado: ${home.commit}`);
-          if (home.rootChildCount === 0) failures.push('React não montou conteúdo no #root.');
-          if (home.bodyText.length < 100) failures.push(`Conteúdo visível insuficiente: ${home.bodyText.length} caracteres.`);
+          if (home.rootChildCount === 0 || home.bodyText.length < 100) failures.push('A Home não renderizou conteúdo suficiente.');
           if (home.scriptCount === 0 || home.stylesheetCount === 0) failures.push('Bundles JavaScript ou CSS ausentes.');
           if (home.bodyText.includes('Não foi possível abrir a plataforma')) failures.push('Fallback fatal foi exibido.');
           if (home.bodyText.includes('Carregando Vivendo da Música')) failures.push('Aplicação permaneceu no bootstrap.');
@@ -248,14 +236,7 @@ jobs:
           if (failures.length > 0) throw new Error(failures.join('\n'));
           JS
 
-      - name: Verify stable public redirect
-        run: |
-          curl --fail --silent --show-error --location --dump-header /tmp/stable.headers \
-            "${STABLE_PREVIEW_URL}" --output /tmp/stable.html
-          grep --quiet "vdm-preview-commit.*${BUILD_SHA}" /tmp/stable.html
-          grep --quiet "rawcdn.githack.com" /tmp/stable.headers
-
-      - name: Upload preview audit report
+      - name: Upload preview audit
         if: always()
         uses: actions/upload-artifact@v7
         with:
