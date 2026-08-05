@@ -64,9 +64,11 @@ export const adminCanonicalFinanceService = {
       request<Array<Record<string, unknown>>>(
         'payments?select=order_id,gross_amount_cents,refunded_amount_cents,chargeback_amount_cents,status&order=created_at.desc&limit=500',
       ),
-      request<Array<Record<string, unknown>>>(
-        'ledger_account_balances?select=account_code,balance_cents&limit=5000',
-      ),
+      isDevAuthBypassEnabled
+        ? Promise.resolve<Array<Record<string, unknown>>>([])
+        : request<Array<Record<string, unknown>>>(
+            'ledger_account_balances?select=account_code,balance_cents&limit=5000',
+          ),
       request<Array<Record<string, unknown>>>(
         'payout_requests?select=id,owner_user_id,destination_id,beneficiary_type,amount_cents,currency,status,requested_at,processed_at&order=requested_at.desc&limit=500',
       ),
