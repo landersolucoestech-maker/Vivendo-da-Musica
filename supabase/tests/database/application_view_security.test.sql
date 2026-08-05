@@ -109,21 +109,26 @@ select is(
   'owner-scoped lesson asset delete policy remains active'
 );
 
-select is(
+select ok(
   (
-    select count(*)::bigint
+    select count(*)
+    from storage.buckets
+    where id in ('lesson-projects', 'lesson-samples')
+      and public
+  ) = 2
+  and not exists (
+    select 1
     from pg_policies
     where schemaname = 'storage'
       and tablename = 'objects'
-      and policyname in (
-        'Lesson projects are publicly accessible',
-        'Lesson samples are publicly accessible'
-      )
       and cmd = 'SELECT'
       and 'public' = any(roles)
+      and (
+        coalesce(qual, '') like '%lesson-projects%'
+        or coalesce(qual, '') like '%lesson-samples%'
+      )
   ),
-  2::bigint,
-  'public lesson asset reads remain available'
+  'lesson assets use public buckets without object-listing policies'
 );
 
 select is(
