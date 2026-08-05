@@ -50,6 +50,18 @@ describe('contratos de autenticação das Edge Functions', () => {
     }
   });
 
+  it('usa segredos independentes para endpoints Stripe distintos', () => {
+    const beatWebhook = readProjectFile('supabase/functions/stripe-beat-webhook/index.ts');
+    const productWebhook = readProjectFile('supabase/functions/stripe-digital-product-webhook/index.ts');
+    const canonicalWebhook = readProjectFile('supabase/functions/payment-webhook/index.ts');
+
+    expect(beatWebhook).toContain('STRIPE_BEAT_WEBHOOK_SECRET');
+    expect(productWebhook).toContain('STRIPE_DIGITAL_PRODUCT_WEBHOOK_SECRET');
+    expect(canonicalWebhook).toContain('STRIPE_WEBHOOK_SECRET');
+    expect(beatWebhook).toContain('Deno.env.get("STRIPE_WEBHOOK_SECRET")');
+    expect(productWebhook).toContain('Deno.env.get("STRIPE_WEBHOOK_SECRET")');
+  });
+
   it('não desabilita JWT nas rotas privadas de download e certificado', () => {
     const deployScript = readProjectFile('scripts/deploy-supabase-functions.mjs');
     const config = readProjectFile('supabase/config.toml');
