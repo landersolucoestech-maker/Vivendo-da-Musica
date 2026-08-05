@@ -67,7 +67,6 @@ Deno.serve(async (request) => {
   const body = await request.json().catch(() => ({})) as Body;
   const authorization = request.headers.get('authorization');
   let userId: string | null = null;
-  let isDemoPreview = false;
   if (authorization) {
     const client = createClient(supabaseUrl, publishableKey, { global: { headers: { Authorization: authorization } }, auth: { persistSession: false } });
     const { data } = await client.auth.getUser();
@@ -77,9 +76,12 @@ Deno.serve(async (request) => {
   if (!userId && isDev && typeof body.actingUserId === 'string' && UUID_PATTERN.test(body.actingUserId)) {
     const { data } = await admin.from('user_profiles').select('user_id').eq('user_id', body.actingUserId).eq('is_demo', true).maybeSingle();
     userId = data?.user_id ?? null;
-    isDemoPreview = Boolean(userId);
   }
   if (!userId) return reply({ error: 'Autenticação obrigatória.' }, 401, origin);
+
+  const { data: actorProfile } = await admin.from('user_profiles')
+    .select('full_name,avatar_url,is_demo').eq('user_id', userId).maybeSingle();
+  const actorIsDemo = Boolean(actorProfile?.is_demo);
 
   const { data: capability } = await admin.from('account_capabilities').select('capability,status')
     .eq('user_id', userId).in('capability', ['producer', 'instructor']).eq('status', 'active').limit(1).maybeSingle();
@@ -93,11 +95,12 @@ Deno.serve(async (request) => {
     if (title.length < 3 || description.length < 20 || !categoryId) return reply({ error: 'Título, categoria e descrição completa são obrigatórios.' }, 400, origin);
     const listingId = typeof body.listingId === 'string' && UUID_PATTERN.test(body.listingId) ? body.listingId : null;
     if (listingId) {
-      const { data: owned } = await admin.from('service_listings').select('id').eq('id', listingId).eq('provider_id', userId).maybeSingle();
+      const { data: owned } = await admin.from('service_listings').select('id').eq('id', listingId).eq('provider_id', userId).eq('is_demo', actorIsDemo).maybeSingle();
       if (!owned) return reply({ error: 'Serviço não encontrado para esta conta.' }, 404, origin);
       const { data, error } = await admin.from('service_listings').update({
         category_id: categoryId, title, short_description: text(body.shortDescription, 280) || null,
         description, requirements: strings(body.requirements), moderation_status: 'pending', status: 'draft',
+        is_demo: actorIsDemo,
       }).eq('id', listingId).select('id').single();
       if (error) return reply({ error: error.message }, 400, origin);
       return reply({ id: data.id }, 200, origin);
@@ -106,14 +109,13 @@ Deno.serve(async (request) => {
     const { data, error } = await admin.from('service_listings').insert({
       provider_id: userId, category_id: categoryId, slug, title,
       short_description: text(body.shortDescription, 280) || null, description,
-      requirements: strings(body.requirements), status: 'draft', moderation_status: 'pending', is_demo: isDemoPreview,
+      requirements: strings(body.requirements), status: 'draft', moderation_status: 'pending', is_demo: actorIsDemo,
     }).select('id').single();
     if (error || !data) return reply({ error: error?.message ?? 'Serviço não criado.' }, 400, origin);
-    const { data: profile } = await admin.from('user_profiles').select('full_name,avatar_url,is_demo').eq('user_id', userId).maybeSingle();
     await admin.from('service_provider_profiles').upsert({
-      user_id: userId, display_name: profile?.full_name ?? 'Prestador musical', headline: 'Profissional da música',
-      bio: null, avatar_url: profile?.avatar_url ?? null, location: null,
-      verified: Boolean(profile?.is_demo), active: true, is_demo: Boolean(profile?.is_demo),
+      user_id: userId, display_name: actorProfile?.full_name ?? 'Prestador musical', headline: 'Profissional da música',
+      bio: null, avatar_url: actorProfile?.avatar_url ?? null, location: null,
+      verified: actorIsDemo, active: true, is_demo: actorIsDemo,
     }, { onConflict: 'user_id' });
     return reply({ id: data.id }, 201, origin);
   }
@@ -121,9 +123,9 @@ Deno.serve(async (request) => {
   if (action === 'submit_listing') {
     const listingId = typeof body.listingId === 'string' && UUID_PATTERN.test(body.listingId) ? body.listingId : null;
     if (!listingId) return reply({ error: 'Serviço inválido.' }, 400, origin);
-    const { data: listing } = await admin.from('service_listings').select('id,service_packages(id)').eq('id', listingId).eq('provider_id', userId).maybeSingle();
+    const { data: listing } = await admin.from('service_listings').select('id,service_packages(id)').eq('id', listingId).eq('provider_id', userId).eq('is_demo', actorIsDemo).maybeSingle();
     if (!listing || !(listing.service_packages as unknown[] | null)?.length) return reply({ error: 'Cadastre ao menos um pacote antes de enviar para aprovação.' }, 409, origin);
-    const { error } = await admin.from('service_listings').update({ status: 'draft', moderation_status: 'pending' }).eq('id', listingId).eq('provider_id', userId);
+    const { error } = await admin.from('service_listings').update({ status: 'draft', moderation_status: 'pending' }).eq('id', listingId).eq('provider_id', userId).eq('is_demo', actorIsDemo);
     if (error) return reply({ error: error.message }, 400, origin);
     return reply({ success: true }, 200, origin);
   }
@@ -136,7 +138,7 @@ Deno.serve(async (request) => {
     const deliveryDays = typeof body.deliveryDays === 'number' ? Math.round(body.deliveryDays) : 0;
     const revisions = typeof body.revisions === 'number' ? Math.round(body.revisions) : 0;
     if (!listingId || name.length < 2 || priceCents < 0 || deliveryDays <= 0 || revisions < 0) return reply({ error: 'Dados do pacote inválidos.' }, 400, origin);
-    const { data: owned } = await admin.from('service_listings').select('id').eq('id', listingId).eq('provider_id', userId).maybeSingle();
+    const { data: owned } = await admin.from('service_listings').select('id').eq('id', listingId).eq('provider_id', userId).eq('is_demo', actorIsDemo).maybeSingle();
     if (!owned) return reply({ error: 'Serviço não encontrado para esta conta.' }, 404, origin);
     const payload = {
       listing_id: listingId, name, description: text(body.packageDescription, 1000) || null,
@@ -155,7 +157,7 @@ Deno.serve(async (request) => {
 
   if (action === 'archive_listing') {
     const listingId = typeof body.listingId === 'string' && UUID_PATTERN.test(body.listingId) ? body.listingId : null;
-    const { error } = await admin.from('service_listings').update({ status: 'archived' }).eq('id', listingId).eq('provider_id', userId);
+    const { error } = await admin.from('service_listings').update({ status: 'archived' }).eq('id', listingId).eq('provider_id', userId).eq('is_demo', actorIsDemo);
     if (error) return reply({ error: error.message }, 400, origin);
     return reply({ success: true }, 200, origin);
   }
