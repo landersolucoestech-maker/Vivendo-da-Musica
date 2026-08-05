@@ -2,13 +2,19 @@
   "project_ref": "ywirfqvobfnunlcsnptm",
   "environment": "dev",
   "result": "manual_connector_sync_success",
-  "audited_source_sha": "21cf4f2dc451d98afa3a0756f36c1cefb08b29cd",
+  "audited_source_sha": "e1cba3c93f802c7de3f294211adbd9bc5da953f7",
   "database": {
-    "latest_migration": "20260805014440_fix_unrestricted_dev_enrollments_policy",
+    "latest_migration": "20260805021815_rebind_user_profile_foreign_keys",
+    "clean_replay": "success",
+    "sql_lint": "success",
+    "pgtap": "success",
     "unsafe_public_views": 0,
     "anon_executable_security_definers": 0,
     "authenticated_executable_security_definers": 0,
     "duplicate_index_groups": 0,
+    "unrestricted_enrollment_policies": 0,
+    "legacy_profile_unique_constraints": 0,
+    "noncanonical_profile_foreign_keys": 0,
     "anonymous_visible_non_demo_enrollments": 0
   },
   "edge_functions": {
@@ -18,10 +24,17 @@
     "stripe_digital_product_webhook_version": 3,
     "stripe_webhooks_verify_jwt": false
   },
+  "validation": {
+    "dev_quality_run_id": 30969017818,
+    "dev_quality_result": "success",
+    "quality_gates_run_id": 30969017816,
+    "quality_gates_result": "success",
+    "e2e_auth_guard": "success",
+    "e2e_preview": "success"
+  },
   "automated_deployment": {
     "workflow_restored": true,
-    "last_completed_run_id": 30895603765,
-    "last_completed_result": "failure",
+    "controlled_trigger_required": true,
     "blocked_missing_credentials": [
       "SUPABASE_ACCESS_TOKEN",
       "SUPABASE_DB_PASSWORD"
@@ -30,7 +43,8 @@
   "remaining_configuration": [
     "Configure STRIPE_BEAT_WEBHOOK_SECRET for the beat Stripe endpoint",
     "Configure STRIPE_DIGITAL_PRODUCT_WEBHOOK_SECRET for the digital-product Stripe endpoint",
-    "Enable leaked-password protection in Supabase Auth"
+    "Enable leaked-password protection in Supabase Auth",
+    "Enable branch protection for dev and main"
   ],
-  "recorded_at": "2026-08-05T01:55:40Z"
+  "recorded_at": "2026-08-05T02:24:30Z"
 }
