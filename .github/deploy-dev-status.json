@@ -2,7 +2,7 @@
   "project_ref": "ywirfqvobfnunlcsnptm",
   "environment": "dev",
   "result": "manual_connector_sync_success",
-  "audited_source_sha": "7d140376fb904a13b4f282c018efe06b548c966e",
+  "audited_source_sha": "ac007f2b20952568a03efcc7e3452f54ef9911e0",
   "database": {
     "latest_migration": "20260805051753_reconcile_public_lesson_asset_buckets",
     "clean_replay": "success",
@@ -51,6 +51,10 @@
     "manage_service_catalog_version": 4,
     "manage_service_requests_version": 4,
     "service_delivery_file_access_version": 4,
+    "download_access_version": 9,
+    "download_access_bundle_sha256": "4df638af7f02b22b4096f708192d91a8bce54bc221cb336f4e6e193f4b00111f",
+    "download_access_max_request_bytes": 16384,
+    "download_access_signed_url_ttl_seconds": 300,
     "payment_webhook_version": 2,
     "payment_webhook_bundle_sha256": "a56cae52bd0727ce9e6dd4d2a4505dcfba7f98f5cb7ee6ae8d743bf017dfe10e",
     "payment_webhook_max_payload_bytes": 1048576,
@@ -62,24 +66,25 @@
     "deployment_status": "active"
   },
   "preview_publication": {
-    "workflow_run_id": 31004423375,
+    "workflow_run_id": 31005150912,
     "workflow_result": "success",
-    "published_source_sha": "7d140376fb904a13b4f282c018efe06b548c966e",
-    "published_static_commit": "852d50a1a2c7dcd7af5bb6454160986bf39ab380",
+    "published_source_sha": "ac007f2b20952568a03efcc7e3452f54ef9911e0",
+    "published_static_commit": "196e11a965ed4c4d6572bf495857b642ae96177c",
     "immutable_html_verified": true,
     "robots_noindex_verified": true,
     "supabase_resolver_health_after_v15_deployment": "success"
   },
   "validation": {
-    "dev_quality_run_id": 31004426294,
+    "dev_quality_run_id": 31005153719,
     "dev_quality_result": "success",
-    "quality_gates_run_id": 31004426223,
+    "quality_gates_run_id": 31005153527,
     "quality_gates_result": "success",
     "e2e_auth_guard": "success",
     "e2e_preview": "success",
     "demo_edge_function_isolation_test": "success",
     "preview_publication_contract_test": "success",
-    "payment_webhook_hardening_test": "success"
+    "payment_webhook_hardening_test": "success",
+    "download_access_hardening_test": "success"
   },
   "automated_deployment": {
     "workflow_restored": true,
@@ -100,5 +105,5 @@
     "Enable branch protection for dev and main",
     "Grant the GitHub connector administration permission if branch protection and secret inventory should be automated"
   ],
-  "recorded_at": "2026-08-05T12:15:00Z"
+  "recorded_at": "2026-08-05T12:24:00Z"
 }
