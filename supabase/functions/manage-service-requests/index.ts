@@ -69,7 +69,6 @@ Deno.serve(async (request) => {
   const body = await request.json().catch(() => ({})) as Body;
   const authorization = request.headers.get('authorization');
   let userId: string | null = null;
-  let isDemoPreview = false;
 
   if (authorization) {
     const client = createClient(supabaseUrl, publishableKey, {
@@ -85,11 +84,12 @@ Deno.serve(async (request) => {
     if (actingUserId) {
       const { data } = await admin.from('user_profiles').select('user_id').eq('user_id', actingUserId).eq('is_demo', true).maybeSingle();
       userId = data?.user_id ?? null;
-      isDemoPreview = Boolean(userId);
     }
   }
 
   if (!userId) return reply({ error: 'Autenticação obrigatória.' }, 401, origin);
+  const { data: actorProfile } = await admin.from('user_profiles').select('is_demo').eq('user_id', userId).maybeSingle();
+  const actorIsDemo = Boolean(actorProfile?.is_demo);
   const action = text(body.action, 40);
 
   if (action === 'create_request') {
@@ -104,6 +104,14 @@ Deno.serve(async (request) => {
     if (!categoryId || title.length < 3 || brief.length < 20) return reply({ error: 'Categoria, título e briefing completo são obrigatórios.' }, 400, origin);
     if (budgetMaxCents && budgetMinCents > budgetMaxCents) return reply({ error: 'O orçamento máximo deve ser maior ou igual ao mínimo.' }, 400, origin);
 
+    if (listingId) {
+      const { data: listing } = await admin.from('service_listings')
+        .select('id,category_id,is_demo').eq('id', listingId).maybeSingle();
+      if (!listing || listing.category_id !== categoryId || Boolean(listing.is_demo) !== actorIsDemo) {
+        return reply({ error: 'O serviço informado não pertence ao mesmo ambiente da conta.' }, 409, origin);
+      }
+    }
+
     const { data, error } = await admin.from('service_requests').insert({
       client_id: userId,
       category_id: categoryId,
@@ -115,7 +123,7 @@ Deno.serve(async (request) => {
       currency,
       desired_delivery_date: desiredDeliveryDate,
       status: 'open',
-      is_demo: isDemoPreview,
+      is_demo: actorIsDemo,
     }).select('id').single();
     if (error || !data) return reply({ error: error?.message ?? 'Solicitação não criada.' }, 400, origin);
     return reply({ id: data.id }, 201, origin);
@@ -133,8 +141,9 @@ Deno.serve(async (request) => {
     const { data: capability } = await admin.from('account_capabilities').select('capability')
       .eq('user_id', userId).in('capability', ['producer', 'instructor']).eq('status', 'active').limit(1).maybeSingle();
     if (!capability) return reply({ error: 'Ative o ambiente de produtor ou instrutor para enviar propostas.' }, 403, origin);
-    const { data: serviceRequest } = await admin.from('service_requests').select('id,status,currency').eq('id', requestId).maybeSingle();
+    const { data: serviceRequest } = await admin.from('service_requests').select('id,status,currency,is_demo').eq('id', requestId).maybeSingle();
     if (!serviceRequest || serviceRequest.status !== 'open') return reply({ error: 'Esta solicitação não aceita novas propostas.' }, 409, origin);
+    if (Boolean(serviceRequest.is_demo) !== actorIsDemo) return reply({ error: 'Solicitação indisponível para este ambiente.' }, 403, origin);
 
     const { data, error } = await admin.from('service_proposals').upsert({
       request_id: requestId,
@@ -156,8 +165,10 @@ Deno.serve(async (request) => {
     const requestId = uuid(body.requestId);
     const proposalId = uuid(body.proposalId);
     if (!requestId || !proposalId) return reply({ error: 'Solicitação ou proposta inválida.' }, 400, origin);
-    const { data: serviceRequest } = await admin.from('service_requests').select('client_id').eq('id', requestId).maybeSingle();
-    if (!serviceRequest || serviceRequest.client_id !== userId) return reply({ error: 'Apenas o cliente pode escolher a proposta.' }, 403, origin);
+    const { data: serviceRequest } = await admin.from('service_requests').select('client_id,is_demo').eq('id', requestId).maybeSingle();
+    if (!serviceRequest || serviceRequest.client_id !== userId || Boolean(serviceRequest.is_demo) !== actorIsDemo) {
+      return reply({ error: 'Apenas o cliente do mesmo ambiente pode escolher a proposta.' }, 403, origin);
+    }
     const { data, error } = await admin.rpc('service_accept_service_proposal', {
       target_request_id: requestId,
       target_proposal_id: proposalId,
@@ -169,14 +180,23 @@ Deno.serve(async (request) => {
 
   if (action === 'cancel_request') {
     const requestId = uuid(body.requestId);
-    const { error } = await admin.from('service_requests').update({ status: 'canceled' }).eq('id', requestId).eq('client_id', userId).eq('status', 'open');
+    const { error } = await admin.from('service_requests').update({ status: 'canceled' })
+      .eq('id', requestId).eq('client_id', userId).eq('status', 'open').eq('is_demo', actorIsDemo);
     if (error) return reply({ error: error.message }, 400, origin);
     return reply({ success: true }, 200, origin);
   }
 
   if (action === 'withdraw_proposal') {
     const proposalId = uuid(body.proposalId);
-    const { error } = await admin.from('service_proposals').update({ status: 'withdrawn' }).eq('id', proposalId).eq('provider_id', userId).eq('status', 'submitted');
+    if (!proposalId) return reply({ error: 'Proposta inválida.' }, 400, origin);
+    const { data: proposal } = await admin.from('service_proposals')
+      .select('id,service_requests!inner(is_demo)').eq('id', proposalId).eq('provider_id', userId).maybeSingle();
+    const relatedRequest = proposal?.service_requests as unknown as { is_demo?: boolean } | null;
+    if (!proposal || Boolean(relatedRequest?.is_demo) !== actorIsDemo) {
+      return reply({ error: 'Proposta indisponível para este ambiente.' }, 403, origin);
+    }
+    const { error } = await admin.from('service_proposals').update({ status: 'withdrawn' })
+      .eq('id', proposalId).eq('provider_id', userId).eq('status', 'submitted');
     if (error) return reply({ error: error.message }, 400, origin);
     return reply({ success: true }, 200, origin);
   }
