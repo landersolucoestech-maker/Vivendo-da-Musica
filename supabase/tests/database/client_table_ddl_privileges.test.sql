@@ -1,6 +1,6 @@
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(4);
+select plan(5);
 
 select is(
   (
@@ -26,10 +26,27 @@ select is(
   'authenticated has no table DDL or truncate privileges'
 );
 
+select is(
+  (
+    select count(*)::bigint
+    from pg_class table_row
+    join pg_namespace schema_row on schema_row.oid = table_row.relnamespace
+    where schema_row.nspname = 'public'
+      and table_row.relkind in ('r', 'p', 'v', 'm')
+      and (
+        has_table_privilege('anon', table_row.oid, 'MAINTAIN')
+        or has_table_privilege('authenticated', table_row.oid, 'MAINTAIN')
+      )
+  ),
+  0::bigint,
+  'client roles have no table maintain privileges'
+);
+
 select ok(
   has_table_privilege('service_role', 'public.commerce_orders', 'TRUNCATE')
   and has_table_privilege('service_role', 'public.commerce_orders', 'REFERENCES')
-  and has_table_privilege('service_role', 'public.commerce_orders', 'TRIGGER'),
+  and has_table_privilege('service_role', 'public.commerce_orders', 'TRIGGER')
+  and has_table_privilege('service_role', 'public.commerce_orders', 'MAINTAIN'),
   'service role retains operational table privileges'
 );
 
@@ -45,10 +62,15 @@ select is(
       and owner_role.rolname = 'postgres'
       and default_acl.defaclobjtype = 'r'
       and grantee_role.rolname in ('anon', 'authenticated')
-      and expanded_acl.privilege_type in ('TRUNCATE', 'REFERENCES', 'TRIGGER')
+      and expanded_acl.privilege_type in (
+        'TRUNCATE',
+        'REFERENCES',
+        'TRIGGER',
+        'MAINTAIN'
+      )
   ),
   0::bigint,
-  'postgres table defaults do not grant dangerous privileges to clients'
+  'postgres table defaults grant no administrative privileges to clients'
 );
 
 select * from finish();
