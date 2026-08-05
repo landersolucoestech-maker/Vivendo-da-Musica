@@ -1,28 +1,36 @@
 {
   "project_ref": "ywirfqvobfnunlcsnptm",
-  "result": "blocked_missing_credentials",
-  "latest_workflow_run_id": 30896245131,
-  "latest_workflow_job_id": 91950561052,
-  "latest_source_sha": "3b446facbdfd327e29e66e0317ce529c6caf06bc",
-  "previous_workflow_run_id": 30895603765,
-  "previous_source_sha": "fe1082b9904d36d62eb7074fae9594070145e9de",
-  "missing_secrets": [
-    "SUPABASE_ACCESS_TOKEN",
-    "SUPABASE_DB_PASSWORD"
-  ],
-  "validated_before_block": {
-    "quality": "success",
-    "e2e_preview": "success",
-    "e2e_auth_guard": "success",
-    "deployment_trigger": "authorized",
-    "target_project_ref": "validated"
+  "environment": "dev",
+  "result": "manual_connector_sync_success",
+  "audited_source_sha": "21cf4f2dc451d98afa3a0756f36c1cefb08b29cd",
+  "database": {
+    "latest_migration": "20260805014440_fix_unrestricted_dev_enrollments_policy",
+    "unsafe_public_views": 0,
+    "anon_executable_security_definers": 0,
+    "authenticated_executable_security_definers": 0,
+    "duplicate_index_groups": 0,
+    "anonymous_visible_non_demo_enrollments": 0
   },
-  "remote_steps_not_executed": [
-    "supabase link",
-    "supabase db push",
-    "supabase migration list",
-    "edge function deployment",
-    "api-v1 health check"
+  "edge_functions": {
+    "active_count": 19,
+    "vivendo_preview_version": 14,
+    "stripe_beat_webhook_version": 3,
+    "stripe_digital_product_webhook_version": 3,
+    "stripe_webhooks_verify_jwt": false
+  },
+  "automated_deployment": {
+    "workflow_restored": true,
+    "last_completed_run_id": 30895603765,
+    "last_completed_result": "failure",
+    "blocked_missing_credentials": [
+      "SUPABASE_ACCESS_TOKEN",
+      "SUPABASE_DB_PASSWORD"
+    ]
+  },
+  "remaining_configuration": [
+    "Configure STRIPE_BEAT_WEBHOOK_SECRET for the beat Stripe endpoint",
+    "Configure STRIPE_DIGITAL_PRODUCT_WEBHOOK_SECRET for the digital-product Stripe endpoint",
+    "Enable leaked-password protection in Supabase Auth"
   ],
-  "recorded_at": "2026-08-04T09:32:00Z"
+  "recorded_at": "2026-08-05T01:55:40Z"
 }
