@@ -63,6 +63,18 @@ describe('contrato de publicação do preview estático', () => {
     expect(workflow).toContain('Remote API v1 health verified.');
   });
 
+  it('valida os guards remotos dos webhooks Stripe sem processar eventos', () => {
+    expect(workflow).toContain('STRIPE_BEAT_WEBHOOK_URL: https://ywirfqvobfnunlcsnptm.supabase.co/functions/v1/stripe-beat-webhook');
+    expect(workflow).toContain('STRIPE_DIGITAL_PRODUCT_WEBHOOK_URL: https://ywirfqvobfnunlcsnptm.supabase.co/functions/v1/stripe-digital-product-webhook');
+    expect(workflow).toContain('Verify remote Stripe webhook guards');
+    expect(workflow).toContain("if status != '405'");
+    expect(workflow).toContain("payload.get('error') != 'Método não permitido.'");
+    expect(workflow).toContain("r'^cache-control: no-store, max-age=0\\r?$'");
+    expect(workflow).toContain("r'^content-type: application/json; charset=utf-8\\r?$'");
+    expect(workflow).toContain("r'^x-content-type-options: nosniff\\r?$'");
+    expect(workflow).toContain('Stripe webhook guard verified.');
+  });
+
   it('limita consultas públicas ao GitHub e tolera indisponibilidade transitória', () => {
     expect(previewFunction).toContain('const STATIC_COMMIT_TTL_MS = 60_000;');
     expect(previewFunction).toContain('let staticCommitCache: StaticCommitCache | null = null;');
