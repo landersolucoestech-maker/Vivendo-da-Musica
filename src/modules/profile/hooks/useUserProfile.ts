@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import type { UserRole } from '@/modules/auth/types/role';
 import { isDevAuthBypassEnabled } from '@/shared/utils/devAuthBypass';
+import { getDevIdentityId } from '@/shared/utils/devIdentity';
 
 export interface UserProfile {
   id: string;
@@ -22,11 +23,11 @@ const normalizeProfile = (profile: Omit<UserProfile, 'id'>): UserProfile => ({
 });
 
 const getDevelopmentProfile = async (): Promise<UserProfile | null> => {
+  const developmentUserId = getDevIdentityId();
   const { data, error } = await supabase
     .from('user_profiles')
     .select(PROFILE_SELECT)
-    .order('created_at', { ascending: true })
-    .limit(1)
+    .eq('user_id', developmentUserId)
     .maybeSingle();
 
   if (error) throw new Error('Erro ao buscar o perfil de desenvolvimento');
