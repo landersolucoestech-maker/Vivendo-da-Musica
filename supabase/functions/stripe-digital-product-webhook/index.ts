@@ -21,7 +21,7 @@ const verifySignature = async (body: string, signature: string, secret: string) 
 
 Deno.serve(async (req) => {
   if (req.method !== "POST") return new Response("Method not allowed", { status: 405 });
-  const secret = Deno.env.get("STRIPE_WEBHOOK_SECRET");
+  const secret = Deno.env.get("STRIPE_DIGITAL_PRODUCT_WEBHOOK_SECRET") ?? Deno.env.get("STRIPE_WEBHOOK_SECRET");
   const signature = req.headers.get("stripe-signature");
   if (!secret || !signature) return new Response("Webhook is not configured", { status: 503 });
 
