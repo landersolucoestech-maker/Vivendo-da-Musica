@@ -1,0 +1,65 @@
+name: Protected Edge JWT Smoke
+
+on:
+  push:
+    branches: [dev]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: protected-edge-jwt-smoke
+  cancel-in-progress: true
+
+jobs:
+  verify-jwt-gates:
+    name: Verify protected Edge Function JWT gates
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      FUNCTIONS_BASE_URL: https://ywirfqvobfnunlcsnptm.supabase.co/functions/v1
+    steps:
+      - name: Require HTTP 401 without credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          functions=(
+            get-beat-download-url
+            get-beat-license-contract
+            get-course-certificate
+            get-digital-product-download-url
+            get-signed-lesson-url
+            request-producer-payout
+            validate-course-certificate
+          )
+
+          for function_name in "${functions[@]}"; do
+            headers="/tmp/${function_name}-headers.txt"
+            body="/tmp/${function_name}-body.json"
+            status="$(curl --silent --show-error \
+              --dump-header "$headers" \
+              --output "$body" \
+              --write-out '%{http_code}' \
+              -H 'Accept: application/json' \
+              -H 'Cache-Control: no-cache' \
+              "${FUNCTIONS_BASE_URL}/${function_name}")"
+
+            python - "$function_name" "$status" "$headers" "$body" <<'PY'
+          import json
+          import re
+          import sys
+          from pathlib import Path
+
+          name, status, headers_path, body_path = sys.argv[1:5]
+          headers = Path(headers_path).read_text(encoding='utf-8').lower()
+          payload = json.loads(Path(body_path).read_text(encoding='utf-8'))
+          if status != '401':
+              raise SystemExit(f'{name}: expected HTTP 401, got {status}')
+          if not re.search(r'^content-type: application/json(?:; charset=utf-8)?\r?$', headers, re.MULTILINE):
+              raise SystemExit(f'{name}: expected JSON response')
+          if payload.get('code') not in (401, '401') and 'auth' not in str(payload.get('message', '')).lower():
+              raise SystemExit(f'{name}: response does not identify an authorization failure')
+          PY
+            echo "JWT gateway verified for ${function_name}."
+          done
