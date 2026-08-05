@@ -2,7 +2,7 @@
   "project_ref": "ywirfqvobfnunlcsnptm",
   "environment": "dev",
   "result": "manual_connector_sync_success",
-  "audited_source_sha": "a7dba4e1c20a5dec6893507b59266ae9cab47821",
+  "audited_source_sha": "144f0bcb03316c0030f79768d46c61cf376026a1",
   "database": {
     "latest_migration": "20260805051753_reconcile_public_lesson_asset_buckets",
     "clean_replay": "success",
@@ -46,7 +46,7 @@
     "vivendo_preview_commit_cache_ttl_ms": 60000,
     "vivendo_preview_stale_commit_fallback": true,
     "api_v1_version": 3,
-    "api_v1_bundle_sha256": "d22d5d793fd271215b6cdd07bc0596408d059c297a585c8897d0be41a25acb71",
+    "api_v1_bundle_sha256": "54e48513f0dd807cbca107637a66859364de26a5c8dd61c158fab4c173217ffd",
     "api_v1_webhook_max_payload_bytes": 1048576,
     "api_v1_webhook_json_object_required": true,
     "api_v1_webhook_hmac_required": true,
@@ -67,25 +67,35 @@
     "payment_webhook_max_payload_bytes": 1048576,
     "payment_webhook_stream_limited": true,
     "payment_webhook_signature_required_before_body_read": true,
-    "stripe_beat_webhook_version": 3,
-    "stripe_digital_product_webhook_version": 3,
+    "stripe_beat_webhook_version": 4,
+    "stripe_beat_webhook_bundle_sha256": "afebdd046d555a127f92ec8e9138e278d485b735d65d44a36ef60e2c2abd9ce7",
+    "stripe_digital_product_webhook_version": 4,
+    "stripe_digital_product_webhook_bundle_sha256": "7af870b4b3acf9f760edc85d96439e32b6e30722ec2be679efb15774b2dc96bf",
+    "stripe_webhook_max_payload_bytes": 1048576,
+    "stripe_webhook_stream_limited": true,
+    "stripe_webhook_json_required": true,
+    "stripe_webhook_signature_window_seconds": 300,
+    "stripe_webhook_endpoint_specific_secret_precedence": true,
+    "stripe_webhook_remote_guard_verified": true,
     "custom_auth_functions_verify_jwt": false,
     "deployment_status": "active"
   },
   "preview_publication": {
-    "workflow_run_id": 31007239887,
+    "workflow_run_id": 31011655026,
     "workflow_result": "success",
-    "published_source_sha": "a7dba4e1c20a5dec6893507b59266ae9cab47821",
-    "published_static_commit": "885d9f8f1ed21e549eba2c545015a572a310d333",
+    "published_source_sha": "144f0bcb03316c0030f79768d46c61cf376026a1",
+    "published_static_commit": "b24165fceb420fa32feefd332a64fb765e80397b",
     "immutable_html_verified": true,
     "robots_noindex_verified": true,
     "supabase_resolver_health_after_v15_deployment": "success",
-    "api_v1_remote_health": "success"
+    "api_v1_remote_health": "success",
+    "stripe_beat_webhook_remote_guard": "success",
+    "stripe_digital_product_webhook_remote_guard": "success"
   },
   "validation": {
-    "dev_quality_run_id": 31007243966,
+    "dev_quality_run_id": 31011662229,
     "dev_quality_result": "success",
-    "quality_gates_run_id": 31007243779,
+    "quality_gates_run_id": 31011662503,
     "quality_gates_result": "success",
     "e2e_auth_guard": "success",
     "e2e_preview": "success",
@@ -94,7 +104,9 @@
     "payment_webhook_hardening_test": "success",
     "download_access_hardening_test": "success",
     "api_v1_hardening_test": "success",
-    "api_v1_remote_health_test": "success"
+    "api_v1_remote_health_test": "success",
+    "stripe_webhook_hardening_test": "success",
+    "stripe_webhook_remote_guard_test": "success"
   },
   "automated_deployment": {
     "workflow_restored": true,
@@ -116,5 +128,5 @@
     "Enable branch protection for dev and main",
     "Grant the GitHub connector administration permission if branch protection and secret inventory should be automated"
   ],
-  "recorded_at": "2026-08-05T12:52:00Z"
+  "recorded_at": "2026-08-05T13:49:00Z"
 }
