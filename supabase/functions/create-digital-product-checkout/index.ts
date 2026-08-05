@@ -75,10 +75,14 @@ Deno.serve(async (request) => {
   }
 
   const { data: products, error: productError } = await admin.from('seller_products')
-    .select('id,seller_id,title,price_cents,currency,status').in('id', productIds);
+    .select('id,seller_id,title,price_cents,currency,status,is_demo').in('id', productIds);
   if (productError) return reply({ error: productError.message }, 400, origin);
-  if (!products || products.length !== productIds.length || products.some((item) => item.status !== 'published')) {
-    return reply({ error: 'Um ou mais produtos estão indisponíveis.' }, 409, origin);
+  if (
+    !products
+    || products.length !== productIds.length
+    || products.some((item) => item.status !== 'published' || !item.is_demo)
+  ) {
+    return reply({ error: 'Um ou mais produtos estão indisponíveis para o ambiente de demonstração.' }, 409, origin);
   }
 
   const currencies = [...new Set(products.map((item) => item.currency))];
