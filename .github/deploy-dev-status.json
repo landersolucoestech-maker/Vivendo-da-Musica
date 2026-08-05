@@ -2,7 +2,7 @@
   "project_ref": "ywirfqvobfnunlcsnptm",
   "environment": "dev",
   "result": "manual_connector_sync_success",
-  "audited_source_sha": "21b458a33503c10c6b6664a0ee904de60fc394b7",
+  "audited_source_sha": "7d140376fb904a13b4f282c018efe06b548c966e",
   "database": {
     "latest_migration": "20260805051753_reconcile_public_lesson_asset_buckets",
     "clean_replay": "success",
@@ -51,29 +51,35 @@
     "manage_service_catalog_version": 4,
     "manage_service_requests_version": 4,
     "service_delivery_file_access_version": 4,
+    "payment_webhook_version": 2,
+    "payment_webhook_bundle_sha256": "a56cae52bd0727ce9e6dd4d2a4505dcfba7f98f5cb7ee6ae8d743bf017dfe10e",
+    "payment_webhook_max_payload_bytes": 1048576,
+    "payment_webhook_stream_limited": true,
+    "payment_webhook_signature_required_before_body_read": true,
     "stripe_beat_webhook_version": 3,
     "stripe_digital_product_webhook_version": 3,
     "custom_auth_functions_verify_jwt": false,
     "deployment_status": "active"
   },
   "preview_publication": {
-    "workflow_run_id": 31003832237,
+    "workflow_run_id": 31004423375,
     "workflow_result": "success",
-    "published_source_sha": "9fb9c5e53e4af0332238713e94f42925c94eaf59",
-    "published_static_commit": "108d13b61e0b9e38d070b4252e76193f89921304",
+    "published_source_sha": "7d140376fb904a13b4f282c018efe06b548c966e",
+    "published_static_commit": "852d50a1a2c7dcd7af5bb6454160986bf39ab380",
     "immutable_html_verified": true,
     "robots_noindex_verified": true,
     "supabase_resolver_health_after_v15_deployment": "success"
   },
   "validation": {
-    "dev_quality_run_id": 31003423207,
+    "dev_quality_run_id": 31004426294,
     "dev_quality_result": "success",
-    "quality_gates_run_id": 31003422772,
+    "quality_gates_run_id": 31004426223,
     "quality_gates_result": "success",
     "e2e_auth_guard": "success",
     "e2e_preview": "success",
     "demo_edge_function_isolation_test": "success",
-    "preview_publication_contract_test": "success"
+    "preview_publication_contract_test": "success",
+    "payment_webhook_hardening_test": "success"
   },
   "automated_deployment": {
     "workflow_restored": true,
@@ -86,6 +92,7 @@
     ]
   },
   "remaining_configuration": [
+    "Configure STRIPE_WEBHOOK_SECRET for the canonical payment webhook",
     "Configure STRIPE_BEAT_WEBHOOK_SECRET for the beat Stripe endpoint",
     "Configure STRIPE_DIGITAL_PRODUCT_WEBHOOK_SECRET for the digital-product Stripe endpoint",
     "Enable leaked-password protection in Supabase Auth",
@@ -93,5 +100,5 @@
     "Enable branch protection for dev and main",
     "Grant the GitHub connector administration permission if branch protection and secret inventory should be automated"
   ],
-  "recorded_at": "2026-08-05T12:02:15Z"
+  "recorded_at": "2026-08-05T12:15:00Z"
 }
