@@ -5,10 +5,27 @@ select plan(13);
 select is((select public from storage.buckets where id = 'academy-videos'), false, 'academy video delivery bucket is private');
 select is((select public from storage.buckets where id = 'academy-materials'), false, 'academy material delivery bucket is private');
 
-select is(
-  (select count(*) from storage.buckets where id in ('lesson-materials', 'lesson-projects', 'lesson-samples') and public = true),
-  0::bigint,
-  'lesson delivery buckets are private'
+select ok(
+  (select public = false from storage.buckets where id = 'lesson-materials')
+  and (
+    select count(*) = 2
+    from storage.buckets
+    where id in ('lesson-projects', 'lesson-samples')
+      and public = true
+  )
+  and not exists (
+    select 1
+    from pg_policies
+    where schemaname = 'storage'
+      and tablename = 'objects'
+      and cmd = 'SELECT'
+      and ('anon' = any(roles) or 'public' = any(roles))
+      and (
+        coalesce(qual, '') ilike '%lesson-projects%'
+        or coalesce(qual, '') ilike '%lesson-samples%'
+      )
+  ),
+  'lesson deliverables stay private while project and sample URLs remain public without object listing'
 );
 
 select is((select public from storage.buckets where id = 'lesson-videos'), false, 'lesson video delivery bucket is private');
