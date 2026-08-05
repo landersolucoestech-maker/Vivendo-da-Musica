@@ -2,6 +2,10 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { getAdminClient } from "../_shared/supabaseAdmin.ts";
 import { apiHeaders, failure, hmacSha256, json, parsePagination, secureEqual, sha256 } from "../_shared/api.ts";
 
+const MAX_WEBHOOK_BYTES = 1_048_576;
+
+class PayloadTooLargeError extends Error {}
+
 const catalogs = {
   courses: {
     table: "courses",
@@ -50,6 +54,42 @@ function resolveTraceId(req: Request) {
     : crypto.randomUUID();
 }
 
+async function readTextWithLimit(req: Request, maxBytes: number) {
+  const contentLength = Number(req.headers.get("content-length") ?? "0");
+  if (Number.isFinite(contentLength) && contentLength > maxBytes) {
+    throw new PayloadTooLargeError("Webhook payload exceeds 1 MB");
+  }
+  if (!req.body) return "";
+
+  const reader = req.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let totalBytes = 0;
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (!value) continue;
+      totalBytes += value.byteLength;
+      if (totalBytes > maxBytes) {
+        await reader.cancel("payload_too_large");
+        throw new PayloadTooLargeError("Webhook payload exceeds 1 MB");
+      }
+      chunks.push(value);
+    }
+  } finally {
+    reader.releaseLock();
+  }
+
+  const merged = new Uint8Array(totalBytes);
+  let offset = 0;
+  for (const chunk of chunks) {
+    merged.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return new TextDecoder().decode(merged);
+}
+
 async function observe(
   req: Request,
   response: Response,
@@ -87,13 +127,22 @@ async function observe(
 
 async function rateLimit(req: Request, routeKey: string, requestId: string) {
   const forwarded = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
-  const actor = forwarded || req.headers.get("cf-connecting-ip") || "unknown";
-  const actorHash = await sha256(`${Deno.env.get("RATE_LIMIT_SALT") ?? "api-v1"}:${actor}`);
+  const actor = (
+    req.headers.get("cf-connecting-ip")
+    || req.headers.get("x-real-ip")
+    || forwarded
+    || "unknown"
+  ).slice(0, 200);
+  const salt = Deno.env.get("RATE_LIMIT_SALT") ?? Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  if (!salt) {
+    return { response: failure(req, requestId, 503, "RATE_LIMIT_UNAVAILABLE", "Rate limit service unavailable") };
+  }
+  const actorHash = await sha256(`${salt}:${actor}`);
   const admin = getAdminClient();
   const { data, error } = await admin.rpc("consume_api_rate_limit", {
     p_actor_hash: actorHash,
     p_route_key: routeKey,
-    p_limit: routeKey.startsWith("webhook:") ? 120 : 60,
+    p_limit: routeKey.startsWith("webhooks:") ? 120 : 60,
     p_window_seconds: 60,
   });
   if (error) return { response: failure(req, requestId, 503, "RATE_LIMIT_UNAVAILABLE", "Rate limit service unavailable") };
@@ -143,14 +192,44 @@ async function receiveWebhook(req: Request, requestId: string, provider: string)
   if (!eventId || eventId.length > 200 || !eventType || eventType.length > 100 || !supplied) {
     return failure(req, requestId, 400, "INVALID_WEBHOOK_HEADERS", "Webhook id, event and signature are required");
   }
-  const rawBody = await req.text();
-  if (rawBody.length > 1_000_000) return failure(req, requestId, 413, "PAYLOAD_TOO_LARGE", "Webhook payload exceeds 1 MB");
+  const contentType = req.headers.get("content-type")?.toLowerCase() ?? "";
+  if (!contentType.startsWith("application/json")) {
+    return failure(req, requestId, 415, "UNSUPPORTED_MEDIA_TYPE", "Webhook payload must use application/json");
+  }
+
+  let rawBody: string;
+  try {
+    rawBody = await readTextWithLimit(req, MAX_WEBHOOK_BYTES);
+  } catch (error) {
+    if (error instanceof PayloadTooLargeError) {
+      return failure(req, requestId, 413, "PAYLOAD_TOO_LARGE", error.message);
+    }
+    return failure(req, requestId, 400, "INVALID_BODY", "Could not read webhook payload");
+  }
+
   const expected = await hmacSha256(secret, rawBody);
   if (!secureEqual(supplied, expected)) return failure(req, requestId, 401, "INVALID_SIGNATURE", "Webhook signature is invalid");
-  try { JSON.parse(rawBody); } catch { return failure(req, requestId, 400, "INVALID_JSON", "Webhook payload must be valid JSON"); }
+
+  let parsedPayload: Record<string, unknown>;
+  try {
+    const parsed = JSON.parse(rawBody) as unknown;
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      return failure(req, requestId, 400, "INVALID_JSON", "Webhook payload must be a JSON object");
+    }
+    parsedPayload = parsed as Record<string, unknown>;
+  } catch {
+    return failure(req, requestId, 400, "INVALID_JSON", "Webhook payload must be valid JSON");
+  }
+
   const admin = getAdminClient();
   const payloadHash = await sha256(rawBody);
-  const { data, error } = await admin.from("webhook_receipts").insert({ provider, external_event_id: eventId, event_type: eventType, payload_hash: payloadHash }).select("id,processing_status,received_at").single();
+  const { data, error } = await admin.from("webhook_receipts").insert({
+    provider,
+    external_event_id: eventId,
+    event_type: eventType,
+    payload_hash: payloadHash,
+    payload: parsedPayload,
+  }).select("id,processing_status,received_at").single();
   if (error?.code === "23505") return json(req, requestId, { data: { duplicate: true, external_event_id: eventId } }, 200);
   if (error) return failure(req, requestId, 500, "WEBHOOK_PERSIST_FAILED", "Could not persist webhook receipt");
   return json(req, requestId, { data: { ...data, duplicate: false } }, 202);
