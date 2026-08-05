@@ -2,7 +2,7 @@
   "project_ref": "ywirfqvobfnunlcsnptm",
   "environment": "dev",
   "result": "manual_connector_sync_success",
-  "audited_source_sha": "144f0bcb03316c0030f79768d46c61cf376026a1",
+  "audited_source_sha": "35d96f0837eead19d0e5dfb2262f77294fd904ab",
   "database": {
     "latest_migration": "20260805051753_reconcile_public_lesson_asset_buckets",
     "clean_replay": "success",
@@ -77,14 +77,35 @@
     "stripe_webhook_signature_window_seconds": 300,
     "stripe_webhook_endpoint_specific_secret_precedence": true,
     "stripe_webhook_remote_guard_verified": true,
+    "protected_json_max_request_bytes": 16384,
+    "protected_json_object_required": true,
+    "protected_response_no_store": true,
+    "protected_response_nosniff": true,
+    "get_beat_download_url_version": 2,
+    "get_beat_download_url_bundle_sha256": "ba6742b2cabf1a84327304828d8274e2027f8b89187d57e733fde3660219500a",
+    "get_beat_license_contract_version": 2,
+    "get_beat_license_contract_bundle_sha256": "23c134448880a46e11c02db2f019db260adb863aef2586c4134294e2048ee45b",
+    "get_course_certificate_version": 2,
+    "get_course_certificate_bundle_sha256": "180fd061f99967e95b7bfc69314d9a2aa8217e358ddfac1371fbce92d3713346",
+    "get_digital_product_download_url_version": 3,
+    "get_digital_product_download_url_bundle_sha256": "36dca07e004ca14717218342461e35e768af42fcabead2ead5d6d9b20cb7b897",
+    "get_digital_product_download_url_republished_for_exact_source_alignment": true,
+    "get_signed_lesson_url_version": 2,
+    "get_signed_lesson_url_bundle_sha256": "a916340735c019943e03739b3357c642b7eff93b53021321487dff264df1c787",
+    "request_producer_payout_version": 2,
+    "request_producer_payout_bundle_sha256": "2fb44ba7b244c5dfa9867542eb062eca32bfc9d2f711e79b732f5b812cc63589",
+    "validate_course_certificate_version": 2,
+    "validate_course_certificate_bundle_sha256": "d17ebfee78cf63b9479776a950f6d57b1ef484562ff84847c9a7ba0d380471d3",
+    "protected_functions_verify_jwt": true,
+    "protected_functions_remote_unauthenticated_status": 401,
     "custom_auth_functions_verify_jwt": false,
     "deployment_status": "active"
   },
   "preview_publication": {
-    "workflow_run_id": 31011655026,
+    "workflow_run_id": 31013981176,
     "workflow_result": "success",
-    "published_source_sha": "144f0bcb03316c0030f79768d46c61cf376026a1",
-    "published_static_commit": "b24165fceb420fa32feefd332a64fb765e80397b",
+    "published_source_sha": "35d96f0837eead19d0e5dfb2262f77294fd904ab",
+    "published_static_commit": "1bf85642851a0e122f0b50aa9a94cdd4825c799d",
     "immutable_html_verified": true,
     "robots_noindex_verified": true,
     "supabase_resolver_health_after_v15_deployment": "success",
@@ -93,10 +114,12 @@
     "stripe_digital_product_webhook_remote_guard": "success"
   },
   "validation": {
-    "dev_quality_run_id": 31011662229,
+    "dev_quality_run_id": 31013984884,
     "dev_quality_result": "success",
-    "quality_gates_run_id": 31011662503,
+    "quality_gates_run_id": 31013984060,
     "quality_gates_result": "success",
+    "protected_edge_jwt_smoke_run_id": 31013981571,
+    "protected_edge_jwt_smoke_result": "success",
     "e2e_auth_guard": "success",
     "e2e_preview": "success",
     "demo_edge_function_isolation_test": "success",
@@ -106,7 +129,9 @@
     "api_v1_hardening_test": "success",
     "api_v1_remote_health_test": "success",
     "stripe_webhook_hardening_test": "success",
-    "stripe_webhook_remote_guard_test": "success"
+    "stripe_webhook_remote_guard_test": "success",
+    "protected_edge_function_hardening_test": "success",
+    "protected_edge_remote_guard_test": "success"
   },
   "automated_deployment": {
     "workflow_restored": true,
@@ -128,5 +153,5 @@
     "Enable branch protection for dev and main",
     "Grant the GitHub connector administration permission if branch protection and secret inventory should be automated"
   ],
-  "recorded_at": "2026-08-05T13:49:00Z"
+  "recorded_at": "2026-08-05T14:16:00Z"
 }
