@@ -2,11 +2,14 @@ import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.50.0';
 
 const DEV_PROJECT_REF = 'ywirfqvobfnunlcsnptm';
+const MAX_REQUEST_BYTES = 16_384;
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const BEAT_BUCKETS = new Set(['beat-masters', 'beat-stems']);
 const CONTRACT_BUCKET = 'beat-license-contracts';
 const emptyZip = new Uint8Array([80, 75, 5, 6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
 const emptyWav = new Uint8Array([82, 73, 70, 70, 36, 0, 0, 0, 87, 65, 86, 69, 102, 109, 116, 32, 16, 0, 0, 0, 1, 0, 1, 0, 68, 172, 0, 0, 136, 88, 1, 0, 2, 0, 16, 0, 100, 97, 116, 97, 0, 0, 0, 0]);
+
+class PayloadTooLargeError extends Error {}
 
 function resolveOrigin(request: Request): string | null {
   const origin = request.headers.get('origin');
@@ -30,23 +33,79 @@ function responseHeaders(origin: string | null): HeadersInit {
     ...(origin ? { 'Access-Control-Allow-Origin': origin, Vary: 'Origin' } : {}),
     'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
-    'Cache-Control': 'no-store',
-    'Content-Type': 'application/json',
+    'Cache-Control': 'no-store, max-age=0',
+    'Content-Type': 'application/json; charset=utf-8',
+    'Referrer-Policy': 'no-referrer',
+    'X-Content-Type-Options': 'nosniff',
   };
 }
 
 const json = (body: unknown, status: number, origin: string | null) =>
   new Response(JSON.stringify(body), { status, headers: responseHeaders(origin) });
 
+const readJsonWithLimit = async (request: Request, maxBytes: number) => {
+  const contentLength = Number(request.headers.get('content-length') ?? '0');
+  if (Number.isFinite(contentLength) && contentLength > maxBytes) {
+    throw new PayloadTooLargeError('Payload excede o limite permitido.');
+  }
+
+  if (!request.body) return null;
+  const reader = request.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let totalBytes = 0;
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (!value) continue;
+      totalBytes += value.byteLength;
+      if (totalBytes > maxBytes) {
+        await reader.cancel('payload_too_large');
+        throw new PayloadTooLargeError('Payload excede o limite permitido.');
+      }
+      chunks.push(value);
+    }
+  } finally {
+    reader.releaseLock();
+  }
+
+  const merged = new Uint8Array(totalBytes);
+  let offset = 0;
+  for (const chunk of chunks) {
+    merged.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+
+  const parsed = JSON.parse(new TextDecoder().decode(merged)) as unknown;
+  return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
+    ? parsed as Record<string, unknown>
+    : null;
+};
+
 Deno.serve(async (request) => {
   const requestOrigin = request.headers.get('origin');
   const origin = resolveOrigin(request);
   if (requestOrigin && !origin) return json({ error: 'Origem não autorizada.' }, 403, null);
-  if (request.method === 'OPTIONS') return new Response('ok', { headers: responseHeaders(origin) });
+  if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: responseHeaders(origin) });
   if (request.method !== 'POST') return json({ error: 'Método não permitido.' }, 405, origin);
 
+  const contentType = request.headers.get('content-type')?.toLowerCase() ?? '';
+  if (!contentType.startsWith('application/json')) {
+    return json({ error: 'Tipo de conteúdo não suportado.' }, 415, origin);
+  }
+
   try {
-    const body = await request.json().catch(() => null) as { kind?: unknown; id?: unknown; action?: unknown } | null;
+    let body: Record<string, unknown> | null;
+    try {
+      body = await readJsonWithLimit(request, MAX_REQUEST_BYTES);
+    } catch (error) {
+      if (error instanceof PayloadTooLargeError) {
+        return json({ error: error.message }, 413, origin);
+      }
+      return json({ error: 'JSON inválido.' }, 400, origin);
+    }
+
     const kind = body?.kind;
     const id = body?.id;
     const action = body?.action ?? 'download';
