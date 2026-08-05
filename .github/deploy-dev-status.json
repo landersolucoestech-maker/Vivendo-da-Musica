@@ -57,14 +57,13 @@
     "deployment_status": "active"
   },
   "preview_publication": {
-    "workflow_run_id": 31003419926,
+    "workflow_run_id": 31003832237,
     "workflow_result": "success",
-    "published_source_sha": "21b458a33503c10c6b6664a0ee904de60fc394b7",
-    "published_static_commit": "0b3996ccbc757580e40f57b0e7764efa586dfdbc",
+    "published_source_sha": "9fb9c5e53e4af0332238713e94f42925c94eaf59",
+    "published_static_commit": "108d13b61e0b9e38d070b4252e76193f89921304",
     "immutable_html_verified": true,
     "robots_noindex_verified": true,
-    "supabase_resolver_health_before_v15_deployment": "success",
-    "supabase_resolver_health_after_v15_deployment": "pending"
+    "supabase_resolver_health_after_v15_deployment": "success"
   },
   "validation": {
     "dev_quality_run_id": 31003423207,
@@ -94,5 +93,5 @@
     "Enable branch protection for dev and main",
     "Grant the GitHub connector administration permission if branch protection and secret inventory should be automated"
   ],
-  "recorded_at": "2026-08-05T12:00:46Z"
+  "recorded_at": "2026-08-05T12:02:15Z"
 }
