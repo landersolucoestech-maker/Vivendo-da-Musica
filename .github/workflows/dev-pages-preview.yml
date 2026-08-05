@@ -28,6 +28,8 @@ jobs:
       STATIC_BRANCH: dev-preview-static
       PREVIEW_HEALTH_URL: https://ywirfqvobfnunlcsnptm.supabase.co/functions/v1/vivendo-preview?health=1
       API_V1_HEALTH_URL: https://ywirfqvobfnunlcsnptm.supabase.co/functions/v1/api-v1/v1/health
+      STRIPE_BEAT_WEBHOOK_URL: https://ywirfqvobfnunlcsnptm.supabase.co/functions/v1/stripe-beat-webhook
+      STRIPE_DIGITAL_PRODUCT_WEBHOOK_URL: https://ywirfqvobfnunlcsnptm.supabase.co/functions/v1/stripe-digital-product-webhook
     steps:
       - name: Checkout dev
         uses: actions/checkout@v6
@@ -218,6 +220,48 @@ jobs:
           echo 'Body:' >&2
           cat /tmp/api-v1-health.json >&2 || true
           exit 1
+
+      - name: Verify remote Stripe webhook guards
+        shell: bash
+        run: |
+          set -euo pipefail
+          for spec in \
+            "beat:${STRIPE_BEAT_WEBHOOK_URL}" \
+            "digital-product:${STRIPE_DIGITAL_PRODUCT_WEBHOOK_URL}"; do
+            name="${spec%%:*}"
+            url="${spec#*:}"
+            headers="/tmp/${name}-stripe-headers.txt"
+            body="/tmp/${name}-stripe-body.json"
+            status="$(curl --silent --show-error \
+              --dump-header "$headers" \
+              --output "$body" \
+              --write-out '%{http_code}' \
+              -H 'Accept: application/json' \
+              -H 'Cache-Control: no-cache' \
+              "$url")"
+
+            python - "$name" "$status" "$headers" "$body" <<'PY'
+          import json
+          import re
+          import sys
+          from pathlib import Path
+
+          name, status, headers_path, body_path = sys.argv[1:5]
+          headers = Path(headers_path).read_text(encoding='utf-8').lower()
+          payload = json.loads(Path(body_path).read_text(encoding='utf-8'))
+          if status != '405':
+              raise SystemExit(f'{name}: expected HTTP 405, got {status}')
+          if payload.get('error') != 'Método não permitido.':
+              raise SystemExit(f'{name}: unexpected response body')
+          if not re.search(r'^cache-control: no-store, max-age=0\r?$', headers, re.MULTILINE):
+              raise SystemExit(f'{name}: missing no-store header')
+          if not re.search(r'^content-type: application/json; charset=utf-8\r?$', headers, re.MULTILINE):
+              raise SystemExit(f'{name}: unexpected content type')
+          if not re.search(r'^x-content-type-options: nosniff\r?$', headers, re.MULTILINE):
+              raise SystemExit(f'{name}: missing nosniff header')
+          PY
+            echo "Remote ${name} Stripe webhook guard verified."
+          done
 
       - name: Upload compiled preview diagnostic
         uses: actions/upload-artifact@v7
