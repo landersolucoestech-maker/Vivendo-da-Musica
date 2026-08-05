@@ -37,9 +37,11 @@ select ok(
 );
 
 select ok(
-  not has_schema_privilege('anon', 'authz_private', 'USAGE')
-  and not has_schema_privilege('authenticated', 'authz_private', 'USAGE'),
-  'authorization implementation schema remains unavailable for direct API lookup'
+  has_schema_privilege('anon', 'authz_private', 'USAGE')
+  and has_schema_privilege('authenticated', 'authz_private', 'USAGE')
+  and not has_schema_privilege('anon', 'authz_private', 'CREATE')
+  and not has_schema_privilege('authenticated', 'authz_private', 'CREATE'),
+  'security-invoker wrappers have schema usage without schema creation'
 );
 
 select * from finish();
