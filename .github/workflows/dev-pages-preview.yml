@@ -104,39 +104,35 @@ jobs:
           git -C "$publish_dir" push --force origin \
             "HEAD:refs/heads/${STATIC_BRANCH}"
 
-      - name: Verify published commit marker
+      - name: Verify immutable published commit
         shell: bash
         run: |
           set -euo pipefail
-          raw_url="https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/${STATIC_BRANCH}/index.html"
-          for attempt in 1 2 3 4 5; do
-            if curl --fail --silent --show-error \
-              -H 'Cache-Control: no-cache' \
-              "${raw_url}?build=${BUILD_SHA}" \
-              | grep --quiet "vdm-preview-commit.*${BUILD_SHA}"; then
-              echo "Published preview verified for ${BUILD_SHA}."
-              exit 0
-            fi
-            sleep $((attempt * 2))
-          done
-          echo "The published preview does not contain ${BUILD_SHA}." >&2
-          exit 1
+          published_commit="$(git ls-remote \
+            "https://github.com/${GITHUB_REPOSITORY}.git" \
+            "refs/heads/${STATIC_BRANCH}" | awk '{print $1}')"
+          test "${#published_commit}" -eq 40
+          echo "PUBLISHED_COMMIT=${published_commit}" >> "$GITHUB_ENV"
+
+          raw_url="https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/${published_commit}/index.html"
+          curl --fail --silent --show-error \
+            -H 'Cache-Control: no-cache' \
+            "$raw_url" \
+            | grep --quiet "vdm-preview-commit.*${BUILD_SHA}"
+          echo "Immutable preview commit ${published_commit} contains ${BUILD_SHA}."
 
       - name: Verify Supabase preview resolver
         shell: bash
         run: |
           set -euo pipefail
-          expected_commit="$(git ls-remote \
-            "https://github.com/${GITHUB_REPOSITORY}.git" \
-            "refs/heads/${STATIC_BRANCH}" | awk '{print $1}')"
-          test "${#expected_commit}" -eq 40
+          test "${#PUBLISHED_COMMIT}" -eq 40
 
           for attempt in 1 2 3 4 5; do
             payload="$(curl --fail --silent --show-error \
               -H 'Cache-Control: no-cache' \
               "${PREVIEW_HEALTH_URL}&build=${BUILD_SHA}" || true)"
 
-            if python - "$expected_commit" "$payload" <<'PY'
+            if python - "$PUBLISHED_COMMIT" "$payload" <<'PY'
           import json
           import sys
 
@@ -151,7 +147,7 @@ jobs:
               raise SystemExit(1)
           PY
             then
-              echo "Supabase preview resolver verified for ${expected_commit}."
+              echo "Supabase preview resolver verified for ${PUBLISHED_COMMIT}."
               exit 0
             fi
             sleep $((attempt * 2))
