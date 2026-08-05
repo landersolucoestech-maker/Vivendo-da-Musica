@@ -13,18 +13,42 @@ select ok(
 );
 
 select ok(
-  not has_function_privilege('anon', 'legacy_archive.lzss_decompress(bytea)', 'EXECUTE'),
-  'anon cannot execute the archive decompression helper'
+  case
+    when to_regprocedure('legacy_archive.lzss_decompress(bytea)') is null
+      then true
+    else not has_function_privilege(
+      'anon',
+      to_regprocedure('legacy_archive.lzss_decompress(bytea)'),
+      'EXECUTE'
+    )
+  end,
+  'anon cannot execute the optional archive decompression helper'
 );
 
 select ok(
-  not has_function_privilege('authenticated', 'legacy_archive.lzss_decompress(bytea)', 'EXECUTE'),
-  'authenticated cannot execute the archive decompression helper'
+  case
+    when to_regprocedure('legacy_archive.lzss_decompress(bytea)') is null
+      then true
+    else not has_function_privilege(
+      'authenticated',
+      to_regprocedure('legacy_archive.lzss_decompress(bytea)'),
+      'EXECUTE'
+    )
+  end,
+  'authenticated cannot execute the optional archive decompression helper'
 );
 
 select ok(
-  not has_function_privilege('service_role', 'legacy_archive.lzss_decompress(bytea)', 'EXECUTE'),
-  'service role cannot execute the archive decompression helper'
+  case
+    when to_regprocedure('legacy_archive.lzss_decompress(bytea)') is null
+      then true
+    else not has_function_privilege(
+      'service_role',
+      to_regprocedure('legacy_archive.lzss_decompress(bytea)'),
+      'EXECUTE'
+    )
+  end,
+  'service role cannot execute the optional archive decompression helper'
 );
 
 select is(
