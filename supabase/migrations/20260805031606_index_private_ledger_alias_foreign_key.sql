@@ -1,0 +1,2 @@
+create index if not exists legacy_ledger_aliases_retained_transaction_idx
+on app_private.legacy_ledger_transaction_aliases (retained_transaction_id);
