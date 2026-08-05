@@ -25,14 +25,16 @@ describe('isolamento dos fluxos sintéticos nas Edge Functions', () => {
 
   it('deriva o ambiente de catálogo a partir do perfil persistido', () => {
     expect(serviceCatalog).toContain("select('full_name,avatar_url,is_demo')");
-    expect(serviceCatalog).toContain('const actorIsDemo = Boolean(actorProfile?.is_demo);');
+    expect(serviceCatalog).toContain('if (actorError || !actorProfile)');
+    expect(serviceCatalog).toContain('const actorIsDemo = Boolean(actorProfile.is_demo);');
     expect(serviceCatalog).toContain('is_demo: actorIsDemo');
     expect(serviceCatalog).toContain(".eq('is_demo', actorIsDemo)");
   });
 
   it('impede propostas e solicitações entre ambientes demo e reais', () => {
     expect(serviceRequests).toContain("select('is_demo')");
-    expect(serviceRequests).toContain('const actorIsDemo = Boolean(actorProfile?.is_demo);');
+    expect(serviceRequests).toContain('if (actorError || !actorProfile)');
+    expect(serviceRequests).toContain('const actorIsDemo = Boolean(actorProfile.is_demo);');
     expect(serviceRequests).toContain('Boolean(listing.is_demo) !== actorIsDemo');
     expect(serviceRequests).toContain('Boolean(serviceRequest.is_demo) !== actorIsDemo');
     expect(serviceRequests).toContain('Boolean(relatedRequest?.is_demo) !== actorIsDemo');
@@ -40,7 +42,8 @@ describe('isolamento dos fluxos sintéticos nas Edge Functions', () => {
 
   it('impede upload e download de entregas entre ambientes', () => {
     expect(serviceDelivery).toContain("select('is_demo')");
-    expect(serviceDelivery).toContain('const actorIsDemo = Boolean(actorProfile?.is_demo);');
+    expect(serviceDelivery).toContain('if (actorError || !actorProfile)');
+    expect(serviceDelivery).toContain('const actorIsDemo = Boolean(actorProfile.is_demo);');
     expect(serviceDelivery).toContain('Boolean(relation?.is_demo) !== actorIsDemo');
     expect(serviceDelivery).toContain('Boolean(contract.is_demo) !== actorIsDemo');
   });
