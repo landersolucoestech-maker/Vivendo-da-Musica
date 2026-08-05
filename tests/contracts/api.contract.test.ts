@@ -23,9 +23,11 @@ describe("API v1 contract", () => {
     expect(handler).toContain('event: "api.request.completed"');
   });
 
-  it("requires signed, size-limited and idempotent webhook delivery", () => {
+  it("requires signed, byte-limited and idempotent webhook delivery", () => {
     expect(handler).toContain("hmacSha256(secret, rawBody)");
-    expect(handler).toContain("rawBody.length > 1_000_000");
+    expect(handler).toContain("const MAX_WEBHOOK_BYTES = 1_048_576;");
+    expect(handler).toContain("totalBytes > maxBytes");
+    expect(handler).toContain("readTextWithLimit(req, MAX_WEBHOOK_BYTES)");
     expect(handler).toContain('error?.code === "23505"');
   });
 });
