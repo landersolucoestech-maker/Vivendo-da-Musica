@@ -18,7 +18,7 @@ select is(
       )
   ),
   0::bigint,
-  'all legacy archive tables have a primary key'
+  'every existing legacy archive table has a primary key'
 );
 
 select is(
@@ -34,8 +34,20 @@ select is(
       and column_name = 'archive_id'
       and is_identity = 'YES'
   ),
-  3::bigint,
-  'JSON snapshot archives use synthetic identity keys'
+  (
+    select count(*)::bigint
+    from pg_class as archive_table
+    join pg_namespace as archive_schema
+      on archive_schema.oid = archive_table.relnamespace
+    where archive_schema.nspname = 'legacy_archive'
+      and archive_table.relkind = 'r'
+      and archive_table.relname in (
+        'community_group_members_before_id_removal',
+        'coupon_redemptions_before_order_reference_removal',
+        'lesson_files_before_aula_id_removal'
+      )
+  ),
+  'every existing JSON snapshot archive uses a synthetic identity key'
 );
 
 select is(
