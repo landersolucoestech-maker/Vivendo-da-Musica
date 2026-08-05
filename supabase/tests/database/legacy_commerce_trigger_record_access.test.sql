@@ -18,7 +18,7 @@ select ok(
   (
     select position('to_jsonb(new)' in lower(pg_get_functiondef(p.oid))) > 0
       and position('new.order_id' in lower(pg_get_functiondef(p.oid))) = 0
-      and position("row_data ->> 'order_id'" in lower(pg_get_functiondef(p.oid))) > 0
+      and position('row_data ->> ''order_id''' in lower(pg_get_functiondef(p.oid))) > 0
     from pg_proc p
     join pg_namespace n on n.oid = p.pronamespace
     where n.nspname = 'app_private'
