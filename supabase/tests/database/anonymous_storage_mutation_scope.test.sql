@@ -32,7 +32,7 @@ select is(
 
 select is(
   (
-    select array_agg(policyname order by policyname)
+    select array_agg(policyname::text order by policyname)
     from pg_policies
     where schemaname = 'storage'
       and tablename = 'objects'
