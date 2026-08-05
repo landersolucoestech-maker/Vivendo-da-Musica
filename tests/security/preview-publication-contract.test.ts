@@ -29,16 +29,17 @@ describe('contrato de publicação do preview estático', () => {
     expect(workflow).toContain('PRIVATE KEY');
   });
 
-  it('verifica que o commit publicado é exatamente o commit compilado', () => {
+  it('verifica o build por uma URL imutável baseada no SHA publicado', () => {
     expect(workflow).toContain('vdm-preview-commit');
-    expect(workflow).toContain('raw.githubusercontent.com/${GITHUB_REPOSITORY}/${STATIC_BRANCH}/index.html');
-    expect(workflow).toContain('Published preview verified for ${BUILD_SHA}.');
+    expect(workflow).toContain('PUBLISHED_COMMIT=${published_commit}');
+    expect(workflow).toContain('raw.githubusercontent.com/${GITHUB_REPOSITORY}/${published_commit}/index.html');
+    expect(workflow).toContain('Immutable preview commit ${published_commit} contains ${BUILD_SHA}.');
   });
 
   it('valida o resolvedor Supabase contra o commit remoto da branch estática', () => {
     expect(workflow).toContain('PREVIEW_HEALTH_URL: https://ywirfqvobfnunlcsnptm.supabase.co/functions/v1/vivendo-preview?health=1');
     expect(workflow).toContain('git ls-remote');
     expect(workflow).toContain("payload.get('staticCommit') != expected_commit");
-    expect(workflow).toContain('Supabase preview resolver verified for ${expected_commit}.');
+    expect(workflow).toContain('Supabase preview resolver verified for ${PUBLISHED_COMMIT}.');
   });
 });
