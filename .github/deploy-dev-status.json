@@ -2,7 +2,7 @@
   "project_ref": "ywirfqvobfnunlcsnptm",
   "environment": "dev",
   "result": "manual_connector_sync_success",
-  "audited_source_sha": "c08fff52daf3458f776abd32ba7924a87be62b24",
+  "audited_source_sha": "8200f88b9199de02c97bd171cea427a3ada3470b",
   "database": {
     "latest_migration": "20260805051753_reconcile_public_lesson_asset_buckets",
     "clean_replay": "success",
@@ -30,27 +30,41 @@
   },
   "application": {
     "private_ledger_queried_in_preview": false,
-    "private_ledger_available_to_authenticated_admin": true
+    "private_ledger_available_to_authenticated_admin": true,
+    "demo_checkout_catalog_isolated": true,
+    "demo_service_catalog_isolated": true,
+    "demo_service_requests_isolated": true,
+    "demo_service_delivery_isolated": true
   },
   "edge_functions": {
     "active_count": 19,
     "vivendo_preview_version": 14,
+    "create_beat_checkout_version": 8,
+    "create_course_checkout_version": 7,
+    "create_digital_product_checkout_version": 7,
+    "manage_service_catalog_version": 4,
+    "manage_service_requests_version": 4,
+    "service_delivery_file_access_version": 4,
     "stripe_beat_webhook_version": 3,
     "stripe_digital_product_webhook_version": 3,
-    "stripe_webhooks_verify_jwt": false
+    "custom_auth_functions_verify_jwt": false,
+    "deployment_status": "active",
+    "http_smoke": "not_executed_runtime_dns_unavailable"
   },
   "validation": {
-    "dev_quality_run_id": 30977960844,
+    "dev_quality_run_id": 31001775961,
     "dev_quality_result": "success",
-    "quality_gates_run_id": 30977960819,
+    "quality_gates_run_id": 31001775881,
     "quality_gates_result": "success",
     "e2e_auth_guard": "success",
-    "e2e_preview": "success"
+    "e2e_preview": "success",
+    "demo_edge_function_isolation_test": "success"
   },
   "automated_deployment": {
     "workflow_restored": true,
     "controlled_trigger_required": true,
     "last_run_skipped_without_trigger": true,
+    "manual_dev_edge_deployment": "success",
     "blocked_missing_credentials": [
       "SUPABASE_ACCESS_TOKEN",
       "SUPABASE_DB_PASSWORD"
@@ -60,7 +74,9 @@
     "Configure STRIPE_BEAT_WEBHOOK_SECRET for the beat Stripe endpoint",
     "Configure STRIPE_DIGITAL_PRODUCT_WEBHOOK_SECRET for the digital-product Stripe endpoint",
     "Enable leaked-password protection in Supabase Auth",
-    "Enable branch protection for dev and main"
+    "Change Supabase Auth database connection allocation from an absolute count to a percentage",
+    "Enable branch protection for dev and main",
+    "Grant the GitHub connector administration permission if branch protection and secret inventory should be automated"
   ],
-  "recorded_at": "2026-08-05T05:27:37Z"
+  "recorded_at": "2026-08-05T11:40:28Z"
 }
