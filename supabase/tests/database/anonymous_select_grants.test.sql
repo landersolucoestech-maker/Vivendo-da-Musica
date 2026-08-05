@@ -4,7 +4,7 @@ select plan(2);
 
 select is(
   (
-    select array_agg(table_class.relname order by table_class.relname)
+    select count(*)::bigint
     from pg_class table_class
     join pg_namespace schema_name on schema_name.oid = table_class.relnamespace
     where schema_name.nspname = 'public'
@@ -19,16 +19,17 @@ select is(
           and ('anon' = any(policy.roles) or 'public' = any(policy.roles))
       )
   ),
-  array['account_capabilities']::name[],
-  'anonymous SELECT without a direct policy is limited to the reviewed capability dependency'
+  0::bigint,
+  'every anonymous table SELECT grant has an applicable RLS policy'
 );
 
 select ok(
   not has_table_privilege('anon', 'public.webhook_receipts', 'SELECT')
   and not has_table_privilege('anon', 'public.financial_accounts', 'SELECT')
   and not has_table_privilege('anon', 'public.payment_reconciliation_reports', 'SELECT')
-  and not has_table_privilege('anon', 'public.ledger_account_balances', 'SELECT'),
-  'anonymous cannot select operational or financial internals'
+  and not has_table_privilege('anon', 'public.ledger_account_balances', 'SELECT')
+  and not has_table_privilege('anon', 'public.account_capabilities', 'SELECT'),
+  'anonymous cannot select operational, financial, or capability internals'
 );
 
 select * from finish();
