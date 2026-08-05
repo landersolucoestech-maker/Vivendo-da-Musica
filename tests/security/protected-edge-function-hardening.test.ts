@@ -8,6 +8,7 @@ const sources = {
   beatDownload: read('supabase/functions/get-beat-download-url/index.ts'),
   beatContract: read('supabase/functions/get-beat-license-contract/index.ts'),
   courseCertificate: read('supabase/functions/get-course-certificate/index.ts'),
+  certificateValidation: read('supabase/functions/validate-course-certificate/index.ts'),
   digitalDownload: read('supabase/functions/get-digital-product-download-url/index.ts'),
   lessonDownload: read('supabase/functions/get-signed-lesson-url/index.ts'),
   producerPayout: read('supabase/functions/request-producer-payout/index.ts'),
@@ -35,7 +36,7 @@ describe('hardening das Edge Functions protegidas por JWT', () => {
     expect(helper).toContain('"Access-Control-Allow-Methods": "POST, OPTIONS"');
   });
 
-  it('obriga todas as rotas privadas mutáveis a usar o helper compartilhado', () => {
+  it('obriga as rotas protegidas com corpo JSON a usar o helper compartilhado', () => {
     for (const source of protectedSources) {
       expect(source).toContain('readProtectedJsonObject(request)');
       expect(source).toContain('protectedOptions()');
@@ -65,6 +66,13 @@ describe('hardening das Edge Functions protegidas por JWT', () => {
     expect(sources.courseCertificate).toContain('["admin", "super_admin"]');
     expect(sources.courseCertificate).toContain('certificate.revoked_at');
     expect(sources.courseCertificate).toContain('"Cache-Control": "private, no-store, max-age=0"');
+  });
+
+  it('limita validações de certificado e não expõe falhas do banco', () => {
+    expect(sources.certificateValidation).toContain('CODE_PATTERN');
+    expect(sources.certificateValidation).toContain('readProtectedJsonObject(request)');
+    expect(sources.certificateValidation).toContain('Não foi possível validar o certificado.');
+    expect(sources.certificateValidation).not.toContain('error instanceof Error ? error.message');
   });
 
   it('mantém produtos digitais restritos a compras pagas do usuário', () => {
