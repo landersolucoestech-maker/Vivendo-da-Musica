@@ -54,12 +54,13 @@ describe('contratos de autenticação das Edge Functions', () => {
     const beatWebhook = readProjectFile('supabase/functions/stripe-beat-webhook/index.ts');
     const productWebhook = readProjectFile('supabase/functions/stripe-digital-product-webhook/index.ts');
     const canonicalWebhook = readProjectFile('supabase/functions/payment-webhook/index.ts');
+    const sharedWebhook = readProjectFile('supabase/functions/_shared/stripeWebhook.ts');
 
-    expect(beatWebhook).toContain('STRIPE_BEAT_WEBHOOK_SECRET');
-    expect(productWebhook).toContain('STRIPE_DIGITAL_PRODUCT_WEBHOOK_SECRET');
+    expect(beatWebhook).toContain('[\n    "STRIPE_BEAT_WEBHOOK_SECRET",\n    "STRIPE_WEBHOOK_SECRET",\n  ]');
+    expect(productWebhook).toContain('[\n    "STRIPE_DIGITAL_PRODUCT_WEBHOOK_SECRET",\n    "STRIPE_WEBHOOK_SECRET",\n  ]');
     expect(canonicalWebhook).toContain('STRIPE_WEBHOOK_SECRET');
-    expect(beatWebhook).toContain('Deno.env.get("STRIPE_WEBHOOK_SECRET")');
-    expect(productWebhook).toContain('Deno.env.get("STRIPE_WEBHOOK_SECRET")');
+    expect(sharedWebhook).toContain('Deno.env.get(name)');
+    expect(sharedWebhook).toContain('for (const name of secretNames)');
   });
 
   it('não desabilita JWT nas rotas privadas de download e certificado', () => {
