@@ -1,6 +1,6 @@
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(8);
+select plan(12);
 
 select is(
   (
@@ -124,6 +124,67 @@ select is(
   ),
   2::bigint,
   'public lesson asset reads remain available'
+);
+
+select is(
+  (
+    select count(*)::bigint
+    from pg_policies
+    where schemaname = 'storage'
+      and tablename = 'objects'
+      and policyname in (
+        'Users can upload their own avatar',
+        'Users can update their own avatar',
+        'Users can delete their own avatar'
+      )
+  ),
+  0::bigint,
+  'duplicate legacy avatar write policies are removed'
+);
+
+select is(
+  (
+    select count(*)::bigint
+    from pg_policies
+    where schemaname = 'storage'
+      and tablename = 'objects'
+      and policyname in (
+        'avatars_owner_insert',
+        'avatars_owner_update',
+        'avatars_owner_delete'
+      )
+      and 'authenticated' = any(roles)
+  ),
+  3::bigint,
+  'authenticated owner-scoped avatar writes remain active'
+);
+
+select is(
+  (
+    select count(*)::bigint
+    from pg_policies
+    where schemaname = 'storage'
+      and tablename = 'objects'
+      and policyname = 'avatars_owner_update'
+      and cmd = 'UPDATE'
+      and with_check is not null
+  ),
+  1::bigint,
+  'avatar updates validate both source and destination paths'
+);
+
+select is(
+  (
+    select count(*)::bigint
+    from pg_policies
+    where schemaname = 'storage'
+      and tablename = 'objects'
+      and policyname = 'Avatar images are publicly accessible'
+      and cmd = 'SELECT'
+      and 'public' = any(roles)
+  ),
+  1::bigint,
+  'public avatar reads remain available'
 );
 
 select * from finish();
