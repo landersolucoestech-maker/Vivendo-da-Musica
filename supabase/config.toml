@@ -1,4 +1,40 @@
 project_id = "ywirfqvobfnunlcsnptm"
 
+# Functions below intentionally bypass the platform JWT gateway because they
+# expose public reads/previews, isolated DEV interactions, checkout entry
+# points, or provider webhooks with custom authentication/signature validation.
 [functions.api-v1]
+verify_jwt = false
+
+[functions.create-beat-checkout]
+verify_jwt = false
+
+[functions.create-course-checkout]
+verify_jwt = false
+
+[functions.create-digital-product-checkout]
+verify_jwt = false
+
+[functions.download-access]
+verify_jwt = false
+
+[functions.manage-service-catalog]
+verify_jwt = false
+
+[functions.manage-service-requests]
+verify_jwt = false
+
+[functions.payment-webhook]
+verify_jwt = false
+
+[functions.service-delivery-file-access]
+verify_jwt = false
+
+[functions.stripe-beat-webhook]
+verify_jwt = false
+
+[functions.stripe-digital-product-webhook]
+verify_jwt = false
+
+[functions.vivendo-preview]
 verify_jwt = false
