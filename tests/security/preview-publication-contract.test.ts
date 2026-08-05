@@ -29,11 +29,19 @@ describe('contrato de publicação do preview estático', () => {
     expect(workflow).toContain('PRIVATE KEY');
   });
 
+  it('bloqueia indexação do ambiente de desenvolvimento', () => {
+    expect(workflow).toContain('<meta name="robots" content="noindex, nofollow, noarchive" />');
+    expect(workflow).toContain('<meta name="googlebot" content="noindex, nofollow, noarchive" />');
+    expect(workflow).toContain("Path('dist/robots.txt').write_text('User-agent: *\\nDisallow: /\\n'");
+    expect(workflow).toContain("grep --quiet '^Disallow: /$' dist/robots.txt");
+    expect(workflow).toContain('contains ${BUILD_SHA} and blocks indexing');
+  });
+
   it('verifica o build por uma URL imutável baseada no SHA publicado', () => {
     expect(workflow).toContain('vdm-preview-commit');
     expect(workflow).toContain('PUBLISHED_COMMIT=${published_commit}');
-    expect(workflow).toContain('raw.githubusercontent.com/${GITHUB_REPOSITORY}/${published_commit}/index.html');
-    expect(workflow).toContain('Immutable preview commit ${published_commit} contains ${BUILD_SHA}.');
+    expect(workflow).toContain('raw.githubusercontent.com/${GITHUB_REPOSITORY}/${published_commit}');
+    expect(workflow).toContain('Immutable preview commit ${published_commit} contains ${BUILD_SHA}');
   });
 
   it('valida o resolvedor Supabase contra o commit remoto da branch estática', () => {
