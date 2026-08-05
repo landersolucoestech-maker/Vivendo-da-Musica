@@ -1,4 +1,4 @@
-name: Dev Preview Artifact
+name: Dev Preview Static
 
 on:
   push:
@@ -9,38 +9,12 @@ permissions:
   contents: write
 
 concurrency:
-  group: dev-preview-artifact
+  group: dev-preview-static
   cancel-in-progress: true
 
 jobs:
-  cleanup-legacy-preview-branch:
-    name: Remove legacy preview branch
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      - name: Delete dev-preview-static if present
-        env:
-          GH_TOKEN: ${{ github.token }}
-          GH_REPO: ${{ github.repository }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          status="$(curl -sS -o /tmp/delete-response.json -w '%{http_code}' \
-            -X DELETE \
-            -H "Authorization: Bearer ${GH_TOKEN}" \
-            -H "Accept: application/vnd.github+json" \
-            -H "X-GitHub-Api-Version: 2022-11-28" \
-            "https://api.github.com/repos/${GH_REPO}/git/refs/heads/dev-preview-static")"
-          if [ "$status" != "204" ] && [ "$status" != "422" ]; then
-            cat /tmp/delete-response.json
-            echo "Failed deleting dev-preview-static: HTTP ${status}" >&2
-            exit 1
-          fi
-          echo "Legacy preview branch deleted or already absent."
-
-  build:
-    name: Build dev preview artifact
-    needs: cleanup-legacy-preview-branch
+  build-and-publish:
+    name: Build and publish dev preview
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
@@ -51,6 +25,7 @@ jobs:
       VITE_USE_MOCK_DATA: "false"
       VITE_BASE_PATH: ./
       VITE_ROUTER_MODE: browser
+      STATIC_BRANCH: dev-preview-static
     steps:
       - name: Checkout dev
         uses: actions/checkout@v6
@@ -73,9 +48,10 @@ jobs:
       - name: Build preview
         run: npm run build
 
-      - name: Stamp build and fallback document
+      - name: Stamp and validate compiled preview
         shell: bash
         run: |
+          set -euo pipefail
           python - <<'PY'
           import os
           from pathlib import Path
@@ -88,10 +64,64 @@ jobs:
           Path('dist/404.html').write_text(html, encoding='utf-8')
           Path('dist/.nojekyll').touch()
           PY
+
+          test -f dist/index.html
+          test -f dist/404.html
+          test -f dist/.nojekyll
           grep --quiet "vdm-preview-commit.*${BUILD_SHA}" dist/index.html
           grep --quiet '<div id="root"></div>' dist/index.html
 
-      - name: Upload compiled preview
+          if find dist -type f -name '*.map' -print -quit | grep -q .; then
+            echo 'Source maps are not allowed in the public preview artifact.' >&2
+            exit 1
+          fi
+
+          if grep -RIE --binary-files=without-match \
+            'SUPABASE_SERVICE_ROLE_KEY|SUPABASE_DB_PASSWORD|STRIPE_[A-Z_]*SECRET|BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY' \
+            dist; then
+            echo 'A server-side secret marker was found in the public preview artifact.' >&2
+            exit 1
+          fi
+
+      - name: Publish compiled static branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          publish_dir="$(mktemp -d)"
+          trap 'rm -rf "$publish_dir"' EXIT
+          cp -a dist/. "$publish_dir"/
+
+          git -C "$publish_dir" init --initial-branch="$STATIC_BRANCH"
+          git -C "$publish_dir" config user.name 'github-actions[bot]'
+          git -C "$publish_dir" config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git -C "$publish_dir" add -A
+          git -C "$publish_dir" commit -m "chore(preview): publish ${BUILD_SHA}"
+          git -C "$publish_dir" remote add origin \
+            "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git -C "$publish_dir" push --force origin \
+            "HEAD:refs/heads/${STATIC_BRANCH}"
+
+      - name: Verify published commit marker
+        shell: bash
+        run: |
+          set -euo pipefail
+          raw_url="https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/${STATIC_BRANCH}/index.html"
+          for attempt in 1 2 3 4 5; do
+            if curl --fail --silent --show-error \
+              -H 'Cache-Control: no-cache' \
+              "${raw_url}?build=${BUILD_SHA}" \
+              | grep --quiet "vdm-preview-commit.*${BUILD_SHA}"; then
+              echo "Published preview verified for ${BUILD_SHA}."
+              exit 0
+            fi
+            sleep $((attempt * 2))
+          done
+          echo "The published preview does not contain ${BUILD_SHA}." >&2
+          exit 1
+
+      - name: Upload compiled preview diagnostic
         uses: actions/upload-artifact@v7
         with:
           name: dev-preview-${{ github.sha }}
