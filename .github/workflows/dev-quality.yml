@@ -206,6 +206,35 @@ jobs:
           echo "::error title=Local database validation blocked::Postgres could not start after three bounded attempts (${failure_class}). Database reset, lint and pgTAP were not executed."
           exit 1
 
+      - name: Expose database startup diagnostics
+        if: failure() && steps.db_start.outcome == 'failure'
+        shell: bash
+        run: |
+          set -uo pipefail
+          {
+            echo "## Supabase database startup log"
+            echo
+            echo '```text'
+            if [ -f "${RUNNER_TEMP}/supabase-db-start.log" ]; then
+              tail -n 300 "${RUNNER_TEMP}/supabase-db-start.log"
+            else
+              echo "supabase-db-start.log was not created"
+            fi
+            echo '```'
+          } >> "${GITHUB_STEP_SUMMARY}"
+
+      - name: Upload database startup diagnostics
+        if: failure() && steps.db_start.outcome == 'failure'
+        uses: actions/upload-artifact@v4
+        with:
+          name: supabase-db-start-diagnostics-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/supabase-db-start.log
+            ${{ runner.temp }}/supabase-db-start-attempt-*.log
+            ${{ runner.temp }}/docker-info.txt
+          if-no-files-found: warn
+          retention-days: 7
+
       - name: Rebuild local database
         if: steps.db_start.outputs.db_started == 'true'
         run: timeout --signal=TERM --kill-after=30s 12m supabase db reset --local
