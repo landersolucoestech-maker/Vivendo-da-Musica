@@ -75,10 +75,14 @@ Deno.serve(async (request) => {
   }
 
   const { data: courses, error: courseError } = await admin.from('courses')
-    .select('id,title,price_cents,currency,status,visibility').in('id', courseIds);
+    .select('id,title,price_cents,currency,status,visibility,is_demo').in('id', courseIds);
   if (courseError) return reply({ error: courseError.message }, 400, origin);
-  if (!courses || courses.length !== courseIds.length || courses.some((course) => course.status !== 'published')) {
-    return reply({ error: 'Um ou mais cursos estão indisponíveis.' }, 409, origin);
+  if (
+    !courses
+    || courses.length !== courseIds.length
+    || courses.some((course) => course.status !== 'published' || !course.is_demo)
+  ) {
+    return reply({ error: 'Um ou mais cursos estão indisponíveis para o ambiente de demonstração.' }, 409, origin);
   }
 
   const currencies = [...new Set(courses.map((course) => course.currency))];
