@@ -210,13 +210,11 @@ async function receiveWebhook(req: Request, requestId: string, provider: string)
   const expected = await hmacSha256(secret, rawBody);
   if (!secureEqual(supplied, expected)) return failure(req, requestId, 401, "INVALID_SIGNATURE", "Webhook signature is invalid");
 
-  let parsedPayload: Record<string, unknown>;
   try {
     const parsed = JSON.parse(rawBody) as unknown;
     if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
       return failure(req, requestId, 400, "INVALID_JSON", "Webhook payload must be a JSON object");
     }
-    parsedPayload = parsed as Record<string, unknown>;
   } catch {
     return failure(req, requestId, 400, "INVALID_JSON", "Webhook payload must be valid JSON");
   }
@@ -228,7 +226,6 @@ async function receiveWebhook(req: Request, requestId: string, provider: string)
     external_event_id: eventId,
     event_type: eventType,
     payload_hash: payloadHash,
-    payload: parsedPayload,
   }).select("id,processing_status,received_at").single();
   if (error?.code === "23505") return json(req, requestId, { data: { duplicate: true, external_event_id: eventId } }, 200);
   if (error) return failure(req, requestId, 500, "WEBHOOK_PERSIST_FAILED", "Could not persist webhook receipt");
