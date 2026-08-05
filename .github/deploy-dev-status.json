@@ -2,20 +2,35 @@
   "project_ref": "ywirfqvobfnunlcsnptm",
   "environment": "dev",
   "result": "manual_connector_sync_success",
-  "audited_source_sha": "e1cba3c93f802c7de3f294211adbd9bc5da953f7",
+  "audited_source_sha": "c08fff52daf3458f776abd32ba7924a87be62b24",
   "database": {
-    "latest_migration": "20260805021815_rebind_user_profile_foreign_keys",
+    "latest_migration": "20260805051753_reconcile_public_lesson_asset_buckets",
     "clean_replay": "success",
     "sql_lint": "success",
     "pgtap": "success",
+    "pgtap_tests": 324,
     "unsafe_public_views": 0,
-    "anon_executable_security_definers": 0,
-    "authenticated_executable_security_definers": 0,
+    "anonymous_select_without_policy": 0,
+    "client_dml_without_policy": 0,
+    "client_executable_security_definers": 0,
+    "client_executable_trigger_functions": 0,
+    "public_function_execute_grants": 0,
+    "client_table_ddl_grants": 0,
+    "client_table_maintain_grants": 0,
+    "unsafe_client_sequence_grants": 0,
+    "anon_database_temp": false,
+    "authenticated_database_temp": false,
     "duplicate_index_groups": 0,
     "unrestricted_enrollment_policies": 0,
     "legacy_profile_unique_constraints": 0,
     "noncanonical_profile_foreign_keys": 0,
-    "anonymous_visible_non_demo_enrollments": 0
+    "anonymous_visible_non_demo_enrollments": 0,
+    "public_lesson_asset_buckets": 2,
+    "anonymous_lesson_asset_listing_policies": 0
+  },
+  "application": {
+    "private_ledger_queried_in_preview": false,
+    "private_ledger_available_to_authenticated_admin": true
   },
   "edge_functions": {
     "active_count": 19,
@@ -25,9 +40,9 @@
     "stripe_webhooks_verify_jwt": false
   },
   "validation": {
-    "dev_quality_run_id": 30969017818,
+    "dev_quality_run_id": 30977960844,
     "dev_quality_result": "success",
-    "quality_gates_run_id": 30969017816,
+    "quality_gates_run_id": 30977960819,
     "quality_gates_result": "success",
     "e2e_auth_guard": "success",
     "e2e_preview": "success"
@@ -35,6 +50,7 @@
   "automated_deployment": {
     "workflow_restored": true,
     "controlled_trigger_required": true,
+    "last_run_skipped_without_trigger": true,
     "blocked_missing_credentials": [
       "SUPABASE_ACCESS_TOKEN",
       "SUPABASE_DB_PASSWORD"
@@ -46,5 +62,5 @@
     "Enable leaked-password protection in Supabase Auth",
     "Enable branch protection for dev and main"
   ],
-  "recorded_at": "2026-08-05T02:24:30Z"
+  "recorded_at": "2026-08-05T05:27:37Z"
 }
