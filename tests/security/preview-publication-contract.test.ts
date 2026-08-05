@@ -50,4 +50,22 @@ describe('contrato de publicação do preview estático', () => {
     expect(workflow).toContain("payload.get('staticCommit') != expected_commit");
     expect(workflow).toContain('Supabase preview resolver verified for ${PUBLISHED_COMMIT}.');
   });
+
+  it('limita consultas públicas ao GitHub e tolera indisponibilidade transitória', () => {
+    expect(previewFunction).toContain('const STATIC_COMMIT_TTL_MS = 60_000;');
+    expect(previewFunction).toContain('let staticCommitCache: StaticCommitCache | null = null;');
+    expect(previewFunction).toContain('let staticCommitRefresh: Promise<string> | null = null;');
+    expect(previewFunction).toContain('staticCommitCache.expiresAt > now');
+    expect(previewFunction).toContain('if (!staticCommitRefresh)');
+    expect(previewFunction).toContain('usando o último commit estático conhecido');
+    expect(previewFunction).toContain('Deno.env.get("GITHUB_TOKEN")');
+    expect(previewFunction).toContain('AbortSignal.timeout(10_000)');
+  });
+
+  it('mantém respostas públicas sem cache intermediário e com headers defensivos', () => {
+    expect(previewFunction).toContain('"cache-control": "no-store, max-age=0"');
+    expect(previewFunction).toContain('"referrer-policy": "no-referrer"');
+    expect(previewFunction).toContain('"x-content-type-options": "nosniff"');
+    expect(previewFunction).toContain('status: 307');
+  });
 });
