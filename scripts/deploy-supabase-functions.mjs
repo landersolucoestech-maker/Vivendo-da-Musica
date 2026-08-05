@@ -14,9 +14,23 @@ if (!process.env.SUPABASE_ACCESS_TOKEN?.trim()) {
 
 const functionsDirectory = new URL('../supabase/functions/', import.meta.url);
 const artifactsDirectory = resolve('artifacts/supabase-functions');
+
+// These functions intentionally authenticate outside the Supabase platform JWT
+// gateway: public catalogs/previews, isolated DEV interactions, checkout entry
+// points, or provider webhooks that validate their own cryptographic signature.
 const noVerifyJwtFunctions = new Set([
   'api-v1',
+  'create-beat-checkout',
+  'create-course-checkout',
+  'create-digital-product-checkout',
+  'download-access',
+  'manage-service-catalog',
+  'manage-service-requests',
   'payment-webhook',
+  'service-delivery-file-access',
+  'stripe-beat-webhook',
+  'stripe-digital-product-webhook',
+  'vivendo-preview',
 ]);
 
 const entries = await readdir(functionsDirectory, { withFileTypes: true });
@@ -27,6 +41,12 @@ const functions = entries
 
 if (functions.length === 0) {
   console.error('Nenhuma Edge Function foi encontrada em supabase/functions.');
+  process.exit(1);
+}
+
+const unknownPublicFunctions = [...noVerifyJwtFunctions].filter((name) => !functions.includes(name));
+if (unknownPublicFunctions.length > 0) {
+  console.error(`Funções sem JWT não versionadas: ${unknownPublicFunctions.join(', ')}`);
   process.exit(1);
 }
 
