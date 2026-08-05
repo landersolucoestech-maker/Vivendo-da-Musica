@@ -2,7 +2,7 @@
   "project_ref": "ywirfqvobfnunlcsnptm",
   "environment": "dev",
   "result": "manual_connector_sync_success",
-  "audited_source_sha": "8200f88b9199de02c97bd171cea427a3ada3470b",
+  "audited_source_sha": "21b458a33503c10c6b6664a0ee904de60fc394b7",
   "database": {
     "latest_migration": "20260805051753_reconcile_public_lesson_asset_buckets",
     "clean_replay": "success",
@@ -34,11 +34,17 @@
     "demo_checkout_catalog_isolated": true,
     "demo_service_catalog_isolated": true,
     "demo_service_requests_isolated": true,
-    "demo_service_delivery_isolated": true
+    "demo_service_delivery_isolated": true,
+    "dev_preview_indexing_blocked": true,
+    "dev_preview_source_maps_blocked": true,
+    "dev_preview_secret_markers_scanned": true
   },
   "edge_functions": {
     "active_count": 19,
-    "vivendo_preview_version": 14,
+    "vivendo_preview_version": 15,
+    "vivendo_preview_bundle_sha256": "9536388609e81dcd78e793429cd511931471a021fff44006d36b391de1a28d5e",
+    "vivendo_preview_commit_cache_ttl_ms": 60000,
+    "vivendo_preview_stale_commit_fallback": true,
     "create_beat_checkout_version": 8,
     "create_course_checkout_version": 7,
     "create_digital_product_checkout_version": 7,
@@ -48,17 +54,27 @@
     "stripe_beat_webhook_version": 3,
     "stripe_digital_product_webhook_version": 3,
     "custom_auth_functions_verify_jwt": false,
-    "deployment_status": "active",
-    "http_smoke": "not_executed_runtime_dns_unavailable"
+    "deployment_status": "active"
+  },
+  "preview_publication": {
+    "workflow_run_id": 31003419926,
+    "workflow_result": "success",
+    "published_source_sha": "21b458a33503c10c6b6664a0ee904de60fc394b7",
+    "published_static_commit": "0b3996ccbc757580e40f57b0e7764efa586dfdbc",
+    "immutable_html_verified": true,
+    "robots_noindex_verified": true,
+    "supabase_resolver_health_before_v15_deployment": "success",
+    "supabase_resolver_health_after_v15_deployment": "pending"
   },
   "validation": {
-    "dev_quality_run_id": 31001775961,
+    "dev_quality_run_id": 31003423207,
     "dev_quality_result": "success",
-    "quality_gates_run_id": 31001775881,
+    "quality_gates_run_id": 31003422772,
     "quality_gates_result": "success",
     "e2e_auth_guard": "success",
     "e2e_preview": "success",
-    "demo_edge_function_isolation_test": "success"
+    "demo_edge_function_isolation_test": "success",
+    "preview_publication_contract_test": "success"
   },
   "automated_deployment": {
     "workflow_restored": true,
@@ -78,5 +94,5 @@
     "Enable branch protection for dev and main",
     "Grant the GitHub connector administration permission if branch protection and secret inventory should be automated"
   ],
-  "recorded_at": "2026-08-05T11:40:28Z"
+  "recorded_at": "2026-08-05T12:00:46Z"
 }
