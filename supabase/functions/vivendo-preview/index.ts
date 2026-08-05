@@ -4,25 +4,42 @@ const FUNCTION_PREFIX = "/functions/v1/vivendo-preview";
 const REPOSITORY = "landersolucoestech-maker/Vivendo-da-Musica";
 const STATIC_BRANCH = "dev-preview-static";
 const COMMIT_PATTERN = /^[0-9a-f]{40}$/i;
+const STATIC_COMMIT_TTL_MS = 60_000;
+
+interface StaticCommitCache {
+  sha: string;
+  expiresAt: number;
+}
+
+let staticCommitCache: StaticCommitCache | null = null;
+let staticCommitRefresh: Promise<string> | null = null;
+
+const commonHeaders = {
+  "access-control-allow-origin": "*",
+  "cache-control": "no-store, max-age=0",
+  "referrer-policy": "no-referrer",
+  "x-content-type-options": "nosniff",
+};
 
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), {
     status,
     headers: {
-      "access-control-allow-origin": "*",
-      "cache-control": "no-store, max-age=0",
+      ...commonHeaders,
       "content-type": "application/json; charset=utf-8",
     },
   });
 
-const resolveStaticCommit = async (): Promise<string> => {
+const fetchStaticCommit = async (): Promise<string> => {
+  const githubToken = Deno.env.get("GITHUB_TOKEN")?.trim();
   const response = await fetch(
     `https://api.github.com/repos/${REPOSITORY}/commits/${STATIC_BRANCH}`,
     {
       cache: "no-store",
       headers: {
         accept: "application/vnd.github+json",
-        "user-agent": "Vivendo-da-Musica-Preview-Resolver/1.0",
+        ...(githubToken ? { authorization: `Bearer ${githubToken}` } : {}),
+        "user-agent": "Vivendo-da-Musica-Preview-Resolver/1.1",
         "x-github-api-version": "2022-11-28",
       },
       signal: AbortSignal.timeout(10_000),
@@ -39,7 +56,34 @@ const resolveStaticCommit = async (): Promise<string> => {
     throw new Error("A branch estática não retornou um commit válido.");
   }
 
+  staticCommitCache = {
+    sha,
+    expiresAt: Date.now() + STATIC_COMMIT_TTL_MS,
+  };
   return sha;
+};
+
+const resolveStaticCommit = async (): Promise<string> => {
+  const now = Date.now();
+  if (staticCommitCache && staticCommitCache.expiresAt > now) {
+    return staticCommitCache.sha;
+  }
+
+  if (!staticCommitRefresh) {
+    staticCommitRefresh = fetchStaticCommit().finally(() => {
+      staticCommitRefresh = null;
+    });
+  }
+
+  try {
+    return await staticCommitRefresh;
+  } catch (error) {
+    if (staticCommitCache && COMMIT_PATTERN.test(staticCommitCache.sha)) {
+      console.warn("GitHub indisponível; usando o último commit estático conhecido.", error);
+      return staticCommitCache.sha;
+    }
+    throw error;
+  }
 };
 
 Deno.serve(async (request: Request) => {
@@ -47,9 +91,8 @@ Deno.serve(async (request: Request) => {
     return new Response(null, {
       status: 204,
       headers: {
-        "access-control-allow-origin": "*",
+        ...commonHeaders,
         "access-control-allow-methods": "GET, HEAD, OPTIONS",
-        "cache-control": "no-store, max-age=0",
       },
     });
   }
@@ -70,8 +113,14 @@ Deno.serve(async (request: Request) => {
     const suffix = incoming.pathname.startsWith(FUNCTION_PREFIX)
       ? incoming.pathname.slice(FUNCTION_PREFIX.length).replace(/^\/+/, "")
       : "";
-    const destination = suffix ? `${baseUrl}#/${suffix}` : baseUrl;
-    return Response.redirect(destination, 307);
+    const destination = suffix ? `${baseUrl}#/${encodeURI(suffix)}` : baseUrl;
+    return new Response(null, {
+      status: 307,
+      headers: {
+        ...commonHeaders,
+        location: destination,
+      },
+    });
   } catch (error) {
     console.error("Unable to resolve the current preview", error);
     return json(
