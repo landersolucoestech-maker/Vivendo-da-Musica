@@ -24,7 +24,9 @@ describe('hardening das Edge Functions de serviços', () => {
     expect(helper).toContain("Deno.env.get('ALLOWED_ORIGINS')");
     expect(helper).toContain("Deno.env.get('DEV_ALLOWED_ORIGINS')");
     expect(helper).toContain("parsed.protocol === 'http:'");
-    expect(helper).toContain("['localhost', '127.0.0.1']");
+    expect(helper).toContain("'localhost'");
+    expect(helper).toContain("'127.0.0.1'");
+    expect(helper).toContain('.includes(parsed.hostname)');
     expect(helper).toContain("'Cache-Control': 'no-store, max-age=0'");
     expect(helper).toContain("'Referrer-Policy': 'no-referrer'");
     expect(helper).toContain("'X-Content-Type-Options': 'nosniff'");
