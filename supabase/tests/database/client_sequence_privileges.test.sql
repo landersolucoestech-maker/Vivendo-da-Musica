@@ -9,7 +9,11 @@ select is(
     join pg_namespace schema_row on schema_row.oid = sequence_row.relnamespace
     where schema_row.nspname = 'public'
       and sequence_row.relkind = 'S'
-      and has_sequence_privilege('anon', sequence_row.oid, 'USAGE')
+      and has_sequence_privilege(
+        'anon',
+        format('%I.%I', schema_row.nspname, sequence_row.relname),
+        'USAGE'
+      )
   ),
   0::bigint,
   'anon has no sequence usage privileges'
@@ -23,8 +27,16 @@ select is(
     where schema_row.nspname = 'public'
       and sequence_row.relkind = 'S'
       and (
-        has_sequence_privilege('authenticated', sequence_row.oid, 'SELECT')
-        or has_sequence_privilege('authenticated', sequence_row.oid, 'UPDATE')
+        has_sequence_privilege(
+          'authenticated',
+          format('%I.%I', schema_row.nspname, sequence_row.relname),
+          'SELECT'
+        )
+        or has_sequence_privilege(
+          'authenticated',
+          format('%I.%I', schema_row.nspname, sequence_row.relname),
+          'UPDATE'
+        )
       )
   ),
   0::bigint,
@@ -43,7 +55,11 @@ select is(
     join pg_namespace schema_row on schema_row.oid = sequence_row.relnamespace
     where schema_row.nspname = 'public'
       and sequence_row.relkind = 'S'
-      and has_sequence_privilege('authenticated', sequence_row.oid, 'USAGE')
+      and has_sequence_privilege(
+        'authenticated',
+        format('%I.%I', schema_row.nspname, sequence_row.relname),
+        'USAGE'
+      )
   ),
   1::bigint,
   'authenticated sequence usage is limited to the audit-log flow'
