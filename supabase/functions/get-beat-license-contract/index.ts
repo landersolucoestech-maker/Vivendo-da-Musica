@@ -3,43 +3,83 @@ import { PDFDocument, StandardFonts, rgb } from "npm:pdf-lib@1.17.1";
 import { corsHeaders } from "../_shared/cors.ts";
 import { getAuthContext } from "../_shared/authContext.ts";
 import { getAdminClient } from "../_shared/supabaseAdmin.ts";
+import {
+  protectedJson,
+  protectedOptions,
+  readProtectedJsonObject,
+} from "../_shared/protectedEndpoint.ts";
 
-const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), {
-  status, headers: { ...corsHeaders, "Content-Type": "application/json" },
-});
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-const asStrings = (value: unknown) => Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
-const money = (cents: number, currency: string) => new Intl.NumberFormat("pt-BR", { style: "currency", currency }).format(cents / 100);
-const date = (value: unknown) => value ? new Intl.DateTimeFormat("pt-BR", { dateStyle: "long", timeStyle: "short", timeZone: "America/Sao_Paulo" }).format(new Date(String(value))) : "Nao informado";
+const asStrings = (value: unknown) => Array.isArray(value)
+  ? value.filter((item): item is string => typeof item === "string" && item.length <= 1_000).slice(0, 100)
+  : [];
+const money = (cents: number, currency: string) => new Intl.NumberFormat("pt-BR", {
+  style: "currency",
+  currency,
+}).format(cents / 100);
+const formatDate = (value: unknown) => {
+  if (!value) return "Nao informado";
+  const parsed = new Date(String(value));
+  if (Number.isNaN(parsed.getTime())) return "Nao informado";
+  return new Intl.DateTimeFormat("pt-BR", {
+    dateStyle: "long",
+    timeStyle: "short",
+    timeZone: "America/Sao_Paulo",
+  }).format(parsed);
+};
 
-Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
-  if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
+Deno.serve(async (request) => {
+  if (request.method === "OPTIONS") return protectedOptions();
+  if (request.method !== "POST") return protectedJson({ error: "Método não permitido." }, 405);
 
   try {
-    const { userId } = await getAuthContext(req);
-    const body = await req.json().catch(() => ({}));
+    const { userId } = await getAuthContext(request);
+    const body = await readProtectedJsonObject(request);
+    if (body instanceof Response) return body;
+
     const purchaseId = typeof body.purchaseId === "string" ? body.purchaseId : "";
-    if (!UUID_PATTERN.test(purchaseId)) return json({ error: "Invalid purchase id" }, 400);
+    if (!UUID_PATTERN.test(purchaseId)) {
+      return protectedJson({ error: "Identificador de compra inválido." }, 400);
+    }
 
     const admin = getAdminClient();
     const { data: purchase, error } = await admin
       .from("beat_license_purchases")
-      .select("id, buyer_id, producer_id, status, issued_at, contract_number, contract_hash, license_snapshot, document_download_count")
+      .select("id,buyer_id,producer_id,status,issued_at,contract_number,contract_hash,license_snapshot,document_download_count")
       .eq("id", purchaseId)
       .maybeSingle();
-    if (error) throw error;
-    if (!purchase || purchase.buyer_id !== userId) return json({ error: "Contract not found" }, 404);
-    if (purchase.status !== "active") return json({ error: "License is not active" }, 403);
+    if (error) {
+      return protectedJson({ error: "Não foi possível consultar o contrato." }, 500);
+    }
+    if (!purchase || purchase.buyer_id !== userId) {
+      return protectedJson({ error: "Contrato não encontrado." }, 404);
+    }
+    if (purchase.status !== "active") {
+      return protectedJson({ error: "A licença não está ativa." }, 403);
+    }
 
     const { data: buyerAuth } = await admin.auth.admin.getUserById(purchase.buyer_id);
     const { data: producerAuth } = await admin.auth.admin.getUserById(purchase.producer_id);
-    const { data: profiles } = await admin.from("user_profiles").select("user_id, full_name").in("user_id", [purchase.buyer_id, purchase.producer_id]);
-    const buyerName = profiles?.find((profile) => profile.user_id === purchase.buyer_id)?.full_name || buyerAuth.user?.email || purchase.buyer_id;
-    const producerName = profiles?.find((profile) => profile.user_id === purchase.producer_id)?.full_name || producerAuth.user?.email || purchase.producer_id;
-    const snapshot = purchase.license_snapshot as Record<string, unknown>;
+    const { data: profiles } = await admin
+      .from("user_profiles")
+      .select("user_id,full_name")
+      .in("user_id", [purchase.buyer_id, purchase.producer_id]);
+    const buyerName = profiles?.find((profile) => profile.user_id === purchase.buyer_id)?.full_name
+      || buyerAuth.user?.email
+      || purchase.buyer_id;
+    const producerName = profiles?.find((profile) => profile.user_id === purchase.producer_id)?.full_name
+      || producerAuth.user?.email
+      || purchase.producer_id;
+    const snapshot = purchase.license_snapshot
+      && typeof purchase.license_snapshot === "object"
+      && !Array.isArray(purchase.license_snapshot)
+      ? purchase.license_snapshot as Record<string, unknown>
+      : {};
     const rights = asStrings(snapshot.usage_rights);
     const deliverables = asStrings(snapshot.deliverables);
+    const amountCents = Number(snapshot.amount_cents);
+    const rawCurrency = String(snapshot.currency ?? "BRL").toUpperCase();
+    const currency = /^[A-Z]{3}$/.test(rawCurrency) ? rawCurrency : "BRL";
 
     const pdf = await PDFDocument.create();
     const regular = await pdf.embedFont(StandardFonts.Helvetica);
@@ -49,16 +89,20 @@ Deno.serve(async (req) => {
     const margin = 48;
     const width = 499;
     const addPage = () => { page = pdf.addPage([595.28, 841.89]); y = 795; };
-    const line = (text: string, size = 10, isBold = false, gap = 5) => {
+    const line = (value: string, size = 10, isBold = false, gap = 5) => {
       const font = isBold ? bold : regular;
-      const words = text.replace(/\s+/g, " ").trim().split(" ");
+      const text = value.replace(/\s+/g, " ").trim().slice(0, 5_000);
+      const words = text.split(" ");
       let current = "";
       const rows: string[] = [];
       for (const word of words) {
         const candidate = current ? current + " " + word : word;
         if (font.widthOfTextAtSize(candidate, size) > width && current) {
-          rows.push(current); current = word;
-        } else current = candidate;
+          rows.push(current);
+          current = word;
+        } else {
+          current = candidate;
+        }
       }
       if (current) rows.push(current);
       for (const row of rows) {
@@ -71,9 +115,9 @@ Deno.serve(async (req) => {
 
     line("VIVENDO DA MUSICA", 16, true, 8);
     line("CONTRATO DIGITAL DE LICENCIAMENTO DE BEAT", 15, true, 10);
-    line("Contrato: " + purchase.contract_number, 10, true);
-    line("Emitido em: " + date(purchase.issued_at));
-    line("Hash SHA-256 dos termos: " + purchase.contract_hash, 8);
+    line("Contrato: " + String(purchase.contract_number), 10, true);
+    line("Emitido em: " + formatDate(purchase.issued_at));
+    line("Hash SHA-256 dos termos: " + String(purchase.contract_hash), 8);
 
     section("1. PARTES");
     line("LICENCIANTE/PRODUTOR: " + producerName + " (ID " + purchase.producer_id + ").");
@@ -95,10 +139,10 @@ Deno.serve(async (req) => {
     else line("Arquivos disponibilizados na area autenticada do comprador.");
 
     section("5. PRECO E COMPROVANTE");
-    line("Valor confirmado: " + money(Number(snapshot.amount_cents ?? 0), String(snapshot.currency ?? "BRL")) + ".");
+    line("Valor confirmado: " + money(Number.isSafeInteger(amountCents) && amountCents >= 0 ? amountCents : 0, currency) + ".");
     line("Pedido: " + String(snapshot.order_id ?? "Nao informado") + ".");
     line("Provedor: " + String(snapshot.provider ?? "Nao informado") + "; pagamento: " + String(snapshot.provider_payment_id ?? "Nao informado") + ".");
-    line("Confirmacao: " + date(snapshot.paid_at) + ".");
+    line("Confirmacao: " + formatDate(snapshot.paid_at) + ".");
 
     section("6. LIMITACOES E TITULARIDADE");
     line("A licenca nao transfere autoria ou titularidade do beat, salvo cessao expressa em instrumento proprio. E vedada a revenda, sublicenca, distribuicao isolada ou registro do beat como obra integral do licenciado. O uso deve respeitar os direitos concedidos acima, direitos de terceiros e a legislacao aplicavel.");
@@ -113,23 +157,33 @@ Deno.serve(async (req) => {
     line("Documento gerado automaticamente pela plataforma Vivendo da Musica.", 8);
     const bytes = await pdf.save();
 
-    const { error: auditError } = await admin.from("beat_license_purchases").update({
-      document_downloaded_at: new Date().toISOString(),
-      document_download_count: purchase.document_download_count ? purchase.document_download_count + 1 : 1,
-    }).eq("id", purchase.id);
-    if (auditError) throw auditError;
+    const { error: auditError } = await admin
+      .from("beat_license_purchases")
+      .update({
+        document_downloaded_at: new Date().toISOString(),
+        document_download_count: Number(purchase.document_download_count ?? 0) + 1,
+      })
+      .eq("id", purchase.id);
+    if (auditError) {
+      return protectedJson({ error: "Não foi possível registrar o download do contrato." }, 500);
+    }
 
+    const safeContractNumber = String(purchase.contract_number)
+      .replace(/[^a-zA-Z0-9._-]+/g, "-")
+      .replace(/^-|-$/g, "") || "contrato-beat";
     return new Response(bytes, {
       headers: {
         ...corsHeaders,
+        "Cache-Control": "private, no-store, max-age=0",
+        "Content-Disposition": `attachment; filename="${safeContractNumber}.pdf"`,
         "Content-Type": "application/pdf",
-        "Content-Disposition": 'attachment; filename="' + purchase.contract_number + '.pdf"',
-        "Cache-Control": "private, no-store",
+        "Referrer-Policy": "no-referrer",
+        "X-Content-Type-Options": "nosniff",
       },
     });
   } catch (error) {
     if (error instanceof Response) return error;
-    return json({ error: error instanceof Error ? error.message : "Unexpected contract error" }, 500);
+    console.error("get-beat-license-contract failed", error);
+    return protectedJson({ error: "Não foi possível gerar o contrato." }, 500);
   }
 });
-
