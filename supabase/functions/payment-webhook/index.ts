@@ -1,6 +1,8 @@
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.50.0';
 
+const MAX_WEBHOOK_BYTES = 1_048_576;
+
 interface StripeEvent {
   id: string;
   type: string;
@@ -8,9 +10,15 @@ interface StripeEvent {
   data?: { object?: Record<string, unknown> };
 }
 
+class PayloadTooLargeError extends Error {}
+
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), {
   status,
-  headers: { 'Content-Type': 'application/json' },
+  headers: {
+    'Content-Type': 'application/json; charset=utf-8',
+    'Cache-Control': 'no-store, max-age=0',
+    'X-Content-Type-Options': 'nosniff',
+  },
 });
 
 const bytesToHex = (bytes: Uint8Array) => [...bytes]
@@ -54,6 +62,42 @@ const verifyStripeSignature = async (payload: string, signatureHeader: string, s
   return signatures.some((signature) => constantTimeEqual(signature, expected));
 };
 
+const readBodyWithLimit = async (request: Request, maxBytes: number) => {
+  const contentLength = Number(request.headers.get('content-length') ?? '0');
+  if (Number.isFinite(contentLength) && contentLength > maxBytes) {
+    throw new PayloadTooLargeError('Payload excede o limite permitido.');
+  }
+  if (!request.body) return '';
+
+  const reader = request.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let totalBytes = 0;
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (!value) continue;
+      totalBytes += value.byteLength;
+      if (totalBytes > maxBytes) {
+        await reader.cancel('payload_too_large');
+        throw new PayloadTooLargeError('Payload excede o limite permitido.');
+      }
+      chunks.push(value);
+    }
+  } finally {
+    reader.releaseLock();
+  }
+
+  const merged = new Uint8Array(totalBytes);
+  let offset = 0;
+  for (const chunk of chunks) {
+    merged.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return new TextDecoder().decode(merged);
+};
+
 const readString = (object: Record<string, unknown>, key: string) => {
   const value = object[key];
   return typeof value === 'string' && value ? value : null;
@@ -83,13 +127,40 @@ Deno.serve(async (request) => {
   if (provider !== 'stripe') return json({ ignored: true, reason: 'provider_not_enabled' }, 200);
 
   const webhookSecret = Deno.env.get('STRIPE_WEBHOOK_SECRET') ?? '';
+  if (!webhookSecret) return json({ error: 'Webhook de pagamento não configurado.' }, 503);
+
   const signature = request.headers.get('stripe-signature') ?? '';
-  const rawPayload = await request.text();
-  if (!webhookSecret || !signature || !(await verifyStripeSignature(rawPayload, signature, webhookSecret))) {
+  if (!signature) return json({ error: 'Assinatura não informada.' }, 400);
+
+  const contentType = request.headers.get('content-type')?.toLowerCase() ?? '';
+  if (contentType && !contentType.startsWith('application/json')) {
+    return json({ error: 'Tipo de conteúdo não suportado.' }, 415);
+  }
+
+  let rawPayload: string;
+  try {
+    rawPayload = await readBodyWithLimit(request, MAX_WEBHOOK_BYTES);
+  } catch (error) {
+    if (error instanceof PayloadTooLargeError) {
+      return json({ error: error.message }, 413);
+    }
+    return json({ error: 'Não foi possível ler o evento.' }, 400);
+  }
+
+  if (!(await verifyStripeSignature(rawPayload, signature, webhookSecret))) {
     return json({ error: 'Assinatura inválida.' }, 400);
   }
 
-  const event = JSON.parse(rawPayload) as StripeEvent;
+  let event: StripeEvent;
+  try {
+    const parsed = JSON.parse(rawPayload) as unknown;
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+      return json({ error: 'Evento inválido.' }, 400);
+    }
+    event = parsed as StripeEvent;
+  } catch {
+    return json({ error: 'Evento inválido.' }, 400);
+  }
   if (!event.id || !event.type) return json({ error: 'Evento inválido.' }, 400);
 
   const admin = createClient(supabaseUrl, serviceKey, { auth: { persistSession: false } });
