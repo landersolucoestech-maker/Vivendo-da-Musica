@@ -1,0 +1,146 @@
+name: Service Edge Remote Smoke
+
+on:
+  push:
+    branches: [dev]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: service-edge-remote-smoke
+  cancel-in-progress: true
+
+jobs:
+  verify-service-guards:
+    name: Verify service Edge Function guards
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      FUNCTIONS_BASE_URL: https://ywirfqvobfnunlcsnptm.supabase.co/functions/v1
+    steps:
+      - name: Verify methods, origins, content types, auth and payload limits
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          functions=(
+            manage-service-catalog
+            manage-service-requests
+            service-delivery-file-access
+          )
+
+          python - <<'PY'
+          from pathlib import Path
+          Path('/tmp/oversized-service.json').write_text(
+              '{"padding":"' + ('a' * 65_536) + '"}',
+              encoding='utf-8',
+          )
+          PY
+
+          validate_response() {
+            local function_name="$1"
+            local scenario="$2"
+            local expected_status="$3"
+            local expected_error="$4"
+            local headers="$5"
+            local body="$6"
+            local status="$7"
+
+            python - "$function_name" "$scenario" "$expected_status" "$expected_error" "$headers" "$body" "$status" <<'PY'
+          import json
+          import re
+          import sys
+          from pathlib import Path
+
+          name, scenario, expected_status, expected_error, headers_path, body_path, status = sys.argv[1:8]
+          headers = Path(headers_path).read_text(encoding='utf-8').lower()
+          payload = json.loads(Path(body_path).read_text(encoding='utf-8'))
+          if status != expected_status:
+              raise SystemExit(f'{name}/{scenario}: expected HTTP {expected_status}, got {status}')
+          if payload.get('error') != expected_error:
+              raise SystemExit(f'{name}/{scenario}: unexpected response body {payload!r}')
+          if not re.search(r'^cache-control: no-store, max-age=0\r?$', headers, re.MULTILINE):
+              raise SystemExit(f'{name}/{scenario}: missing no-store header')
+          if not re.search(r'^content-type: application/json; charset=utf-8\r?$', headers, re.MULTILINE):
+              raise SystemExit(f'{name}/{scenario}: unexpected content type')
+          if not re.search(r'^referrer-policy: no-referrer\r?$', headers, re.MULTILINE):
+              raise SystemExit(f'{name}/{scenario}: missing no-referrer header')
+          if not re.search(r'^x-content-type-options: nosniff\r?$', headers, re.MULTILINE):
+              raise SystemExit(f'{name}/{scenario}: missing nosniff header')
+          PY
+          }
+
+          for function_name in "${functions[@]}"; do
+            url="${FUNCTIONS_BASE_URL}/${function_name}"
+
+            headers="/tmp/${function_name}-method-headers.txt"
+            body="/tmp/${function_name}-method-body.json"
+            status="$(curl --silent --show-error \
+              --dump-header "$headers" \
+              --output "$body" \
+              --write-out '%{http_code}' \
+              -H 'Accept: application/json' \
+              "$url")"
+            validate_response "$function_name" method 405 'Método não permitido.' "$headers" "$body" "$status"
+
+            headers="/tmp/${function_name}-origin-headers.txt"
+            body="/tmp/${function_name}-origin-body.json"
+            status="$(curl --silent --show-error \
+              --request POST \
+              --dump-header "$headers" \
+              --output "$body" \
+              --write-out '%{http_code}' \
+              -H 'Accept: application/json' \
+              -H 'Content-Type: application/json' \
+              -H 'Origin: https://unauthorized.example' \
+              --data '{}' \
+              "$url")"
+            validate_response "$function_name" origin 403 'Origem não autorizada.' "$headers" "$body" "$status"
+
+            headers="/tmp/${function_name}-type-headers.txt"
+            body="/tmp/${function_name}-type-body.json"
+            status="$(curl --silent --show-error \
+              --request POST \
+              --dump-header "$headers" \
+              --output "$body" \
+              --write-out '%{http_code}' \
+              -H 'Accept: application/json' \
+              -H 'Content-Type: text/plain' \
+              --data '{}' \
+              "$url")"
+            validate_response "$function_name" content-type 415 'Tipo de conteúdo não suportado.' "$headers" "$body" "$status"
+
+            auth_payload='{}'
+            if [ "$function_name" = 'service-delivery-file-access' ]; then
+              auth_payload='{"action":"create_download"}'
+            fi
+            headers="/tmp/${function_name}-auth-headers.txt"
+            body="/tmp/${function_name}-auth-body.json"
+            status="$(curl --silent --show-error \
+              --request POST \
+              --dump-header "$headers" \
+              --output "$body" \
+              --write-out '%{http_code}' \
+              -H 'Accept: application/json' \
+              -H 'Content-Type: application/json' \
+              --data "$auth_payload" \
+              "$url")"
+            validate_response "$function_name" authentication 401 'Autenticação obrigatória.' "$headers" "$body" "$status"
+
+            headers="/tmp/${function_name}-limit-headers.txt"
+            body="/tmp/${function_name}-limit-body.json"
+            status="$(curl --silent --show-error \
+              --request POST \
+              --dump-header "$headers" \
+              --output "$body" \
+              --write-out '%{http_code}' \
+              -H 'Accept: application/json' \
+              -H 'Content-Type: application/json' \
+              --data-binary @/tmp/oversized-service.json \
+              "$url")"
+            validate_response "$function_name" payload-limit 413 'Payload excede o limite permitido.' "$headers" "$body" "$status"
+
+            echo "Remote service guards verified for ${function_name}."
+          done
