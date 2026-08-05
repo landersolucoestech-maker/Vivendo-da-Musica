@@ -34,4 +34,11 @@ describe('contrato de publicação do preview estático', () => {
     expect(workflow).toContain('raw.githubusercontent.com/${GITHUB_REPOSITORY}/${STATIC_BRANCH}/index.html');
     expect(workflow).toContain('Published preview verified for ${BUILD_SHA}.');
   });
+
+  it('valida o resolvedor Supabase contra o commit remoto da branch estática', () => {
+    expect(workflow).toContain('PREVIEW_HEALTH_URL: https://ywirfqvobfnunlcsnptm.supabase.co/functions/v1/vivendo-preview?health=1');
+    expect(workflow).toContain('git ls-remote');
+    expect(workflow).toContain("payload.get('staticCommit') != expected_commit");
+    expect(workflow).toContain('Supabase preview resolver verified for ${expected_commit}.');
+  });
 });
