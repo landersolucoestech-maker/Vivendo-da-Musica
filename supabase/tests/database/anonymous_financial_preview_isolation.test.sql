@@ -30,12 +30,14 @@ select is(
   'anonymous company credit balances contain demo companies only'
 );
 
-select is(
-  (select count(*)::bigint from public.ledger_account_balances),
-  0::bigint,
-  'anonymous users cannot read ledger account balances'
+reset role;
+
+select ok(
+  not has_table_privilege('anon', 'public.ledger_account_balances', 'SELECT')
+  and not has_table_privilege('anon', 'public.ledger_accounts', 'SELECT')
+  and not has_table_privilege('anon', 'public.ledger_postings', 'SELECT'),
+  'anonymous ledger balance access is fully revoked'
 );
 
-reset role;
 select * from finish();
 rollback;
