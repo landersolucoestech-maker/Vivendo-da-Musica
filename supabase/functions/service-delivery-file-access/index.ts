@@ -92,6 +92,9 @@ Deno.serve(async (request) => {
   }
   if (!userId) return reply({ error: 'Autenticação obrigatória.' }, 401, origin);
 
+  const { data: actorProfile } = await admin.from('user_profiles').select('is_demo').eq('user_id', userId).maybeSingle();
+  const actorIsDemo = Boolean(actorProfile?.is_demo);
+
   if (action === 'create_upload') {
     const contractId = typeof body.contractId === 'string' && UUID_PATTERN.test(body.contractId) ? body.contractId : null;
     const milestoneId = typeof body.milestoneId === 'string' && UUID_PATTERN.test(body.milestoneId) ? body.milestoneId : null;
@@ -106,7 +109,12 @@ Deno.serve(async (request) => {
       .select('id,contract_id,service_contracts!inner(provider_id,status,is_demo)')
       .eq('id', milestoneId).eq('contract_id', contractId).maybeSingle();
     const relation = milestone?.service_contracts as unknown as { provider_id?: string; status?: string; is_demo?: boolean } | null;
-    if (!milestone || relation?.provider_id !== userId || ['completed', 'canceled', 'refunded'].includes(relation.status ?? '')) {
+    if (
+      !milestone
+      || relation?.provider_id !== userId
+      || Boolean(relation?.is_demo) !== actorIsDemo
+      || ['completed', 'canceled', 'refunded'].includes(relation.status ?? '')
+    ) {
       return reply({ error: 'Usuário não pode enviar arquivos para este contrato.' }, 403, origin);
     }
 
@@ -123,7 +131,11 @@ Deno.serve(async (request) => {
   }
   const { data: contract } = await admin.from('service_contracts')
     .select('buyer_id,provider_id,is_demo').eq('id', contractId).maybeSingle();
-  if (!contract || ![contract.buyer_id, contract.provider_id].includes(userId)) {
+  if (
+    !contract
+    || ![contract.buyer_id, contract.provider_id].includes(userId)
+    || Boolean(contract.is_demo) !== actorIsDemo
+  ) {
     return reply({ error: 'Usuário não participa deste contrato.' }, 403, origin);
   }
   const { data, error } = await admin.storage.from(BUCKET).createSignedUrl(path, 600);
