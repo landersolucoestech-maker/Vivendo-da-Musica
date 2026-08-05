@@ -75,11 +75,15 @@ Deno.serve(async (request) => {
   }
 
   const { data: licenses, error: licenseError } = await admin.from('beat_licenses')
-    .select('id,name,price_cents,currency,available,beat_id,beats!inner(id,title,producer_id,exclusive_available)')
+    .select('id,name,price_cents,currency,available,beat_id,beats!inner(id,title,producer_id,exclusive_available,is_demo)')
     .in('id', licenseIds);
   if (licenseError) return reply({ error: licenseError.message }, 400, origin);
-  if (!licenses || licenses.length !== licenseIds.length || licenses.some((item) => !item.available)) {
-    return reply({ error: 'Uma ou mais licenças estão indisponíveis.' }, 409, origin);
+  if (
+    !licenses
+    || licenses.length !== licenseIds.length
+    || licenses.some((item) => !item.available || !item.beats.is_demo)
+  ) {
+    return reply({ error: 'Uma ou mais licenças estão indisponíveis para o ambiente de demonstração.' }, 409, origin);
   }
 
   const currencies = [...new Set(licenses.map((item) => item.currency))];
