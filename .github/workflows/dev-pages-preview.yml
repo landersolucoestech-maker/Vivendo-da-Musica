@@ -59,17 +59,26 @@ jobs:
 
           index = Path('dist/index.html')
           html = index.read_text(encoding='utf-8')
-          stamp = f'<meta name="vdm-preview-commit" content="{os.environ["BUILD_SHA"]}" />'
-          html = html.replace('<head>', f'<head>\n    {stamp}', 1)
+          metadata = '\n    '.join([
+              f'<meta name="vdm-preview-commit" content="{os.environ["BUILD_SHA"]}" />',
+              '<meta name="robots" content="noindex, nofollow, noarchive" />',
+              '<meta name="googlebot" content="noindex, nofollow, noarchive" />',
+          ])
+          html = html.replace('<head>', f'<head>\n    {metadata}', 1)
           index.write_text(html, encoding='utf-8')
           Path('dist/404.html').write_text(html, encoding='utf-8')
+          Path('dist/robots.txt').write_text('User-agent: *\nDisallow: /\n', encoding='utf-8')
           Path('dist/.nojekyll').touch()
           PY
 
           test -f dist/index.html
           test -f dist/404.html
+          test -f dist/robots.txt
           test -f dist/.nojekyll
           grep --quiet "vdm-preview-commit.*${BUILD_SHA}" dist/index.html
+          grep --quiet 'name="robots" content="noindex, nofollow, noarchive"' dist/index.html
+          grep --quiet 'name="googlebot" content="noindex, nofollow, noarchive"' dist/index.html
+          grep --quiet '^Disallow: /$' dist/robots.txt
           grep --quiet '<div id="root"></div>' dist/index.html
 
           if find dist -type f -name '*.map' -print -quit | grep -q .; then
@@ -114,12 +123,18 @@ jobs:
           test "${#published_commit}" -eq 40
           echo "PUBLISHED_COMMIT=${published_commit}" >> "$GITHUB_ENV"
 
-          raw_url="https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/${published_commit}/index.html"
+          raw_base="https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/${published_commit}"
           curl --fail --silent --show-error \
             -H 'Cache-Control: no-cache' \
-            "$raw_url" \
+            "${raw_base}/index.html" \
+            | tee /tmp/published-index.html \
             | grep --quiet "vdm-preview-commit.*${BUILD_SHA}"
-          echo "Immutable preview commit ${published_commit} contains ${BUILD_SHA}."
+          grep --quiet 'name="robots" content="noindex, nofollow, noarchive"' /tmp/published-index.html
+          curl --fail --silent --show-error \
+            -H 'Cache-Control: no-cache' \
+            "${raw_base}/robots.txt" \
+            | grep --quiet '^Disallow: /$'
+          echo "Immutable preview commit ${published_commit} contains ${BUILD_SHA} and blocks indexing."
 
       - name: Verify Supabase preview resolver
         shell: bash
