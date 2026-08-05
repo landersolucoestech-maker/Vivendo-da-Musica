@@ -27,6 +27,7 @@ jobs:
       VITE_ROUTER_MODE: browser
       STATIC_BRANCH: dev-preview-static
       PREVIEW_HEALTH_URL: https://ywirfqvobfnunlcsnptm.supabase.co/functions/v1/vivendo-preview?health=1
+      API_V1_HEALTH_URL: https://ywirfqvobfnunlcsnptm.supabase.co/functions/v1/api-v1/v1/health
     steps:
       - name: Checkout dev
         uses: actions/checkout@v6
@@ -169,6 +170,53 @@ jobs:
           done
 
           echo 'The Supabase preview resolver did not return the published commit.' >&2
+          exit 1
+
+      - name: Verify remote API v1 health
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in 1 2 3 4 5; do
+            rm -f /tmp/api-v1-headers.txt /tmp/api-v1-health.json
+            if curl --fail --silent --show-error \
+              --dump-header /tmp/api-v1-headers.txt \
+              --output /tmp/api-v1-health.json \
+              -H 'Accept: application/json' \
+              -H 'Cache-Control: no-cache' \
+              "$API_V1_HEALTH_URL"; then
+              if python - /tmp/api-v1-headers.txt /tmp/api-v1-health.json <<'PY'
+          import json
+          import re
+          import sys
+          from pathlib import Path
+
+          headers = Path(sys.argv[1]).read_text(encoding='utf-8').lower()
+          payload = json.loads(Path(sys.argv[2]).read_text(encoding='utf-8'))
+          data = payload.get('data', {})
+          if data.get('status') != 'healthy' or data.get('version') != '1':
+              raise SystemExit(1)
+          if not re.search(r'^x-request-id: [0-9a-f-]{36}\r?$', headers, re.MULTILINE):
+              raise SystemExit(1)
+          if not re.search(r'^x-trace-id: [0-9a-f-]{36}\r?$', headers, re.MULTILINE):
+              raise SystemExit(1)
+          if not re.search(r'^x-api-version: 1\r?$', headers, re.MULTILINE):
+              raise SystemExit(1)
+          if not re.search(r'^x-content-type-options: nosniff\r?$', headers, re.MULTILINE):
+              raise SystemExit(1)
+          PY
+              then
+                echo 'Remote API v1 health verified.'
+                exit 0
+              fi
+            fi
+            sleep $((attempt * 2))
+          done
+
+          echo 'The remote API v1 health endpoint failed validation.' >&2
+          echo 'Headers:' >&2
+          cat /tmp/api-v1-headers.txt >&2 || true
+          echo 'Body:' >&2
+          cat /tmp/api-v1-health.json >&2 || true
           exit 1
 
       - name: Upload compiled preview diagnostic
