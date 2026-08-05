@@ -38,7 +38,7 @@ select is(
     where schemaname = 'public'
       and tablename = 'user_profiles'
       and policyname = 'user_profiles_owner_update'
-      and with_check ilike '%role = current_role()%'
+      and replace(with_check, '"', '') ilike '%role = current_role()%'
   ),
   1::bigint,
   'authenticated profile updates preserve the persisted role'
