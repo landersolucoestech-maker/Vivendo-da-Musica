@@ -51,6 +51,18 @@ describe('contrato de publicação do preview estático', () => {
     expect(workflow).toContain('Supabase preview resolver verified for ${PUBLISHED_COMMIT}.');
   });
 
+  it('valida a API v1 publicada, seu roteamento e headers de rastreabilidade', () => {
+    expect(workflow).toContain('API_V1_HEALTH_URL: https://ywirfqvobfnunlcsnptm.supabase.co/functions/v1/api-v1/v1/health');
+    expect(workflow).toContain('Verify remote API v1 health');
+    expect(workflow).toContain("data.get('status') != 'healthy'");
+    expect(workflow).toContain("data.get('version') != '1'");
+    expect(workflow).toContain("r'^x-request-id: [0-9a-f-]{36}\\r?$'");
+    expect(workflow).toContain("r'^x-trace-id: [0-9a-f-]{36}\\r?$'");
+    expect(workflow).toContain("r'^x-api-version: 1\\r?$'");
+    expect(workflow).toContain("r'^x-content-type-options: nosniff\\r?$'");
+    expect(workflow).toContain('Remote API v1 health verified.');
+  });
+
   it('limita consultas públicas ao GitHub e tolera indisponibilidade transitória', () => {
     expect(previewFunction).toContain('const STATIC_COMMIT_TTL_MS = 60_000;');
     expect(previewFunction).toContain('let staticCommitCache: StaticCommitCache | null = null;');
