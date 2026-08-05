@@ -32,8 +32,6 @@ select ok(
   'authenticated users cannot update payout events'
 );
 
--- user_profiles retains its historical FK to auth.users. Build valid auth
--- identities first and let the provisioning trigger create the base profiles.
 insert into auth.users (
   id,
   aud,
@@ -113,9 +111,6 @@ set local role authenticated;
 select set_config('request.jwt.claim.sub', '9fc00000-0000-4000-8000-000000000001', true);
 select set_config('request.jwt.claim.role', 'authenticated', true);
 
-create temporary table payout_event_test_context (payout_id uuid not null) on commit drop;
-
-insert into payout_event_test_context (payout_id)
 select public.request_producer_payout(
   '9fd00000-0000-4000-8000-000000000001'::uuid,
   5000,
@@ -126,7 +121,13 @@ select set_config('request.jwt.claim.sub', '9fc00000-0000-4000-8000-000000000002
 
 select lives_ok(
   $$select public.transition_producer_payout(
-    (select payout_id from payout_event_test_context),
+    (
+      select id
+      from public.producer_payout_requests
+      where producer_id = '9fc00000-0000-4000-8000-000000000001'::uuid
+      order by requested_at desc, id
+      limit 1
+    ),
     'processing'
   )$$,
   'admin transition creates an audit event'
@@ -136,7 +137,13 @@ select is(
   (
     select count(*)
     from public.producer_payout_events
-    where payout_request_id = (select payout_id from payout_event_test_context)
+    where payout_request_id = (
+      select id
+      from public.producer_payout_requests
+      where producer_id = '9fc00000-0000-4000-8000-000000000001'::uuid
+      order by requested_at desc, id
+      limit 1
+    )
   ),
   2::bigint,
   'request and transition create exactly two payout events'
@@ -146,7 +153,13 @@ select is(
   (
     select count(*)
     from public.producer_payout_events
-    where payout_request_id = (select payout_id from payout_event_test_context)
+    where payout_request_id = (
+      select id
+      from public.producer_payout_requests
+      where producer_id = '9fc00000-0000-4000-8000-000000000001'::uuid
+      order by requested_at desc, id
+      limit 1
+    )
       and actor_role = 'producer'
       and from_status is null
       and to_status = 'requested'
@@ -159,7 +172,13 @@ select is(
   (
     select count(*)
     from public.producer_payout_events
-    where payout_request_id = (select payout_id from payout_event_test_context)
+    where payout_request_id = (
+      select id
+      from public.producer_payout_requests
+      where producer_id = '9fc00000-0000-4000-8000-000000000001'::uuid
+      order by requested_at desc, id
+      limit 1
+    )
       and actor_role = 'admin'
       and from_status = 'requested'
       and to_status = 'processing'
@@ -172,13 +191,25 @@ reset role;
 
 update public.producer_payout_requests
 set status = status
-where id = (select payout_id from payout_event_test_context);
+where id = (
+  select id
+  from public.producer_payout_requests
+  where producer_id = '9fc00000-0000-4000-8000-000000000001'::uuid
+  order by requested_at desc, id
+  limit 1
+);
 
 select is(
   (
     select count(*)
     from public.producer_payout_events
-    where payout_request_id = (select payout_id from payout_event_test_context)
+    where payout_request_id = (
+      select id
+      from public.producer_payout_requests
+      where producer_id = '9fc00000-0000-4000-8000-000000000001'::uuid
+      order by requested_at desc, id
+      limit 1
+    )
   ),
   2::bigint,
   'no-op status updates do not create duplicate events'
