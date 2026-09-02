@@ -1,0 +1,46 @@
+{
+  "version": 1,
+  "defaultDeny": true,
+  "protectedScopes": [
+    "production",
+    "production-write",
+    "secrets-write",
+    "schema-destructive",
+    "data-migration",
+    "auth-policy-change",
+    "rls-change",
+    "security-policy-change",
+    "gate-policy-change",
+    "release",
+    "rollback",
+    "containment"
+  ],
+  "destructiveOperations": [
+    "delete-file",
+    "delete-branch",
+    "drop-table",
+    "drop-column",
+    "truncate",
+    "force-push",
+    "revoke-access",
+    "rotate-secret",
+    "production-deploy",
+    "production-rollback"
+  ],
+  "completion": {
+    "requireAllRequiredGates": true,
+    "requireEvidenceForEachGate": true,
+    "forbidClaimOnlyEvidence": true,
+    "requireIndependentReviewForRisk": ["high", "critical"],
+    "requireNoPendingApprovals": true,
+    "requireNoFailedRequiredSteps": true
+  },
+  "evidence": {
+    "allowedKinds": ["command", "test", "workflow", "artifact", "diff", "review", "manual-verification"],
+    "minimumFields": ["kind", "source", "result", "timestamp"]
+  },
+  "state": {
+    "terminalStatuses": ["completed", "failed", "cancelled"],
+    "allowedStatuses": ["created", "planned", "running", "blocked", "awaiting-approval", "review", "completed", "failed", "cancelled"]
+  }
+}
