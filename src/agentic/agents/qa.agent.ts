@@ -17,6 +17,7 @@ export const qaAgent: AgentContract = {
     'quality.review',
     'evidence.collect',
   ],
+  skillIds: ['repository-engineering', 'quality-assurance', 'evidence-governance'],
   deniedCapabilities: ['repo.write'],
   humanApprovalFor: ['privileged', 'destructive'],
   maxSteps: 22,
