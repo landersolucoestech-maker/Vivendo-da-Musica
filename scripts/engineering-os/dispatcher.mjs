@@ -1,4 +1,5 @@
 import { getAgent, loadWorkflow } from './runtime.mjs';
+import { getSkill } from './skill-runner.mjs';
 import { decideOperation } from './policy-engine.mjs';
 
 export const buildDispatchPlan = ({ workflowId, runId = null, approvalLedger = null }) => {
@@ -7,6 +8,8 @@ export const buildDispatchPlan = ({ workflowId, runId = null, approvalLedger = n
 
   for (const step of workflow.steps ?? []) {
     const agent = getAgent(step.agent);
+    const skill = getSkill(step.skill);
+    if (!(agent.skills ?? []).includes(skill.id)) throw new Error(`Workflow skill not assigned to agent: ${workflowId}/${step.id}/${agent.id}/${skill.id}`);
     const scope = step.scope ?? 'read';
     const operation = step.operation ?? step.id;
     const authorization = decideOperation({
@@ -21,6 +24,7 @@ export const buildDispatchPlan = ({ workflowId, runId = null, approvalLedger = n
     plan.push({
       stepId: step.id,
       agentId: agent.id,
+      skillId: skill.id,
       risk: agent.risk,
       scope,
       operation,
