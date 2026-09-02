@@ -1,0 +1,115 @@
+{
+  "version": 1,
+  "tools": [
+    {
+      "id": "repository.read",
+      "capability": "repository-read",
+      "scope": "read",
+      "risk": "low",
+      "sideEffect": "none",
+      "approval": "never",
+      "lock": false,
+      "idempotent": true,
+      "timeoutMs": 30000
+    },
+    {
+      "id": "repository.write-source",
+      "capability": "source-write",
+      "scope": "source-write",
+      "risk": "medium",
+      "sideEffect": "repository",
+      "approval": "policy",
+      "lock": true,
+      "idempotent": true,
+      "timeoutMs": 60000
+    },
+    {
+      "id": "repository.write-test",
+      "capability": "test-write",
+      "scope": "test-write",
+      "risk": "medium",
+      "sideEffect": "repository",
+      "approval": "policy",
+      "lock": true,
+      "idempotent": true,
+      "timeoutMs": 60000
+    },
+    {
+      "id": "repository.write-ci",
+      "capability": "ci-write",
+      "scope": "ci-write",
+      "risk": "high",
+      "sideEffect": "repository",
+      "approval": "required",
+      "lock": true,
+      "idempotent": true,
+      "timeoutMs": 60000
+    },
+    {
+      "id": "database.write-migration",
+      "capability": "migration-write",
+      "scope": "migration-write",
+      "risk": "high",
+      "sideEffect": "repository",
+      "approval": "policy",
+      "lock": true,
+      "idempotent": true,
+      "timeoutMs": 60000
+    },
+    {
+      "id": "security.write-policy",
+      "capability": "security-write",
+      "scope": "security-write",
+      "risk": "high",
+      "sideEffect": "repository",
+      "approval": "required",
+      "lock": true,
+      "idempotent": true,
+      "timeoutMs": 60000
+    },
+    {
+      "id": "quality.execute",
+      "capability": "quality-gates",
+      "scope": "read",
+      "risk": "medium",
+      "sideEffect": "local-runtime",
+      "approval": "never",
+      "lock": false,
+      "idempotent": true,
+      "timeoutMs": 900000
+    },
+    {
+      "id": "release.write-metadata",
+      "capability": "release-metadata-write",
+      "scope": "release-metadata-write",
+      "risk": "high",
+      "sideEffect": "repository",
+      "approval": "required",
+      "lock": true,
+      "idempotent": true,
+      "timeoutMs": 60000
+    },
+    {
+      "id": "production.deploy",
+      "capability": "production-deploy",
+      "scope": "production-write",
+      "risk": "critical",
+      "sideEffect": "production",
+      "approval": "required",
+      "lock": true,
+      "idempotent": false,
+      "timeoutMs": 1200000
+    },
+    {
+      "id": "production.rollback",
+      "capability": "production-rollback",
+      "scope": "production-write",
+      "risk": "critical",
+      "sideEffect": "production",
+      "approval": "required",
+      "lock": true,
+      "idempotent": false,
+      "timeoutMs": 1200000
+    }
+  ]
+}
