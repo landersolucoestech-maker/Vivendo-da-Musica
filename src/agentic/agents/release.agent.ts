@@ -19,6 +19,7 @@ export const releaseAgent: AgentContract = {
     'tests.verify',
     'evidence.collect',
   ],
+  skillIds: ['repository-engineering', 'release-and-deployment', 'quality-assurance', 'evidence-governance'],
   deniedCapabilities: [],
   humanApprovalFor: ['privileged', 'destructive'],
   maxSteps: 24,
