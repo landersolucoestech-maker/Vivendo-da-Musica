@@ -1,9 +1,8 @@
-import { Award, BarChart3, CircleDollarSign, GraduationCap, Percent, Receipt, ShoppingBag } from 'lucide-react';
+import { Award, CircleDollarSign, GraduationCap, Percent, Receipt, ShoppingBag } from 'lucide-react';
 
 import InstructorLayout from '@/app/layouts/InstructorLayout';
 import { useInstructorReports } from '@/modules/instructor/hooks/useInstructorReports';
 import DataTable from '@/shared/components/DataTable';
-import StatCard from '@/shared/components/StatCard';
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/components/ui/card';
 import { formatPrice } from '@/shared/utils/formatters';
 
@@ -30,38 +29,63 @@ const InstructorReportsPage = () => {
 
       {data && (
         <>
-          <div className="mb-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-            <StatCard label="Receita confirmada" value={formatPrice(data.revenueCents, data.currency)} icon={CircleDollarSign} />
-            <StatCard label="Vendas pagas" value={data.paidSales.toLocaleString('pt-BR')} icon={ShoppingBag} />
-            <StatCard label="Ticket médio" value={formatPrice(data.averageTicketCents, data.currency)} icon={Receipt} />
-            <StatCard label="Matrículas ativas" value={data.activeEnrollments.toLocaleString('pt-BR')} icon={GraduationCap} />
-            <StatCard label="Certificados emitidos" value={data.certificatesIssued.toLocaleString('pt-BR')} icon={Award} />
-            <StatCard label="Taxa de certificação" value={`${data.certificationRate}%`} icon={Percent} />
-          </div>
+          <section className="mb-8">
+            <Card>
+              <CardHeader className="pb-4">
+                <p className="vdm-eyebrow">Visão consolidada</p>
+                <CardTitle className="mt-1 text-xl">Desempenho dos seus cursos</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid gap-6 border-b border-border pb-6 md:grid-cols-3 md:gap-0">
+                  <div className="md:pr-6">
+                    <div className="mb-4 flex size-10 items-center justify-center rounded-lg border border-border bg-muted/30 text-primary">
+                      <CircleDollarSign className="size-5" />
+                    </div>
+                    <p className="text-3xl font-bold tracking-tight text-foreground">{formatPrice(data.revenueCents, data.currency)}</p>
+                    <p className="mt-1 text-sm text-muted-foreground">Receita confirmada</p>
+                  </div>
+                  <div className="md:border-l md:border-border md:px-6">
+                    <div className="mb-4 flex size-10 items-center justify-center rounded-lg border border-border bg-muted/30 text-primary">
+                      <ShoppingBag className="size-5" />
+                    </div>
+                    <p className="text-3xl font-bold tracking-tight text-foreground">{data.paidSales.toLocaleString('pt-BR')}</p>
+                    <p className="mt-1 text-sm text-muted-foreground">Vendas pagas</p>
+                  </div>
+                  <div className="md:border-l md:border-border md:pl-6">
+                    <div className="mb-4 flex size-10 items-center justify-center rounded-lg border border-border bg-muted/30 text-primary">
+                      <GraduationCap className="size-5" />
+                    </div>
+                    <p className="text-3xl font-bold tracking-tight text-foreground">{data.activeEnrollments.toLocaleString('pt-BR')}</p>
+                    <p className="mt-1 text-sm text-muted-foreground">Matrículas ativas</p>
+                  </div>
+                </div>
 
-          <Card className="mb-8 border-primary/20 bg-primary/[0.04]">
-            <CardHeader className="flex-row items-center justify-between space-y-0">
-              <div>
-                <p className="vdm-eyebrow">Leitura consolidada</p>
-                <CardTitle className="mt-2 text-xl">Resumo operacional</CardTitle>
-              </div>
-              <span className="vdm-icon-button border-primary/25 bg-primary/10 text-primary"><BarChart3 className="size-5" /></span>
-            </CardHeader>
-            <CardContent className="grid gap-4 sm:grid-cols-3">
-              <div className="vdm-surface p-4">
-                <p className="text-xs uppercase tracking-[0.12em] text-muted-foreground">Receita por venda</p>
-                <p className="mt-2 text-lg font-semibold text-white">{formatPrice(data.averageTicketCents, data.currency)}</p>
-              </div>
-              <div className="vdm-surface p-4">
-                <p className="text-xs uppercase tracking-[0.12em] text-muted-foreground">Certificados por matrícula</p>
-                <p className="mt-2 text-lg font-semibold text-white">{data.certificationRate}%</p>
-              </div>
-              <div className="vdm-surface p-4">
-                <p className="text-xs uppercase tracking-[0.12em] text-muted-foreground">Cursos com dados</p>
-                <p className="mt-2 text-lg font-semibold text-white">{data.courses.length}</p>
-              </div>
-            </CardContent>
-          </Card>
+                <div className="grid gap-4 pt-5 sm:grid-cols-3 sm:gap-0">
+                  <div className="flex items-center gap-3 sm:pr-5">
+                    <Receipt className="size-4 shrink-0 text-muted-foreground" />
+                    <div>
+                      <p className="text-lg font-semibold text-foreground">{formatPrice(data.averageTicketCents, data.currency)}</p>
+                      <p className="text-xs text-muted-foreground">Ticket médio</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3 sm:border-l sm:border-border sm:px-5">
+                    <Award className="size-4 shrink-0 text-muted-foreground" />
+                    <div>
+                      <p className="text-lg font-semibold text-foreground">{data.certificatesIssued.toLocaleString('pt-BR')}</p>
+                      <p className="text-xs text-muted-foreground">Certificados emitidos</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3 sm:border-l sm:border-border sm:pl-5">
+                    <Percent className="size-4 shrink-0 text-muted-foreground" />
+                    <div>
+                      <p className="text-lg font-semibold text-foreground">{data.certificationRate}%</p>
+                      <p className="text-xs text-muted-foreground">Taxa de certificação</p>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </section>
 
           <section>
             <div className="mb-4">
