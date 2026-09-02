@@ -1,7 +1,9 @@
 import {
+  canonicalizeExecutionManifest,
   executionManifestSchema,
   type ExecutionManifest,
   type ExecutionManifestInput,
+  type ExecutionManifestIntegrityVerifier,
   type ExecutionManifestSignatureVerifier,
   type ManifestExecutionContext,
 } from '@/agentic/contracts/executionManifest';
@@ -23,7 +25,7 @@ interface NonceBinding {
   idempotencyKey: string;
 }
 
-const requiresSignature = (risk: ManifestExecutionContext['risk']): boolean =>
+const requiresStrongIntegrity = (risk: ManifestExecutionContext['risk']): boolean =>
   risk === 'privileged' || risk === 'destructive';
 
 const resourceMatches = (scope: string, resource: string): boolean => {
@@ -47,6 +49,9 @@ const assertReleasePolicy = (manifest: ExecutionManifest): void => {
   }
   if (!manifest.artifactRef) {
     throw new Error(`Manifesto de release de produção precisa fixar artifactRef: ${manifest.id}`);
+  }
+  if (!manifest.integrityDigest) {
+    throw new Error(`Manifesto de produção precisa fixar integrityDigest: ${manifest.id}`);
   }
   if (!manifest.allowedResources.some((scope) => scope.startsWith('hostinger:target:') && !scope.endsWith('*'))) {
     throw new Error(`Manifesto de produção precisa fixar um target Hostinger exato: ${manifest.id}`);
@@ -74,7 +79,10 @@ export class ExecutionManifestStore {
   private readonly executions = new Map<string, number>();
   private readonly nonceBindings = new Map<string, NonceBinding>();
 
-  constructor(private readonly signatureVerifier?: ExecutionManifestSignatureVerifier) {}
+  constructor(
+    private readonly signatureVerifier?: ExecutionManifestSignatureVerifier,
+    private readonly integrityVerifier?: ExecutionManifestIntegrityVerifier,
+  ) {}
 
   issue(input: ExecutionManifestInput): ExecutionManifest {
     const manifest = executionManifestSchema.parse(input) as ExecutionManifest;
@@ -113,7 +121,22 @@ export class ExecutionManifestStore {
     if (manifest.artifactRef && manifest.artifactRef !== (context.artifactRef ?? null)) {
       throw new Error('Artifact ref divergente do Execution Manifest.');
     }
-    if (requiresSignature(context.risk)) {
+
+    const mustVerifyIntegrity = requiresStrongIntegrity(context.risk) || Boolean(manifest.integrityDigest);
+    if (mustVerifyIntegrity) {
+      if (!manifest.integrityDigest) {
+        throw new Error(`Integrity digest obrigatório para risco ${context.risk}.`);
+      }
+      if (!this.integrityVerifier) {
+        throw new Error('Verifier de integridade do Execution Manifest não configurado.');
+      }
+      const canonicalPayload = canonicalizeExecutionManifest(manifest);
+      if (!this.integrityVerifier.verify(canonicalPayload, manifest.integrityDigest)) {
+        throw new Error('Integrity digest do Execution Manifest inválido.');
+      }
+    }
+
+    if (requiresStrongIntegrity(context.risk)) {
       if (!manifest.signature) throw new Error(`Execution Manifest assinado é obrigatório para risco ${context.risk}.`);
       if (!this.signatureVerifier) throw new Error('Verifier de assinatura do Execution Manifest não configurado.');
       if (!this.signatureVerifier.verify(manifest)) throw new Error('Assinatura do Execution Manifest inválida.');
