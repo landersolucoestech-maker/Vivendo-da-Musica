@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex,nofollow,noarchive" />
+  <title>Vivendo da Música — Dev Preview</title>
+  <style>
+    :root { font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color-scheme: dark; }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #09090b; color: #fafafa; }
+    main { width: min(1180px, calc(100% - 32px)); margin: 0 auto; padding: 40px 0 72px; }
+    header { display: flex; gap: 16px; align-items: end; justify-content: space-between; flex-wrap: wrap; margin-bottom: 28px; }
+    h1 { margin: 0; font-size: clamp(28px, 4vw, 44px); }
+    p { color: #a1a1aa; max-width: 760px; line-height: 1.6; }
+    .badge { display: inline-flex; padding: 7px 11px; border: 1px solid #3f3f46; border-radius: 999px; color: #d4d4d8; font-size: 13px; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; }
+    section { border: 1px solid #27272a; border-radius: 16px; padding: 18px; background: #111113; }
+    h2 { font-size: 16px; margin: 0 0 12px; }
+    a { display: block; color: #fafafa; text-decoration: none; border: 1px solid #27272a; background: #18181b; border-radius: 10px; padding: 10px 12px; margin-top: 8px; transition: .15s ease; }
+    a:hover { border-color: #71717a; transform: translateY(-1px); }
+    code { color: #a1a1aa; font-size: 12px; }
+    .note { margin-top: 24px; border-left: 3px solid #71717a; padding-left: 14px; }
+  </style>
+</head>
+<body>
+<main>
+  <header>
+    <div>
+      <span class="badge">BRANCH DEV · PREVIEW</span>
+      <h1>Navegação completa</h1>
+      <p>Atalhos para todas as rotas estáticas atualmente montadas no app. O preview usa HashRouter, então cada item abre diretamente a tela correspondente no build do branch dev.</p>
+    </div>
+    <a href="./#/">Abrir Home</a>
+  </header>
+
+  <div class="grid" id="routes"></div>
+  <p class="note">Rotas dinâmicas de curso, aula, produto, beat, artigo e serviço exigem um ID/slug existente no banco. Elas devem ser acessadas a partir das respectivas páginas de catálogo/listagem para preservar dados reais.</p>
+</main>
+<script>
+const groups = {
+  "Público": [
+    ["Home", "/"], ["Login", "/login"], ["Matrícula", "/matricule-se"], ["Cadastro empresa", "/cadastro-empresa"],
+    ["Esqueci a senha", "/esqueceu-senha"], ["Redefinir senha", "/redefinir-senha"], ["Verificar e-mail", "/verificar-email"],
+    ["Verificado", "/verificado"], ["Contato", "/contato"], ["Privacidade", "/politica-de-privacidade"], ["Termos", "/termos-de-uso"],
+    ["Academia", "/academia"], ["Marketplace", "/marketplace"], ["Marketplace Beats", "/marketplace/beats"], ["Carrinho", "/carrinho"],
+    ["Checkout", "/checkout"], ["Validar certificado", "/validar"], ["Conteúdos", "/conteudos"], ["Comunidade pública", "/comunidade"],
+    ["Oportunidades públicas", "/oportunidades"], ["Pagamento concluído", "/pagamento-sucesso"], ["Curso em breve", "/curso-em-breve"], ["Acesso negado", "/acesso-negado"]
+  ],
+  "Aluno": [
+    ["Dashboard", "/aluno"], ["Meus cursos", "/aluno/meus-cursos"], ["Certificados", "/aluno/certificados"], ["Downloads", "/aluno/downloads"],
+    ["Biblioteca", "/aluno/biblioteca"], ["Comunidade", "/aluno/comunidade"], ["Oportunidades", "/aluno/oportunidades"], ["Pedidos", "/aluno/pedidos"],
+    ["Favoritos", "/aluno/favoritos"], ["Perfil", "/aluno/perfil"], ["Configurações", "/aluno/configuracoes"], ["Notificações", "/aluno/notificacoes"], ["Suporte", "/aluno/suporte"]
+  ],
+  "Instrutor": [
+    ["Dashboard", "/instrutor"], ["Cursos", "/instrutor/cursos"], ["Alunos e avaliações", "/instrutor/alunos-avaliacoes"], ["Relatórios", "/instrutor/relatorios"]
+  ],
+  "Produtor": [
+    ["Dashboard", "/produtor"], ["Beats", "/produtor/beats"], ["Produtos", "/produtor/produtos"], ["Pedidos", "/produtor/pedidos"]
+  ],
+  "Afiliado": [
+    ["Dashboard", "/afiliado"], ["Links", "/afiliado/links"], ["Conversões", "/afiliado/conversoes"], ["Comissões", "/afiliado/comissoes"],
+    ["Saques", "/afiliado/saques"], ["Materiais", "/afiliado/materiais"], ["Perfil", "/afiliado/perfil"]
+  ],
+  "Empresa": [
+    ["Dashboard", "/empresa"], ["Oportunidades", "/empresa/oportunidades"], ["Candidatos", "/empresa/candidatos"], ["Mensagens", "/empresa/mensagens"], ["Perfil", "/empresa/perfil"]
+  ],
+  "Admin": [
+    ["Dashboard", "/admin"], ["Usuários", "/admin/usuarios"], ["Alunos", "/admin/alunos"], ["Cursos", "/admin/cursos"], ["Produtos", "/admin/produtos"],
+    ["Pedidos", "/admin/pedidos"], ["Cupons", "/admin/cupons"], ["Conteúdos", "/admin/conteudos"], ["Certificados", "/admin/certificados"],
+    ["Comunidade", "/admin/comunidade"], ["Relatórios", "/admin/relatorios"], ["Observabilidade", "/admin/observabilidade"], ["Configurações", "/admin/configuracoes"],
+    ["Integrações", "/admin/integracoes"], ["Financeiro", "/admin/financeiro"], ["Marketing", "/admin/marketing"], ["Suporte", "/admin/suporte"],
+    ["Auditoria", "/admin/auditoria"], ["Segurança", "/admin/seguranca"]
+  ]
+};
+const root = document.getElementById('routes');
+for (const [title, routes] of Object.entries(groups)) {
+  const section = document.createElement('section');
+  const heading = document.createElement('h2');
+  heading.textContent = title;
+  section.appendChild(heading);
+  for (const [label, path] of routes) {
+    const link = document.createElement('a');
+    link.href = `./#${path}`;
+    link.innerHTML = `${label}<br><code>${path}</code>`;
+    section.appendChild(link);
+  }
+  root.appendChild(section);
+}
+</script>
+</body>
+</html>
