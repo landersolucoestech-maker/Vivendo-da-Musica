@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
+import { DeploymentProviderRegistry } from '@/agentic/runtime/deploymentProviderRegistry';
 import { HostingerDeploymentProvider } from '@/agentic/runtime/hostingerDeploymentProvider';
 
 const request = {
@@ -20,6 +21,25 @@ describe('HostingerDeploymentProvider', () => {
     );
 
     await expect(provider.deploy(request)).resolves.toMatchObject({ deploymentId: 'dep-1' });
+    expect(deploy).toHaveBeenCalledWith({ mode: 'vps-docker', targetId: 'vm-123' }, request);
+  });
+
+  it('preserves class prototype methods after provider registration', async () => {
+    const deploy = vi.fn().mockResolvedValue({
+      deploymentId: 'dep-registry', environment: 'staging', artifactRef: request.artifactRef,
+    });
+    const provider = new HostingerDeploymentProvider(
+      { mode: 'vps-docker', targetId: 'vm-123' },
+      { deploy },
+    );
+    const registry = new DeploymentProviderRegistry();
+
+    registry.register(provider);
+
+    expect(registry.get('hostinger')).toBe(provider);
+    await expect(registry.get('hostinger').deploy(request)).resolves.toMatchObject({
+      deploymentId: 'dep-registry',
+    });
     expect(deploy).toHaveBeenCalledWith({ mode: 'vps-docker', targetId: 'vm-123' }, request);
   });
 
