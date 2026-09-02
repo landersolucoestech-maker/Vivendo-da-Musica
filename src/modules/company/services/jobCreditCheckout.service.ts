@@ -1,8 +1,8 @@
 import { env } from '@/app/config/env';
 import { supabase } from '@/integrations/supabase/client';
 import { canonicalCheckoutService } from '@/modules/checkout/services/canonicalCheckout.service';
+import { getActiveCompanyId } from '@/modules/company/services/companyContext.service';
 import { isDevAuthBypassEnabled } from '@/shared/utils/devAuthBypass';
-import { getEffectiveUserId } from '@/shared/utils/devIdentity';
 
 export interface JobCreditPackOption {
   id: string;
@@ -43,20 +43,9 @@ const request = async <T>(path: string): Promise<T> => {
   return response.json() as Promise<T>;
 };
 
-const currentUserId = async () => {
-  const { data, error } = await supabase.auth.getUser();
-  if (error && !isDevAuthBypassEnabled) throw error;
-  return getEffectiveUserId(data.user?.id ?? null);
-};
-
 export const jobCreditCheckoutService = {
   async getData(): Promise<CompanyCreditCheckoutData> {
-    const userId = await currentUserId();
-    const memberships = await request<Array<{ company_id: string }>>(
-      `company_members?select=company_id&user_id=eq.${encodeURIComponent(userId)}&status=eq.active&order=created_at.asc&limit=1`,
-    );
-    const companyId = memberships[0]?.company_id;
-    if (!companyId) throw new Error('Nenhuma empresa ativa foi encontrada para esta conta.');
+    const companyId = await getActiveCompanyId();
 
     const [companies, balances, packs] = await Promise.all([
       request<Array<{ id: string; legal_name: string; trade_name: string | null }>>(
