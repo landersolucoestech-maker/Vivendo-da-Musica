@@ -7,6 +7,7 @@ import { useProducerProducts } from '@/modules/producer/hooks/useProducerProduct
 import { producerService } from '@/modules/producer/services/producer.service';
 import type { SellerProduct, SellerProductType } from '@/modules/producer/types/producer.types';
 import DataTable from '@/shared/components/DataTable';
+import LoadingState from '@/shared/components/LoadingState';
 import StatusBadge from '@/shared/components/StatusBadge';
 import { Button } from '@/shared/components/ui/button';
 import {
@@ -44,7 +45,7 @@ const formatFileSize = (size: number) => {
 };
 
 const ProducerProductsPage = () => {
-  const { data, isError } = useProducerProducts();
+  const { data, isLoading, isError } = useProducerProducts();
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [saving, setSaving] = useState(false);
@@ -141,7 +142,23 @@ const ProducerProductsPage = () => {
     }
   };
 
-  const products = data ?? [];
+  if (isLoading) {
+    return (
+      <ProducerLayout>
+        <LoadingState rows={5} />
+      </ProducerLayout>
+    );
+  }
+
+  if (isError || !data) {
+    return (
+      <ProducerLayout>
+        <p className="rounded-xl border border-destructive/30 bg-destructive/10 p-4 text-sm text-red-300">
+          Não foi possível carregar os produtos.
+        </p>
+      </ProducerLayout>
+    );
+  }
 
   return (
     <ProducerLayout>
@@ -163,10 +180,8 @@ const ProducerProductsPage = () => {
           <h2 className="mt-1 font-display text-xl font-semibold text-white">Produtos cadastrados</h2>
         </div>
 
-        {isError && <p className="mb-4 rounded-xl border border-destructive/30 bg-destructive/10 p-4 text-sm text-red-300">Não foi possível carregar os produtos.</p>}
-
         <DataTable
-          rows={products}
+          rows={data}
           rowKey={(item) => item.id}
           emptyLabel="Nenhum produto cadastrado."
           columns={[
