@@ -47,7 +47,7 @@ const AdminReportsPage = lazy(() => import('@/modules/admin/pages/AdminReportsPa
 const AdminObservabilityPage = lazy(() => import('@/modules/admin/pages/AdminObservabilityPage'));
 const AdminSettingsPage = lazy(() => import('@/modules/admin/pages/AdminSettingsPage'));
 const AdminIntegrationsPage = lazy(() => import('@/modules/admin/pages/AdminIntegrationsPage'));
-const AdminFinancePage = lazy(() => import('@/modules/admin/pages/AdminFinancePage'));
+const AdminFinancePage = lazy(() => import('@/modules/admin/pages/AdminFinanceCanonicalPage'));
 const AdminMarketingPage = lazy(() => import('@/modules/admin/pages/AdminMarketingPage'));
 const AdminSupportPage = lazy(() => import('@/modules/admin/pages/AdminSupportPage'));
 const AdminAuditPage = lazy(() => import('@/modules/admin/pages/AdminAuditPage'));
