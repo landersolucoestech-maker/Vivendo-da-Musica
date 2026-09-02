@@ -9,6 +9,7 @@ import { WorkflowStore } from '@/agentic/workflow/workflowStore';
 export interface GovernedExecutionRequest<Input = unknown> extends AgentExecutionRequest {
   input: Input;
   idempotencyKey: string;
+  executionNonce: string;
   manifestId: string;
   resource: string;
   artifactRef?: string | null;
@@ -47,6 +48,8 @@ export class GovernedAgentExecutor {
       risk: request.risk,
       resource: request.resource,
       artifactRef: request.artifactRef,
+      executionNonce: request.executionNonce,
+      idempotencyKey: request.idempotencyKey,
     });
 
     this.evidence.append({
@@ -60,6 +63,8 @@ export class GovernedAgentExecutor {
         manifestId: manifest.id,
         capability: manifest.capability,
         resource: request.resource,
+        executionNonce: request.executionNonce,
+        idempotencyKey: request.idempotencyKey,
         executionBudgetUsed: this.manifests.executionsUsed(manifest.id),
         executionBudgetMax: manifest.maxExecutions,
       },
