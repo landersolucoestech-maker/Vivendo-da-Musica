@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vivendodamusica.local/engineering-os/tool-call.schema.json",
+  "title": "Engineering OS Tool Call",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["runId", "agentId", "toolId", "operation", "input"],
+  "properties": {
+    "runId": { "type": "string", "minLength": 1 },
+    "agentId": { "type": "string", "minLength": 1 },
+    "toolId": { "type": "string", "minLength": 1 },
+    "operation": { "type": "string", "minLength": 1 },
+    "input": { "type": "object" },
+    "resource": { "type": ["string", "null"] },
+    "approvalId": { "type": ["string", "null"] },
+    "idempotencyKey": { "type": ["string", "null"] }
+  }
+}
