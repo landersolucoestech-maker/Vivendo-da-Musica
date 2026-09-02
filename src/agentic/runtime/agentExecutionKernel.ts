@@ -2,6 +2,7 @@ import type { AgentExecutionRequest } from '@/agentic/contracts/agentContract';
 import { EvidenceStore } from '@/agentic/evidence/evidenceStore';
 import { PolicyEngine, type PolicyDecision } from '@/agentic/policy/policyEngine';
 import { AgentRegistry } from '@/agentic/registry/agentRegistry';
+import type { SkillRegistry } from '@/agentic/registry/skillRegistry';
 import { DeterministicAgentRuntime } from '@/agentic/runtime/deterministicAgentRuntime';
 import { WorkflowEngine } from '@/agentic/workflow/workflowEngine';
 
@@ -19,8 +20,9 @@ export class AgentExecutionKernel {
     private readonly registry: AgentRegistry,
     private readonly policyEngine: PolicyEngine,
     private readonly evidenceStore: EvidenceStore,
+    skills?: SkillRegistry,
   ) {
-    this.runtime = new DeterministicAgentRuntime(registry);
+    this.runtime = new DeterministicAgentRuntime(registry, skills);
   }
 
   admit(request: AgentExecutionRequest): ExecutionAdmission {
@@ -85,7 +87,7 @@ export class AgentExecutionKernel {
     const workflow = new WorkflowEngine(workflowId, admission.agent.maxSteps);
     return {
       allowed: true,
-      reason: 'Execução admitida pelo contrato do agente e pelas policies.',
+      reason: 'Execução admitida pelo contrato do agente, Skill registrada e pelas policies.',
       policy,
       workflow,
     };
