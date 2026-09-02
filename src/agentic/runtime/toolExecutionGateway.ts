@@ -6,6 +6,7 @@ import {
   type CapabilityAdapterEvidence,
   type CapabilityExecutionContext,
 } from '@/agentic/runtime/capabilityAdapterRegistry';
+import { CapabilityQuotaStore } from '@/agentic/runtime/capabilityQuotaStore';
 import { CircuitBreaker } from '@/agentic/runtime/circuitBreaker';
 import { IdempotencyStore, type IdempotencyBinding } from '@/agentic/runtime/idempotencyStore';
 import { LeaseManager } from '@/agentic/runtime/leaseManager';
@@ -36,6 +37,7 @@ export class ToolExecutionGateway {
     private readonly approvals: ApprovalReceiptStore,
     private readonly leases: LeaseManager,
     private readonly evidence: EvidenceStore,
+    private readonly quotas: CapabilityQuotaStore = new CapabilityQuotaStore(),
   ) {}
 
   async execute<Input, Output>(request: ToolExecutionRequest<Input>): Promise<Output> {
@@ -76,6 +78,7 @@ export class ToolExecutionGateway {
       this.leases.assertHeld(request.leaseResource, request.agentId);
     }
 
+    const quota = this.quotas.assertAndConsume({ agentId: request.agentId, capability: request.capability });
     this.appendEvidence(request, 'tool_call', {
       capability: request.capability,
       risk: request.risk,
@@ -84,6 +87,13 @@ export class ToolExecutionGateway {
       resource: request.resource,
       leaseResource: request.leaseResource ?? null,
       approvalReceiptId: request.approvalReceiptId ?? null,
+      quota: quota ? {
+        used: quota.used,
+        remaining: quota.remaining,
+        maxExecutions: quota.maxExecutions,
+        windowMs: quota.windowMs,
+        windowStartedAt: quota.windowStartedAt,
+      } : null,
     });
 
     this.idempotency.start(request.idempotencyKey, binding);
