@@ -1,0 +1,18 @@
+{
+  "id": "greenfield",
+  "version": 1,
+  "risk": "high",
+  "steps": [
+    {"id":"requirements","agent":"product-analyst","scope":"plan","required":true,"gates":["requirements-evidence"]},
+    {"id":"architecture","agent":"architect","scope":"plan","required":true,"gates":["architecture-evidence"]},
+    {"id":"threat-model","agent":"threat-modeler","scope":"evidence","required":true,"gates":["threat-model-evidence"]},
+    {"id":"frontend","agent":"frontend-engineer","scope":"source-write","required":true,"gates":["frontend-evidence"]},
+    {"id":"backend","agent":"backend-engineer","scope":"source-write","required":true,"gates":["backend-evidence"]},
+    {"id":"contracts","agent":"api-contract-engineer","scope":"test-write","required":true,"gates":["contract-evidence"]},
+    {"id":"security","agent":"security-engineer","scope":"evidence","required":true,"gates":["security-evidence"]},
+    {"id":"tests","agent":"test-engineer","scope":"test-write","required":true,"gates":["test-evidence"]},
+    {"id":"quality","agent":"quality-engineer","scope":"evidence","required":true,"gates":["quality-evidence"]},
+    {"id":"review","agent":"reviewer","scope":"evidence","required":true,"gates":["independent-review"]}
+  ],
+  "requiredGates": ["requirements-evidence","architecture-evidence","threat-model-evidence","frontend-evidence","backend-evidence","contract-evidence","security-evidence","test-evidence","quality-evidence","independent-review"]
+}
