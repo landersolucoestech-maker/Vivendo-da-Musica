@@ -1,0 +1,113 @@
+{
+  "version": 1,
+  "agents": [
+    {
+      "id": "orchestrator",
+      "name": "Engineering Orchestrator",
+      "risk": "high",
+      "capabilities": ["plan", "delegate", "gate", "summarize"],
+      "allowedScopes": ["read", "plan", "state", "delegate"],
+      "deniedScopes": ["production-write", "secrets-write"],
+      "requiresApprovalFor": ["destructive", "production", "security-policy-change"]
+    },
+    {
+      "id": "repo-archaeologist",
+      "name": "Repository Archaeologist",
+      "risk": "low",
+      "capabilities": ["inventory", "dependency-map", "dead-code-analysis", "architecture-analysis"],
+      "allowedScopes": ["read", "evidence"],
+      "deniedScopes": ["write", "production-write", "secrets-write"],
+      "requiresApprovalFor": []
+    },
+    {
+      "id": "architect",
+      "name": "Software Architect",
+      "risk": "medium",
+      "capabilities": ["architecture", "contracts", "migration-plan", "adr"],
+      "allowedScopes": ["read", "plan", "docs-write"],
+      "deniedScopes": ["production-write", "secrets-write"],
+      "requiresApprovalFor": ["architecture-boundary-change"]
+    },
+    {
+      "id": "frontend-engineer",
+      "name": "Frontend Engineer",
+      "risk": "medium",
+      "capabilities": ["react", "typescript", "accessibility", "ui", "performance"],
+      "allowedScopes": ["read", "source-write", "test-write"],
+      "deniedScopes": ["production-write", "secrets-write"],
+      "requiresApprovalFor": ["destructive"]
+    },
+    {
+      "id": "backend-engineer",
+      "name": "Backend Engineer",
+      "risk": "high",
+      "capabilities": ["api", "database", "supabase", "edge-functions", "auth"],
+      "allowedScopes": ["read", "source-write", "test-write", "migration-write"],
+      "deniedScopes": ["production-write", "secrets-write"],
+      "requiresApprovalFor": ["destructive", "schema-destructive", "auth-policy-change"]
+    },
+    {
+      "id": "database-engineer",
+      "name": "Database Engineer",
+      "risk": "high",
+      "capabilities": ["schema", "rls", "migration", "query-analysis", "integrity"],
+      "allowedScopes": ["read", "migration-write", "test-write"],
+      "deniedScopes": ["production-write", "secrets-write"],
+      "requiresApprovalFor": ["schema-destructive", "data-migration", "rls-change"]
+    },
+    {
+      "id": "security-engineer",
+      "name": "Security Engineer",
+      "risk": "high",
+      "capabilities": ["threat-model", "auth-review", "rls-review", "dependency-security", "secret-scan"],
+      "allowedScopes": ["read", "evidence", "test-write", "security-write"],
+      "deniedScopes": ["production-write", "secrets-write"],
+      "requiresApprovalFor": ["security-policy-change", "auth-policy-change"]
+    },
+    {
+      "id": "test-engineer",
+      "name": "Test Engineer",
+      "risk": "medium",
+      "capabilities": ["unit", "integration", "contract", "e2e", "regression"],
+      "allowedScopes": ["read", "test-write", "fixtures-write"],
+      "deniedScopes": ["production-write", "secrets-write"],
+      "requiresApprovalFor": ["destructive"]
+    },
+    {
+      "id": "quality-engineer",
+      "name": "Quality Gate Engineer",
+      "risk": "medium",
+      "capabilities": ["lint", "typecheck", "build", "quality-gates", "evidence-validation"],
+      "allowedScopes": ["read", "evidence", "ci-write"],
+      "deniedScopes": ["production-write", "secrets-write"],
+      "requiresApprovalFor": ["gate-policy-change"]
+    },
+    {
+      "id": "release-engineer",
+      "name": "Release Engineer",
+      "risk": "critical",
+      "capabilities": ["release-plan", "versioning", "deployment-readiness", "rollback"],
+      "allowedScopes": ["read", "plan", "release-metadata-write"],
+      "deniedScopes": ["secrets-write"],
+      "requiresApprovalFor": ["production", "rollback", "release"]
+    },
+    {
+      "id": "incident-responder",
+      "name": "Incident Responder",
+      "risk": "critical",
+      "capabilities": ["triage", "containment-plan", "recovery-plan", "forensics"],
+      "allowedScopes": ["read", "evidence", "plan"],
+      "deniedScopes": ["production-write", "secrets-write"],
+      "requiresApprovalFor": ["containment", "rollback", "production"]
+    },
+    {
+      "id": "reviewer",
+      "name": "Independent Reviewer",
+      "risk": "low",
+      "capabilities": ["review", "verify-evidence", "challenge-claims", "completion-audit"],
+      "allowedScopes": ["read", "evidence"],
+      "deniedScopes": ["write", "production-write", "secrets-write"],
+      "requiresApprovalFor": []
+    }
+  ]
+}
