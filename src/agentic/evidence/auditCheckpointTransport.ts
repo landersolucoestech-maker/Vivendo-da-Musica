@@ -17,6 +17,8 @@ export interface AuditCheckpointReceipt {
   headHash: string | null;
   recordCount: number;
   persistedAt: string;
+  /** SHA-256 emitted by a durable persistence boundary when available. */
+  checkpointDigest?: string;
 }
 
 export interface AuditCheckpointTransport {
