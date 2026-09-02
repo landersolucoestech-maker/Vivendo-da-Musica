@@ -57,6 +57,14 @@ export class DeterministicAgentRuntime {
       };
     }
 
+    if (!agent.skillIds.includes(skill.skill.id)) {
+      return {
+        allowed: false,
+        reason: `Skill não atribuída para ${agent.id}: ${skill.skill.id}`,
+        agent,
+      };
+    }
+
     if (agent.humanApprovalFor.includes(request.risk) && !request.approvedByHuman) {
       return {
         allowed: false,
