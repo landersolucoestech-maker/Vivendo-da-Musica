@@ -1,0 +1,20 @@
+# Default ownership
+* @landersolucoestech-maker
+
+# CI/CD and repository governance
+/.github/ @landersolucoestech-maker
+/Dockerfile @landersolucoestech-maker
+/infra/ @landersolucoestech-maker
+
+# Backend, database and serverless surfaces
+/supabase/ @landersolucoestech-maker
+
+# Dependency manifests and build configuration
+/package.json @landersolucoestech-maker
+/package-lock.json @landersolucoestech-maker
+/vite.config.* @landersolucoestech-maker
+/tsconfig*.json @landersolucoestech-maker
+
+# Automated and end-to-end tests
+/tests/ @landersolucoestech-maker
+/playwright.config.* @landersolucoestech-maker
