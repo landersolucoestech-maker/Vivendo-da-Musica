@@ -1,45 +1,14 @@
-name: Refresh Security Lockfile
+name: Refresh Security Lockfile (disabled)
 
 on:
-  push:
-    branches:
-      - dev
-    paths:
-      - '.github/workflows/refresh-security-lockfile.yml'
+  workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  refresh:
+  disabled:
     runs-on: ubuntu-24.04
     steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version: 22
-          cache: npm
-
-      - name: Refresh vulnerable transitive dependencies
-        run: npm update browserslist nanoid --package-lock-only --ignore-scripts
-
-      - name: Verify clean install
-        run: npm ci --ignore-scripts
-
-      - name: Run high severity audit gate
-        run: npm run audit:high
-
-      - name: Commit refreshed lockfile
-        run: |
-          if git diff --quiet -- package-lock.json; then
-            echo "package-lock.json already satisfies the security refresh."
-            exit 0
-          fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add package-lock.json
-          git commit -m "fix(deps): resolve high severity audit findings"
-          git push origin HEAD:dev
+      - name: Temporary workflow disabled
+        run: echo "Security lockfile refresh completed; this workflow is intentionally disabled pending removal."
