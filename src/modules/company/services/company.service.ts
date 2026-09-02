@@ -1,5 +1,6 @@
 import { env } from '@/app/config/env';
 import { supabase } from '@/integrations/supabase/client';
+import { getActiveCompanyId } from '@/modules/company/services/companyContext.service';
 import type {
   CompanyApplicationStatus,
   CompanyCandidate,
@@ -117,20 +118,14 @@ const mapOpportunity = (row: any): CompanyOpportunity => ({
 
 const loadContext = async (): Promise<CompanyContext> => {
   const userId = await getUserId();
-  const { data: member, error: memberError } = await table('company_members')
-    .select('company_id, member_role, status')
-    .eq('user_id', userId)
-    .eq('status', 'active')
-    .maybeSingle();
-  if (memberError) throw new Error(`Não foi possível identificar a empresa: ${memberError.message}`);
-  if (!member) throw new Error('Esta conta ainda não está vinculada a uma empresa ativa.');
+  const companyId = await getActiveCompanyId();
 
   const { data: profile, error: profileError } = await table('company_profiles')
     .select('id, slug, display_name, legal_name, description, website_url, logo_url, industry, city, state, country, verification_status')
-    .eq('id', member.company_id)
+    .eq('id', companyId)
     .single();
   if (profileError) throw new Error(`Não foi possível carregar o perfil empresarial: ${profileError.message}`);
-  return { userId, companyId: member.company_id, profile: mapProfile(profile) };
+  return { userId, companyId, profile: mapProfile(profile) };
 };
 
 const listOpportunitiesForContext = async (context: CompanyContext): Promise<CompanyOpportunity[]> => {
