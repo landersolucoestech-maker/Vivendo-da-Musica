@@ -17,6 +17,7 @@ export const createIdempotencyStore = ({ now = () => Date.now(), ttlMs = 8640000
       const existing = entries.get(key);
       if (existing) {
         if (existing.requestFingerprint !== requestFingerprint) throw new Error(`Idempotency key reused with different request: ${key}`);
+        if (existing.status === 'unknown') throw new Error(`Idempotent operation has unknown outcome and requires reconciliation: ${key}`);
         return { replay: existing.status === 'completed', pending: existing.status === 'pending', result: existing.result ?? null };
       }
       entries.set(key, {
@@ -25,7 +26,8 @@ export const createIdempotencyStore = ({ now = () => Date.now(), ttlMs = 8640000
         status: 'pending',
         createdAt: new Date(now()).toISOString(),
         expiresAtMs: now() + ttlMs,
-        result: null
+        result: null,
+        error: null
       });
       return { replay: false, pending: false, result: null };
     },
@@ -41,6 +43,18 @@ export const createIdempotencyStore = ({ now = () => Date.now(), ttlMs = 8640000
         result: structuredClone(result)
       });
       return structuredClone(result);
+    },
+
+    markUnknown({ key, error }) {
+      purge();
+      const existing = entries.get(key);
+      if (!existing || existing.status !== 'pending') throw new Error(`Idempotency reservation missing: ${key}`);
+      entries.set(key, {
+        ...existing,
+        status: 'unknown',
+        unknownAt: new Date(now()).toISOString(),
+        error: String(error ?? 'unknown-outcome')
+      });
     },
 
     fail({ key }) {
