@@ -7,11 +7,14 @@ export interface CapabilityExecutionContext {
   capability: string;
   risk: AgentRisk;
   idempotencyKey: string;
+  manifestId: string;
+  resource: string;
 }
 
 export interface CapabilityAdapter<Input = unknown, Output = unknown> {
   capability: string;
   allowedRisks: readonly AgentRisk[];
+  validateResource?(input: Input, resource: string): void;
   execute(input: Input, context: CapabilityExecutionContext): Promise<Output>;
 }
 
