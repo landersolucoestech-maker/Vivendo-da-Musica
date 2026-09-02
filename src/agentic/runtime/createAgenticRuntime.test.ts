@@ -6,7 +6,10 @@ describe('createAgenticRuntime', () => {
   it('composes the complete governed runtime with the full specialist team', () => {
     const runtime = createAgenticRuntime();
     expect(runtime.registry.list()).toHaveLength(12);
-    expect(runtime.skills.list()).toHaveLength(13);
+    expect(runtime.skills.list()).toHaveLength(15);
+    const skillIds = runtime.skills.list().map((skill) => skill.id);
+    expect(skillIds).toContain('authorization-hardening');
+    expect(skillIds).toContain('database-migration-safety');
     expect(runtime.evidence.verifyIntegrity()).toBe(true);
     expect(runtime.adapters.listCapabilities()).toEqual([]);
     expect(runtime.deploymentProviders.list()).toEqual([]);
