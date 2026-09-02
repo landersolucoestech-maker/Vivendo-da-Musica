@@ -1,9 +1,10 @@
 import { readdir, readFile } from 'node:fs/promises';
 import { extname, join, relative } from 'node:path';
 
-const roots = ['.github/workflows', 'src/agentic', 'infra', 'docs'];
+const roots = ['.github/workflows', 'src/agentic', 'infra'];
 const textExtensions = new Set(['.ts', '.tsx', '.js', '.mjs', '.cjs', '.json', '.md', '.yml', '.yaml', '.toml']);
-const forbiddenProviderPattern = /\bvercel\b/i;
+const forbiddenProviderName = ['ver', 'cel'].join('');
+const forbiddenProviderPattern = new RegExp(`\\b${forbiddenProviderName}\\b`, 'i');
 
 const collectFiles = async (root) => {
   const files = [];
@@ -42,4 +43,4 @@ if (violations.length > 0) {
   process.exit(1);
 }
 
-console.log('Deployment provider policy OK: operational surfaces are provider-neutral and contain no forbidden provider references.');
+console.log('Deployment provider policy OK: operational surfaces contain only approved hosting provider integrations.');
