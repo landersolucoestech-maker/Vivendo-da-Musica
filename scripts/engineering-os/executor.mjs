@@ -43,7 +43,7 @@ export const createWorkflowExecutor = ({ stateStore, broker, handlers = {}, audi
       return structuredClone(run);
     },
 
-    async executeNext({ runId, dispatchApprovals = [] }) {
+    async executeNext({ runId }) {
       let run = stateStore.read(runId);
       if (!run) throw new Error(`Run not found: ${runId}`);
       const beforeFingerprint = fingerprint(run);
@@ -51,7 +51,7 @@ export const createWorkflowExecutor = ({ stateStore, broker, handlers = {}, audi
       if (run.status === 'created') throw new Error('Run must be planned before execution');
       if (['planned', 'blocked'].includes(run.status)) run = transitionRun(run, 'running', 'executor-dispatch');
 
-      const dispatch = selectNextStep({ run, workflowId: run.workflowId, approvals: dispatchApprovals });
+      const dispatch = selectNextStep({ run, workflowId: run.workflowId, approvalLedger: broker.approvals });
       if (dispatch.type === 'none') {
         if (run.status === 'running') run = transitionRun(run, 'review', 'workflow-steps-exhausted');
         persist(run, beforeFingerprint);
@@ -75,6 +75,17 @@ export const createWorkflowExecutor = ({ stateStore, broker, handlers = {}, audi
 
       const callTool = (request) => broker.execute({ ...request, runId, agentId: step.agentId });
       try {
+        if (step.authorization.approvalId) {
+          broker.approvals.consume({
+            approvalId: step.authorization.approvalId,
+            runId,
+            scope: step.scope,
+            operation: step.operation,
+            toolId: null,
+            actor: step.agentId
+          });
+        }
+
         const result = await handler({ run: structuredClone(run), step: structuredClone(step), callTool });
         const evidenceIds = [];
         const ledgerRecordIds = [];
