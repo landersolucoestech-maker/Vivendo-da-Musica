@@ -8,9 +8,9 @@ import DataTable from '@/shared/components/DataTable';
 import ErrorState from '@/shared/components/ErrorState';
 import LoadingState from '@/shared/components/LoadingState';
 import PageHeader from '@/shared/components/PageHeader';
-import StatCard from '@/shared/components/StatCard';
 import StatusBadge from '@/shared/components/StatusBadge';
 import { Button } from '@/shared/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/shared/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/shared/components/ui/dialog';
 import { Input } from '@/shared/components/ui/input';
 import { Label } from '@/shared/components/ui/label';
@@ -63,14 +63,63 @@ const AdminFinanceCanonicalPage = () => {
 
       {data && !isLoading && !isError && (
         <>
-          <div className="mb-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
-            <StatCard label="Vendas brutas" value={formatPrice(data.summary.grossPaidCents)} icon={ReceiptText} />
-            <StatCard label="Reembolsado" value={formatPrice(data.summary.refundedCents)} icon={RotateCcw} />
-            <StatCard label="Chargebacks" value={formatPrice(data.summary.chargebackCents)} icon={AlertTriangle} />
-            <StatCard label="Receita da plataforma" value={formatPrice(data.summary.platformRevenueCents)} icon={WalletCards} />
-            <StatCard label="Obrigações a repassar" value={formatPrice(data.summary.payableCents)} icon={Banknote} />
-            <StatCard label="Saldo de caixa" value={formatPrice(data.summary.cashBalanceCents)} icon={WalletCards} />
-          </div>
+          <section className="mb-8">
+            <Card>
+              <CardHeader className="pb-4">
+                <p className="vdm-eyebrow">Posição financeira</p>
+                <CardTitle className="mt-1 text-xl">Fluxo consolidado da plataforma</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid gap-6 border-b border-border pb-6 md:grid-cols-3 md:gap-0">
+                  <div className="md:pr-6">
+                    <div className="mb-4 flex size-10 items-center justify-center rounded-lg border border-border bg-muted/30 text-brand-medium">
+                      <ReceiptText className="size-5" />
+                    </div>
+                    <p className="text-3xl font-bold tracking-tight text-foreground">{formatPrice(data.summary.grossPaidCents)}</p>
+                    <p className="mt-1 text-sm text-muted-foreground">Vendas brutas</p>
+                  </div>
+                  <div className="md:border-l md:border-border md:px-6">
+                    <div className="mb-4 flex size-10 items-center justify-center rounded-lg border border-border bg-muted/30 text-brand-medium">
+                      <WalletCards className="size-5" />
+                    </div>
+                    <p className="text-3xl font-bold tracking-tight text-foreground">{formatPrice(data.summary.platformRevenueCents)}</p>
+                    <p className="mt-1 text-sm text-muted-foreground">Receita da plataforma</p>
+                  </div>
+                  <div className="md:border-l md:border-border md:pl-6">
+                    <div className="mb-4 flex size-10 items-center justify-center rounded-lg border border-border bg-muted/30 text-brand-medium">
+                      <Banknote className="size-5" />
+                    </div>
+                    <p className="text-3xl font-bold tracking-tight text-foreground">{formatPrice(data.summary.cashBalanceCents)}</p>
+                    <p className="mt-1 text-sm text-muted-foreground">Saldo de caixa</p>
+                  </div>
+                </div>
+
+                <div className="grid gap-4 pt-5 sm:grid-cols-3 sm:gap-0">
+                  <div className="flex items-center gap-3 sm:pr-5">
+                    <RotateCcw className="size-4 shrink-0 text-muted-foreground" />
+                    <div>
+                      <p className="text-lg font-semibold text-foreground">{formatPrice(data.summary.refundedCents)}</p>
+                      <p className="text-xs text-muted-foreground">Reembolsado</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3 sm:border-l sm:border-border sm:px-5">
+                    <AlertTriangle className="size-4 shrink-0 text-muted-foreground" />
+                    <div>
+                      <p className="text-lg font-semibold text-foreground">{formatPrice(data.summary.chargebackCents)}</p>
+                      <p className="text-xs text-muted-foreground">Chargebacks</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3 sm:border-l sm:border-border sm:pl-5">
+                    <Banknote className="size-4 shrink-0 text-muted-foreground" />
+                    <div>
+                      <p className="text-lg font-semibold text-foreground">{formatPrice(data.summary.payableCents)}</p>
+                      <p className="text-xs text-muted-foreground">Obrigações a repassar</p>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </section>
 
           <section className="mb-10">
             <h2 className="mb-3 font-display text-lg font-semibold text-white">Pedidos e pagamentos</h2>
