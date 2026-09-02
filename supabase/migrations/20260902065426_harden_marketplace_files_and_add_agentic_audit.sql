@@ -1,5 +1,11 @@
-revoke all on table public.marketplace_files from anon, authenticated;
-grant select, insert, update, delete on table public.marketplace_files to service_role;
+do $$
+begin
+  if to_regclass('public.marketplace_files') is not null then
+    execute 'revoke all on table public.marketplace_files from anon, authenticated';
+    execute 'grant select, insert, update, delete on table public.marketplace_files to service_role';
+  end if;
+end;
+$$;
 
 create table if not exists app_private.agentic_audit_log (
   id uuid primary key default gen_random_uuid(),
