@@ -27,6 +27,8 @@ jobs:
       VITE_DISABLE_AUTH: ${{ vars.VITE_DISABLE_AUTH }}
       VITE_PREVIEW_MODE: 'false'
       VITE_USE_MOCK_DATA: ${{ vars.VITE_USE_MOCK_DATA }}
+      HOSTINGER_DEPLOYMENT_MODE: ${{ vars.HOSTINGER_DEPLOYMENT_MODE }}
+      HOSTINGER_TARGET_ID: ${{ vars.HOSTINGER_TARGET_ID }}
     steps:
       - uses: actions/checkout@v6
         with:
@@ -41,6 +43,22 @@ jobs:
         run: node scripts/assert-production-safe.mjs
         env:
           SUPABASE_PROJECT_REF: ${{ vars.SUPABASE_PROJECT_REF }}
+      - name: Validate Hostinger deployment configuration
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "${HOSTINGER_DEPLOYMENT_MODE}" != "vps-docker" ]]; then
+            echo "Unsupported or missing HOSTINGER_DEPLOYMENT_MODE: ${HOSTINGER_DEPLOYMENT_MODE:-<empty>}. Only vps-docker is enabled until another transport is implemented and tested." >&2
+            exit 1
+          fi
+          if [[ -z "${HOSTINGER_TARGET_ID}" ]]; then
+            echo "HOSTINGER_TARGET_ID is required." >&2
+            exit 1
+          fi
+          if [[ -z "${{ secrets.HOSTINGER_API_KEY }}" ]]; then
+            echo "HOSTINGER_API_KEY is required." >&2
+            exit 1
+          fi
       - name: Validate dependency advisories
         run: npm run audit:high
       - run: npm run quality
@@ -86,6 +104,17 @@ jobs:
             VITE_SUPABASE_URL=${{ vars.VITE_SUPABASE_URL }}
             VITE_SUPABASE_PUBLISHABLE_KEY=${{ vars.VITE_SUPABASE_PUBLISHABLE_KEY }}
             VITE_DISABLE_AUTH=${{ vars.VITE_DISABLE_AUTH }}
+            VITE_PREVIEW_MODE=false
             VITE_USE_MOCK_DATA=${{ vars.VITE_USE_MOCK_DATA }}
           provenance: true
           sbom: true
+      - name: Deploy approved image to Hostinger VPS
+        uses: hostinger/deploy-action@v1
+        with:
+          api-key: ${{ secrets.HOSTINGER_API_KEY }}
+          virtual-machine: ${{ vars.HOSTINGER_TARGET_ID }}
+          project-name: vivendo-da-musica-${{ inputs.environment }}
+          docker-compose-path: docker-compose.hostinger.yml
+          environment-variables: |
+            APP_IMAGE=ghcr.io/${{ github.repository }}:${{ github.sha }}
+            APP_PORT=${{ vars.HOSTINGER_APP_PORT || '8080' }}
