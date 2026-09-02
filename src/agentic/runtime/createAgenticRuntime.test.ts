@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { createAgenticRuntime } from '@/agentic/runtime/createAgenticRuntime';
 
@@ -8,6 +8,19 @@ describe('createAgenticRuntime', () => {
     expect(runtime.registry.list()).toHaveLength(12);
     expect(runtime.evidence.verifyIntegrity()).toBe(true);
     expect(runtime.adapters.listCapabilities()).toEqual([]);
+    expect(runtime.deploymentProviders.list()).toEqual([]);
+  });
+
+  it('registers Hostinger only when an explicit trusted deployment configuration is supplied', () => {
+    const runtime = createAgenticRuntime({
+      hostinger: {
+        config: { mode: 'vps-docker', targetId: 'vm-123' },
+        transport: { deploy: vi.fn() },
+      },
+    });
+
+    expect(runtime.deploymentProviders.list()).toEqual(['hostinger']);
+    expect(runtime.deploymentProviders.get('hostinger').id).toBe('hostinger');
   });
 
   it('allows declared reads and requires human approval for privileged risk by default', () => {
