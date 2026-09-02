@@ -30,7 +30,8 @@ export class WorkflowVerificationService {
     if (!persisted) throw new Error(`Workflow não encontrado: ${request.workflowId}`);
     if (persisted.state !== 'verifying') throw new Error(`Workflow não está em verifying: ${request.workflowId}`);
 
-    const executionEvidence = this.evidence.all().find((record) =>
+    const records = this.evidence.all();
+    const executionEvidence = records.find((record) =>
       record.workflowId === request.workflowId && record.kind === 'tool_call',
     );
     if (!executionEvidence) throw new Error(`Workflow sem evidência de execução: ${request.workflowId}`);
@@ -44,9 +45,51 @@ export class WorkflowVerificationService {
       throw new Error(`Execution Manifest não pertence ao workflow: ${request.workflowId}`);
     }
 
-    const skillResolution = this.skills.resolve(manifest.capability, manifest.risk);
-    if (!skillResolution.allowed || !skillResolution.skill) {
-      throw new Error(`Workflow sem Skill válida para conclusão: ${skillResolution.reason}`);
+    const admissionEvidence = records.find((record) =>
+      record.workflowId === request.workflowId
+      && record.kind === 'admission'
+      && record.payload.manifestId === manifest.id,
+    );
+    if (!admissionEvidence) {
+      throw new Error(`Workflow sem binding versionado de admissão: ${request.workflowId}`);
+    }
+
+    const pinnedAgentVersion = admissionEvidence.payload.agentVersion;
+    const pinnedSkillId = admissionEvidence.payload.skillId;
+    const pinnedSkillVersion = admissionEvidence.payload.skillVersion;
+    if (
+      typeof pinnedAgentVersion !== 'string' || !pinnedAgentVersion
+      || typeof pinnedSkillId !== 'string' || !pinnedSkillId
+      || typeof pinnedSkillVersion !== 'string' || !pinnedSkillVersion
+    ) {
+      throw new Error(`Binding de Agent/Skill inválido no workflow: ${request.workflowId}`);
+    }
+
+    const executor = this.registry.get(executionEvidence.agentId);
+    if (executor.version !== pinnedAgentVersion) {
+      throw new Error(
+        `Agent version drift detectado para ${executor.id}: pin=${pinnedAgentVersion}, atual=${executor.version}. Nova admissão obrigatória.`,
+      );
+    }
+
+    const pinnedSkill = this.skills.get(pinnedSkillId);
+    if (pinnedSkill.version !== pinnedSkillVersion) {
+      throw new Error(
+        `Skill version drift detectado para ${pinnedSkill.id}: pin=${pinnedSkillVersion}, atual=${pinnedSkill.version}. Nova admissão obrigatória.`,
+      );
+    }
+    if (!executor.skillIds.includes(pinnedSkill.id)) {
+      throw new Error(`Skill pinada não está mais atribuída ao agente executor: ${pinnedSkill.id}`);
+    }
+
+    const currentResolution = this.skills.resolve(manifest.capability, manifest.risk);
+    if (!currentResolution.allowed || !currentResolution.skill) {
+      throw new Error(`Workflow sem Skill válida para conclusão: ${currentResolution.reason}`);
+    }
+    if (currentResolution.skill.id !== pinnedSkill.id || currentResolution.skill.version !== pinnedSkill.version) {
+      throw new Error(
+        `Resolução de Skill divergiu da admissão: pin=${pinnedSkill.id}@${pinnedSkill.version}, atual=${currentResolution.skill.id}@${currentResolution.skill.version}.`,
+      );
     }
 
     const reviewer = this.registry.get(request.reviewerAgentId);
@@ -61,14 +104,14 @@ export class WorkflowVerificationService {
     if (request.passed) {
       const requiredBeforeReview = new Set([
         ...manifest.requiredEvidenceKinds.filter((kind) => kind !== 'verification'),
-        ...skillResolution.skill.requiredEvidence.filter((kind) => kind !== 'verification'),
+        ...pinnedSkill.requiredEvidence.filter((kind) => kind !== 'verification'),
       ]);
-      const missing = [...requiredBeforeReview].filter((kind) => !this.evidence.all().some((record) =>
+      const missing = [...requiredBeforeReview].filter((kind) => !records.some((record) =>
         record.workflowId === request.workflowId && record.kind === kind,
       ));
       if (missing.length > 0) {
         throw new Error(
-          `Evidências obrigatórias ausentes para conclusão (${skillResolution.skill.id}): ${missing.join(', ')}`,
+          `Evidências obrigatórias ausentes para conclusão (${pinnedSkill.id}): ${missing.join(', ')}`,
         );
       }
     }
@@ -86,11 +129,13 @@ export class WorkflowVerificationService {
         passed: request.passed,
         reason: request.reason?.trim() || null,
         executorAgentId: executionEvidence.agentId,
+        executorAgentVersion: pinnedAgentVersion,
         reviewerAgentId: reviewer.id,
+        reviewerAgentVersion: reviewer.version,
         manifestId: manifest.id,
-        skillId: skillResolution.skill.id,
-        skillVersion: skillResolution.skill.version,
-        skillRequiredEvidence: skillResolution.skill.requiredEvidence,
+        skillId: pinnedSkill.id,
+        skillVersion: pinnedSkill.version,
+        skillRequiredEvidence: pinnedSkill.requiredEvidence,
         separationOfDuties: separation.reason,
       },
     });
