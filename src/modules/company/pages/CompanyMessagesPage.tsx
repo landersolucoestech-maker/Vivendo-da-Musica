@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { MessageSquareText, Send } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 
@@ -35,16 +35,29 @@ const CompanyMessagesPage = () => {
     const conversations = data ?? [];
     return conversations.find((item) => item.applicationId === selectedId) ?? conversations[0] ?? null;
   }, [data, selectedId]);
+  const selectedApplicationId = selected?.applicationId ?? null;
+  const selectedUnreadCount = selected?.unreadCount ?? 0;
 
-  const selectConversation = async (applicationId: string) => {
+  useEffect(() => {
+    if (!selectedApplicationId || selectedUnreadCount < 1) return;
+
+    const markRead = async () => {
+      try {
+        await companyService.markConversationRead(selectedApplicationId);
+        await Promise.all([
+          queryClient.invalidateQueries({ queryKey: ['company-conversations'] }),
+          queryClient.invalidateQueries({ queryKey: ['company-dashboard'] }),
+        ]);
+      } catch {
+        // Reading the conversation remains available even when the read receipt fails.
+      }
+    };
+
+    void markRead();
+  }, [queryClient, selectedApplicationId, selectedUnreadCount]);
+
+  const selectConversation = (applicationId: string) => {
     setSelectedId(applicationId);
-    try {
-      await companyService.markConversationRead(applicationId);
-      await queryClient.invalidateQueries({ queryKey: ['company-conversations'] });
-      await queryClient.invalidateQueries({ queryKey: ['company-dashboard'] });
-    } catch {
-      // Reading the conversation remains available even when the read receipt fails.
-    }
   };
 
   const send = async () => {
@@ -86,7 +99,7 @@ const CompanyMessagesPage = () => {
                 <button
                   key={conversation.applicationId}
                   type="button"
-                  onClick={() => void selectConversation(conversation.applicationId)}
+                  onClick={() => selectConversation(conversation.applicationId)}
                   className={`w-full rounded-xl p-4 text-left transition ${selected?.applicationId === conversation.applicationId ? 'bg-primary/12 ring-1 ring-primary/30' : 'hover:bg-white/[0.04]'}`}
                 >
                   <div className="flex items-start justify-between gap-3">
