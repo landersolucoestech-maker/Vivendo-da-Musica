@@ -33,6 +33,8 @@ describe('DeterministicAgentRuntime', () => {
       correlationId: 'test-1',
     });
     expect(decision.allowed).toBe(false);
+    expect(decision.skillId).toBeNull();
+    expect(decision.skillVersion).toBeNull();
   });
 
   it('denies explicitly blocked capabilities even with human approval', () => {
@@ -46,7 +48,7 @@ describe('DeterministicAgentRuntime', () => {
     expect(decision.allowed).toBe(false);
   });
 
-  it('requires human approval for privileged risk', () => {
+  it('requires human approval for privileged risk while preserving the resolved skill binding', () => {
     const decision = buildRuntime().admit({
       agentId: contract.id,
       capability: 'repo.write',
@@ -55,9 +57,11 @@ describe('DeterministicAgentRuntime', () => {
       correlationId: 'test-3',
     });
     expect(decision.allowed).toBe(false);
+    expect(decision.skillId).toBe('repository-engineering');
+    expect(decision.skillVersion).toBe('1.0.0');
   });
 
-  it('admits an authorized low-risk execution with an explicitly assigned skill', () => {
+  it('admits an authorized low-risk execution with an explicitly assigned version-pinned skill', () => {
     const decision = buildRuntime().admit({
       agentId: contract.id,
       capability: 'repo.read',
@@ -66,6 +70,9 @@ describe('DeterministicAgentRuntime', () => {
       correlationId: 'test-4',
     });
     expect(decision.allowed).toBe(true);
+    expect(decision.skillId).toBe('repository-engineering');
+    expect(decision.skillVersion).toBe('1.0.0');
+    expect(decision.reason).toContain('repository-engineering@1.0.0');
   });
 
   it('denies a capability when its resolved skill is not explicitly assigned to the agent', () => {
@@ -88,5 +95,7 @@ describe('DeterministicAgentRuntime', () => {
     expect(decision.allowed).toBe(false);
     expect(decision.reason).toContain('Skill não atribuída');
     expect(decision.reason).toContain('backend-api-engineering');
+    expect(decision.skillId).toBe('backend-api-engineering');
+    expect(decision.skillVersion).toBe('1.0.0');
   });
 });
