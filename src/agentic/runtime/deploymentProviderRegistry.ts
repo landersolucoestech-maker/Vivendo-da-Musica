@@ -23,12 +23,22 @@ export interface DeploymentProviderAdapter {
 
 export class DeploymentProviderRegistry {
   private readonly providers = new Map<string, DeploymentProviderAdapter>();
+  private sealed = false;
 
   register(provider: DeploymentProviderAdapter): void {
+    if (this.sealed) throw new Error('DeploymentProviderRegistry selado; novos providers não podem ser registrados.');
     const id = provider.id.trim().toLowerCase();
     if (!id) throw new Error('Deployment provider precisa de identificador.');
     if (this.providers.has(id)) throw new Error(`Deployment provider já registrado: ${id}`);
     this.providers.set(id, { ...provider, id });
+  }
+
+  seal(): void {
+    this.sealed = true;
+  }
+
+  isSealed(): boolean {
+    return this.sealed;
   }
 
   get(providerId: string): DeploymentProviderAdapter {
