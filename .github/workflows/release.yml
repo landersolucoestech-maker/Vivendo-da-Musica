@@ -21,6 +21,9 @@ jobs:
   release:
     runs-on: ubuntu-latest
     environment: ${{ inputs.environment }}
+    env:
+      VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
+      VITE_SUPABASE_PUBLISHABLE_KEY: ${{ vars.VITE_SUPABASE_PUBLISHABLE_KEY }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -29,14 +32,31 @@ jobs:
         with:
           node-version: 22
           cache: npm
+      - name: Validate environment configuration
+        shell: bash
+        env:
+          SUPABASE_PROJECT_REF: ${{ vars.SUPABASE_PROJECT_REF }}
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+        run: |
+          required=(
+            VITE_SUPABASE_URL
+            VITE_SUPABASE_PUBLISHABLE_KEY
+            SUPABASE_PROJECT_REF
+            SUPABASE_ACCESS_TOKEN
+            SUPABASE_DB_PASSWORD
+          )
+          for key in "${required[@]}"; do
+            if [ -z "${!key}" ]; then
+              echo "::error::Missing required release configuration: $key"
+              exit 1
+            fi
+          done
       - run: npm ci
       - run: npm audit --audit-level=high
       - run: npm run quality
       - run: npx playwright install --with-deps chromium
       - run: npm run test:e2e
-        env:
-          VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
-          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ vars.VITE_SUPABASE_PUBLISHABLE_KEY }}
       - name: Link remote Supabase project
         run: npx supabase link --project-ref "$SUPABASE_PROJECT_REF" --password "$SUPABASE_DB_PASSWORD"
         env:
@@ -53,6 +73,10 @@ jobs:
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_PROJECT_REF: ${{ vars.SUPABASE_PROJECT_REF }}
+      - name: Run remote integration smoke tests
+        run: npx playwright test tests/e2e/remote.spec.ts
+        env:
+          E2E_REMOTE_INTEGRATION: "true"
       - uses: docker/login-action@v3
         with:
           registry: ghcr.io
@@ -71,4 +95,3 @@ jobs:
             VITE_SUPABASE_PUBLISHABLE_KEY=${{ vars.VITE_SUPABASE_PUBLISHABLE_KEY }}
           provenance: true
           sbom: true
-
