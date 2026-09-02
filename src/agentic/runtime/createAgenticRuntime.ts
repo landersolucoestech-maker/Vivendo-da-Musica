@@ -12,6 +12,7 @@ import { createDefaultAgentRegistry } from '@/agentic/registry/defaultAgentRegis
 import { AgentExecutionKernel } from '@/agentic/runtime/agentExecutionKernel';
 import { ApprovalReceiptStore } from '@/agentic/runtime/approvalReceiptStore';
 import { CapabilityAdapterRegistry } from '@/agentic/runtime/capabilityAdapterRegistry';
+import { createDefaultCapabilityQuotaStore } from '@/agentic/runtime/capabilityQuotaStore';
 import { DelegationProtocol } from '@/agentic/runtime/delegationProtocol';
 import { DeploymentProviderRegistry } from '@/agentic/runtime/deploymentProviderRegistry';
 import { ExecutionManifestStore } from '@/agentic/runtime/executionManifestStore';
@@ -55,6 +56,7 @@ export const createAgenticRuntime = (options: AgenticRuntimeOptions = {}) => {
   const idempotency = new IdempotencyStore();
   const approvals = new ApprovalReceiptStore();
   const leases = new LeaseManager();
+  const quotas = createDefaultCapabilityQuotaStore();
   const workflows = new WorkflowStore();
   const manifests = new ExecutionManifestStore(
     options.manifestSignatureVerifier,
@@ -78,7 +80,7 @@ export const createAgenticRuntime = (options: AgenticRuntimeOptions = {}) => {
   deploymentProviders.seal();
 
   const kernel = new AgentExecutionKernel(registry, policies, evidence);
-  const gateway = new ToolExecutionGateway(adapters, idempotency, approvals, leases, evidence);
+  const gateway = new ToolExecutionGateway(adapters, idempotency, approvals, leases, evidence, quotas);
   const executor = new GovernedAgentExecutor(kernel, gateway, workflows, evidence, manifests);
   const verification = new WorkflowVerificationService(registry, workflows, evidence, manifests);
 
@@ -91,6 +93,7 @@ export const createAgenticRuntime = (options: AgenticRuntimeOptions = {}) => {
     idempotency,
     approvals,
     leases,
+    quotas,
     workflows,
     manifests,
     kernel,
