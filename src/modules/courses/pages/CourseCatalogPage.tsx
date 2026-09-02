@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Filter, Search, SlidersHorizontal } from 'lucide-react';
+import { Filter, SlidersHorizontal } from 'lucide-react';
 
 import PublicLayout from '@/app/layouts/PublicLayout';
 import CourseCard from '@/modules/courses/components/CourseCard';
@@ -14,7 +14,7 @@ import { usePagination } from '@/shared/hooks/usePagination';
 const PAGE_SIZE = 9;
 
 const CourseCatalogPage = () => {
-  const { data: courseCards, isError } = useCourseCards();
+  const { data: courseCards, isError, isLoading } = useCourseCards();
   const { data: categories } = useCourseCategories();
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState<string>('Todos');
@@ -91,15 +91,17 @@ const CourseCatalogPage = () => {
 
         <section>
           <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-            <div className="relative w-full max-w-xl">
-              <SearchInput value={search} onChange={setSearch} placeholder="Buscar cursos por título..." />
-              <Search className="pointer-events-none absolute right-4 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-            </div>
+            <SearchInput
+              value={search}
+              onChange={setSearch}
+              placeholder="Buscar cursos por título..."
+              className="w-full max-w-xl"
+            />
 
             <div className="flex items-center gap-3">
               <Badge variant="outline" className="gap-2 px-3 py-1.5">
                 <SlidersHorizontal className="size-3.5" />
-                {filteredCourses.length} {filteredCourses.length === 1 ? 'curso' : 'cursos'}
+                {isLoading ? 'Carregando cursos' : `${filteredCourses.length} ${filteredCourses.length === 1 ? 'curso' : 'cursos'}`}
               </Badge>
             </div>
           </div>
@@ -110,7 +112,13 @@ const CourseCatalogPage = () => {
             </div>
           )}
 
-          {filteredCourses.length === 0 ? (
+          {isLoading ? (
+            <div className="grid gap-5 sm:grid-cols-2 2xl:grid-cols-3" aria-label="Carregando cursos">
+              {Array.from({ length: 6 }).map((_, index) => (
+                <div key={index} className="vdm-surface h-80 animate-pulse bg-white/[0.035]" />
+              ))}
+            </div>
+          ) : filteredCourses.length === 0 ? (
             <EmptyState
               title="Nenhum curso encontrado"
               description={category !== 'Todos' ? `Ainda não há cursos publicados em “${category}”.` : 'Tente outra busca.'}
