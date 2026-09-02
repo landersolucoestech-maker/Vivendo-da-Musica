@@ -3,12 +3,27 @@ import path from 'node:path';
 import { spawn } from 'node:child_process';
 import { fingerprint } from './runtime.mjs';
 
+const normalizeRelative = (root, file) => path.relative(root, file).replaceAll('\\', '/');
 const ensureInside = (root, requestedPath) => {
   const resolvedRoot = path.resolve(root);
   const resolved = path.resolve(resolvedRoot, requestedPath ?? '.');
   const relative = path.relative(resolvedRoot, resolved);
   if (relative.startsWith('..') || path.isAbsolute(relative)) throw new Error(`Path escapes workspace: ${requestedPath}`);
   return resolved;
+};
+const requirePrefix = (relative, prefixes, label) => {
+  if (!prefixes.some((prefix) => relative === prefix || relative.startsWith(`${prefix}/`))) {
+    throw new Error(`${label} outside allowed paths: ${relative}`);
+  }
+};
+const writeText = ({ root, input, prefixes, label }) => {
+  const file = ensureInside(root, input.path);
+  const relative = normalizeRelative(root, file);
+  requirePrefix(relative, prefixes, label);
+  if (typeof input.content !== 'string') throw new Error(`${label} requires string content`);
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  fs.writeFileSync(file, input.content, 'utf8');
+  return { path: relative, fingerprint: fingerprint(input.content), bytes: Buffer.byteLength(input.content) };
 };
 
 const runProcess = ({ cwd, command, args = [], timeoutMs = 300000 }) => new Promise((resolve, reject) => {
@@ -53,34 +68,50 @@ export const createExecutionAdapters = ({ workspaceRoot, commandRunner = runProc
       const stat = fs.statSync(file);
       if (!stat.isFile()) throw new Error(`Repository read requires a file: ${input.path}`);
       const content = fs.readFileSync(file, 'utf8');
-      return { path: path.relative(root, file), content, fingerprint: fingerprint(content) };
+      return { path: normalizeRelative(root, file), content, fingerprint: fingerprint(content) };
     },
 
-    'repository.write-source': async ({ input = {} }) => {
-      const file = ensureInside(root, input.path);
-      if (typeof input.content !== 'string') throw new Error('Source write requires string content');
-      fs.mkdirSync(path.dirname(file), { recursive: true });
-      fs.writeFileSync(file, input.content, 'utf8');
-      return { path: path.relative(root, file), fingerprint: fingerprint(input.content), bytes: Buffer.byteLength(input.content) };
-    },
+    'repository.write-source': async ({ input = {} }) => writeText({
+      root,
+      input,
+      prefixes: ['src', 'scripts', 'supabase/functions'],
+      label: 'Source write'
+    }),
 
-    'repository.write-test': async ({ input = {} }) => {
-      const file = ensureInside(root, input.path);
-      if (typeof input.content !== 'string') throw new Error('Test write requires string content');
-      fs.mkdirSync(path.dirname(file), { recursive: true });
-      fs.writeFileSync(file, input.content, 'utf8');
-      return { path: path.relative(root, file), fingerprint: fingerprint(input.content), bytes: Buffer.byteLength(input.content) };
-    },
+    'repository.write-test': async ({ input = {} }) => writeText({
+      root,
+      input,
+      prefixes: ['src/tests', 'tests', 'e2e'],
+      label: 'Test write'
+    }),
 
-    'database.write-migration': async ({ input = {} }) => {
-      const file = ensureInside(root, input.path);
-      const relative = path.relative(root, file).replaceAll('\\', '/');
-      if (!relative.startsWith('supabase/migrations/')) throw new Error(`Migration write outside migration directory: ${relative}`);
-      if (typeof input.content !== 'string') throw new Error('Migration write requires string content');
-      fs.mkdirSync(path.dirname(file), { recursive: true });
-      fs.writeFileSync(file, input.content, 'utf8');
-      return { path: relative, fingerprint: fingerprint(input.content), bytes: Buffer.byteLength(input.content) };
-    },
+    'repository.write-ci': async ({ input = {} }) => writeText({
+      root,
+      input,
+      prefixes: ['.github/workflows'],
+      label: 'CI write'
+    }),
+
+    'database.write-migration': async ({ input = {} }) => writeText({
+      root,
+      input,
+      prefixes: ['supabase/migrations'],
+      label: 'Migration write'
+    }),
+
+    'security.write-policy': async ({ input = {} }) => writeText({
+      root,
+      input,
+      prefixes: ['engineering-os/policies', 'engineering-os/contracts', 'src/tests'],
+      label: 'Security policy write'
+    }),
+
+    'release.write-metadata': async ({ input = {} }) => writeText({
+      root,
+      input,
+      prefixes: ['engineering-os/releases'],
+      label: 'Release metadata write'
+    }),
 
     'quality.execute': async ({ input = {} }) => {
       const spec = qualityCommands.get(input.command);
