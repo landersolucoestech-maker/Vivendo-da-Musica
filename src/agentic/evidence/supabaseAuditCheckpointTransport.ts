@@ -59,7 +59,15 @@ export class SupabaseAuditCheckpointTransport implements AuditCheckpointTranspor
       throw new Error('Supabase retornou receipt de audit checkpoint inválido.');
     }
 
-    return Object.freeze({ ...parsed.data });
+    const receipt: AuditCheckpointReceipt = {
+      persistenceId: parsed.data.persistenceId!,
+      headHash: parsed.data.headHash ?? null,
+      recordCount: parsed.data.recordCount!,
+      persistedAt: parsed.data.persistedAt!,
+      checkpointDigest: parsed.data.checkpointDigest!,
+    };
+
+    return Object.freeze(receipt);
   }
 }
 
