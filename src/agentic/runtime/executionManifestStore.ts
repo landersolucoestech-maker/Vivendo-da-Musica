@@ -21,6 +21,26 @@ const freezeManifest = (manifest: ExecutionManifest): ExecutionManifest => Objec
   requiredEvidenceKinds: Object.freeze([...manifest.requiredEvidenceKinds]),
 });
 
+const assertReleasePolicy = (manifest: ExecutionManifest): void => {
+  const isProductionRelease = manifest.capability === 'deploy.production' || manifest.capability === 'rollback.production';
+  if (!isProductionRelease) return;
+
+  if (manifest.environment !== 'production') {
+    throw new Error(`Manifesto de release de produção precisa declarar environment=production: ${manifest.id}`);
+  }
+  if (!manifest.artifactRef) {
+    throw new Error(`Manifesto de release de produção precisa fixar artifactRef: ${manifest.id}`);
+  }
+  if (!manifest.allowedResources.some((scope) => scope.startsWith('hostinger:target:') && !scope.endsWith('*'))) {
+    throw new Error(`Manifesto de produção precisa fixar um target Hostinger exato: ${manifest.id}`);
+  }
+  const required = ['tool_call', 'tool_result', 'verification'] as const;
+  const missing = required.filter((kind) => !manifest.requiredEvidenceKinds.includes(kind));
+  if (missing.length > 0) {
+    throw new Error(`Manifesto de produção sem evidências obrigatórias: ${missing.join(', ')}`);
+  }
+};
+
 export class ExecutionManifestStore {
   private readonly manifests = new Map<string, ExecutionManifest>();
   private readonly executions = new Map<string, number>();
@@ -33,6 +53,7 @@ export class ExecutionManifestStore {
       throw new Error(`Execution Manifest expira antes ou no instante da emissão: ${manifest.id}`);
     }
     if (this.manifests.has(manifest.id)) throw new Error(`Execution Manifest já existe: ${manifest.id}`);
+    assertReleasePolicy(manifest);
     const frozen = freezeManifest(manifest);
     this.manifests.set(manifest.id, frozen);
     return frozen;
