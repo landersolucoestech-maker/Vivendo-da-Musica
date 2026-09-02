@@ -24,7 +24,7 @@ Construir uma camada agentic de engenharia governada por um runtime determiníst
 - O provider Hostinger suporta modos explícitos `vps-docker` e `web-app`; o modo real precisa ser configurado antes do primeiro deploy.
 - Nenhum agente pode falar diretamente com o provedor de hospedagem; toda operação passa por policy, approval, idempotência, lease quando aplicável e evidence.
 - O pipeline continua podendo produzir artefatos OCI no GHCR; o consumo/promoção desses artefatos pela Hostinger é responsabilidade do adapter de deploy aprovado.
-- Referências operacionais à Vercel são proibidas e verificadas por `test:deployment-provider` dentro de `npm run quality`.
+- Provedores de hospedagem não aprovados são proibidos nas superfícies operacionais e verificados por `test:deployment-provider` dentro de `npm run quality`.
 
 ## Camadas
 
