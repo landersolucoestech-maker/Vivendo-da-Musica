@@ -1,15 +1,15 @@
 {
   "id": "brownfield",
-  "version": 1,
+  "version": 2,
   "risk": "high",
   "steps": [
-    {"id":"inventory","agent":"repo-archaeologist","required":true,"gates":["inventory-evidence"]},
-    {"id":"architecture","agent":"architect","required":true,"gates":["architecture-evidence"]},
-    {"id":"implementation","agent":"orchestrator","required":true,"gates":["implementation-evidence"]},
-    {"id":"security","agent":"security-engineer","required":true,"gates":["security-evidence"]},
-    {"id":"tests","agent":"test-engineer","required":true,"gates":["test-evidence"]},
-    {"id":"quality","agent":"quality-engineer","required":true,"gates":["quality-evidence"]},
-    {"id":"review","agent":"reviewer","required":true,"gates":["independent-review"]}
+    {"id":"inventory","agent":"repo-archaeologist","skill":"repository-inventory","scope":"read","required":true,"gates":["inventory-evidence"]},
+    {"id":"architecture","agent":"architect","skill":"architecture-design","scope":"plan","required":true,"gates":["architecture-evidence"]},
+    {"id":"implementation","agent":"backend-engineer","skill":"implementation","scope":"source-write","required":true,"gates":["implementation-evidence"]},
+    {"id":"security","agent":"security-engineer","skill":"security-review","scope":"evidence","required":true,"gates":["security-evidence"]},
+    {"id":"tests","agent":"test-engineer","skill":"integration-testing","scope":"test-write","required":true,"gates":["test-evidence"]},
+    {"id":"quality","agent":"quality-engineer","skill":"quality-certification","scope":"evidence","required":true,"gates":["quality-evidence"]},
+    {"id":"review","agent":"reviewer","skill":"code-review","scope":"evidence","required":true,"gates":["independent-review"]}
   ],
   "requiredGates": [
     "inventory-evidence",
