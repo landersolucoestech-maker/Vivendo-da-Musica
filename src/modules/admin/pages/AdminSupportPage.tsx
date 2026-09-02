@@ -5,6 +5,7 @@ import { Mail, MessageSquareText } from 'lucide-react';
 import AdminLayout from '@/app/layouts/AdminLayout';
 import { adminSupportService, type AdminSupportMessage, type SupportMessageStatus } from '@/modules/admin/services/adminSupport.service';
 import DataTable from '@/shared/components/DataTable';
+import LoadingState from '@/shared/components/LoadingState';
 import PageHeader from '@/shared/components/PageHeader';
 import StatCard from '@/shared/components/StatCard';
 import StatusBadge from '@/shared/components/StatusBadge';
@@ -42,28 +43,31 @@ const AdminSupportPage = () => {
     <AdminLayout>
       <PageHeader title="Suporte" subtitle="Mensagens persistidas pelos canais de contato da plataforma." />
 
-      <div className="mb-6 grid gap-4 sm:grid-cols-3">
-        <StatCard label="Total de mensagens" value={String(rows.length)} icon={MessageSquareText} />
-        <StatCard label="Pendentes" value={String(openCount)} icon={Mail} />
-        <StatCard label="Resolvidas" value={String(resolvedCount)} />
-      </div>
-
-      {messages.isLoading && <p className="text-sm text-muted-foreground">Carregando mensagens...</p>}
+      {messages.isLoading && <LoadingState rows={6} />}
       {messages.isError && <p className="text-sm text-destructive">Não foi possível carregar as mensagens de suporte.</p>}
-      {!messages.isLoading && !messages.isError && (
-        <DataTable
-          rows={rows}
-          rowKey={(message) => message.id}
-          emptyLabel="Nenhuma mensagem recebida."
-          columns={[
-            { header: 'Assunto', cell: (message) => message.subject },
-            { header: 'Solicitante', cell: (message) => message.name },
-            { header: 'E-mail', cell: (message) => message.email },
-            { header: 'Recebida em', cell: (message) => new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(message.created_at)) },
-            { header: 'Status', cell: (message) => <StatusBadge status={message.status} label={statusLabel[message.status]} /> },
-            { header: '', cell: (message) => <Button size="sm" variant="outline" onClick={() => setSelected(message)}>Visualizar</Button> },
-          ]}
-        />
+
+      {messages.data && !messages.isLoading && !messages.isError && (
+        <>
+          <div className="mb-6 grid gap-4 sm:grid-cols-3">
+            <StatCard label="Total de mensagens" value={String(rows.length)} icon={MessageSquareText} />
+            <StatCard label="Pendentes" value={String(openCount)} icon={Mail} />
+            <StatCard label="Resolvidas" value={String(resolvedCount)} />
+          </div>
+
+          <DataTable
+            rows={rows}
+            rowKey={(message) => message.id}
+            emptyLabel="Nenhuma mensagem recebida."
+            columns={[
+              { header: 'Assunto', cell: (message) => message.subject },
+              { header: 'Solicitante', cell: (message) => message.name },
+              { header: 'E-mail', cell: (message) => message.email },
+              { header: 'Recebida em', cell: (message) => new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(message.created_at)) },
+              { header: 'Status', cell: (message) => <StatusBadge status={message.status} label={statusLabel[message.status]} /> },
+              { header: '', cell: (message) => <Button size="sm" variant="outline" onClick={() => setSelected(message)}>Visualizar</Button> },
+            ]}
+          />
+        </>
       )}
 
       <Dialog open={!!selected} onOpenChange={(open) => !open && setSelected(null)}>
