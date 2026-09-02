@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
+import type { ExecutionManifestInput } from '@/agentic/contracts/executionManifest';
 import { ExecutionManifestStore } from '@/agentic/runtime/executionManifestStore';
 
 const readManifest = {
@@ -8,13 +9,13 @@ const readManifest = {
   workflowId: 'corr-read:engineering-orchestrator',
   agentId: 'engineering-orchestrator',
   capability: 'repo.read',
-  risk: 'read' as const,
+  risk: 'read',
   allowedResources: ['repo:path:src/*'],
   maxExecutions: 1,
-  requiredEvidenceKinds: ['tool_call', 'tool_result'] as const,
+  requiredEvidenceKinds: ['tool_call', 'tool_result'],
   issuedAt: '2026-09-02T05:00:00.000Z',
   expiresAt: '2099-09-02T05:30:00.000Z',
-};
+} satisfies ExecutionManifestInput;
 
 describe('ExecutionManifestStore', () => {
   it('enforces resource scope and execution budget', () => {
