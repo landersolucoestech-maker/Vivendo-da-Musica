@@ -1,7 +1,11 @@
 import { z } from 'zod';
 
 import { agentRiskSchema, type AgentRisk } from '@/agentic/contracts/agentContract';
-import { evidenceKindSchema, type EvidenceRecord } from '@/agentic/contracts/evidenceContract';
+import {
+  evidenceKindSchema,
+  type EvidenceKind,
+  type EvidenceRecord,
+} from '@/agentic/contracts/evidenceContract';
 
 export const executionManifestSchema = z.object({
   id: z.string().min(1),
@@ -20,7 +24,14 @@ export const executionManifestSchema = z.object({
   signature: z.string().min(1).nullable().default(null),
 });
 
-export type ExecutionManifest = Readonly<z.infer<typeof executionManifestSchema>>;
+type ParsedExecutionManifest = z.infer<typeof executionManifestSchema>;
+
+export type ExecutionManifest = Readonly<
+  Omit<ParsedExecutionManifest, 'allowedResources' | 'requiredEvidenceKinds'> & {
+    allowedResources: readonly string[];
+    requiredEvidenceKinds: readonly EvidenceKind[];
+  }
+>;
 export type ExecutionManifestInput = z.input<typeof executionManifestSchema>;
 
 export interface ExecutionManifestSignatureVerifier {
