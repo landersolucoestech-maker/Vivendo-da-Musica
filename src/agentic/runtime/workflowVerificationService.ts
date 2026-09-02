@@ -1,5 +1,7 @@
+import { manifestHasRequiredEvidence } from '@/agentic/contracts/executionManifest';
 import { EvidenceStore } from '@/agentic/evidence/evidenceStore';
 import { AgentRegistry } from '@/agentic/registry/agentRegistry';
+import { ExecutionManifestStore } from '@/agentic/runtime/executionManifestStore';
 import { evaluateIndependentReview } from '@/agentic/runtime/separationOfDuties';
 import { WorkflowEngine, type WorkflowSnapshot } from '@/agentic/workflow/workflowEngine';
 import { WorkflowStore } from '@/agentic/workflow/workflowStore';
@@ -16,6 +18,7 @@ export class WorkflowVerificationService {
     private readonly registry: AgentRegistry,
     private readonly workflows: WorkflowStore,
     private readonly evidence: EvidenceStore,
+    private readonly manifests: ExecutionManifestStore,
   ) {}
 
   verify(request: WorkflowVerificationRequest): Readonly<WorkflowSnapshot> {
@@ -28,6 +31,15 @@ export class WorkflowVerificationService {
     );
     if (!executionEvidence) throw new Error(`Workflow sem evidência de execução: ${request.workflowId}`);
 
+    const manifestId = executionEvidence.payload.manifestId;
+    if (typeof manifestId !== 'string' || !manifestId) {
+      throw new Error(`Workflow sem Execution Manifest vinculado: ${request.workflowId}`);
+    }
+    const manifest = this.manifests.get(manifestId);
+    if (manifest.workflowId !== request.workflowId) {
+      throw new Error(`Execution Manifest não pertence ao workflow: ${request.workflowId}`);
+    }
+
     const reviewer = this.registry.get(request.reviewerAgentId);
     const separation = evaluateIndependentReview({
       executorAgentId: executionEvidence.agentId,
@@ -36,6 +48,16 @@ export class WorkflowVerificationService {
       reviewerDeniedCapabilities: reviewer.deniedCapabilities,
     });
     if (!separation.allowed) throw new Error(separation.reason);
+
+    if (request.passed) {
+      const requiredBeforeReview = manifest.requiredEvidenceKinds.filter((kind) => kind !== 'verification');
+      const missing = requiredBeforeReview.filter((kind) => !this.evidence.all().some((record) =>
+        record.workflowId === request.workflowId && record.kind === kind,
+      ));
+      if (missing.length > 0) {
+        throw new Error(`Evidências obrigatórias ausentes para conclusão: ${missing.join(', ')}`);
+      }
+    }
 
     const workflow = WorkflowEngine.restore(persisted);
     const verification = workflow.recordVerification(request.passed, request.reason);
@@ -51,6 +73,7 @@ export class WorkflowVerificationService {
         reason: request.reason?.trim() || null,
         executorAgentId: executionEvidence.agentId,
         reviewerAgentId: reviewer.id,
+        manifestId: manifest.id,
         separationOfDuties: separation.reason,
       },
     });
@@ -59,6 +82,10 @@ export class WorkflowVerificationService {
       this.workflows.save(verification);
       this.appendTransition(executionEvidence.correlationId, reviewer.id, request.workflowId, 'verifying', 'failed', verification.stepsExecuted);
       return verification;
+    }
+
+    if (!manifestHasRequiredEvidence(manifest, this.evidence.all())) {
+      throw new Error(`Execution Manifest sem todas as evidências obrigatórias: ${manifest.id}`);
     }
 
     const completed = workflow.transition('completed');
