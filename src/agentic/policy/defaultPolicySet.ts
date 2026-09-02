@@ -14,6 +14,13 @@ export const defaultAgenticPolicyRules: readonly PolicyRule[] = Object.freeze([
     reason: 'Operações de escrita são permitidas somente após gates contratuais e lease de execução.',
   },
   {
+    id: 'authorization.harden.require-human',
+    effect: 'require_approval',
+    capability: 'authorization.harden',
+    risks: ['write', 'privileged'],
+    reason: 'Mudanças no boundary de autorização exigem aprovação humana explícita, mesmo quando classificadas como write.',
+  },
+  {
     id: 'risk.privileged.require-human',
     effect: 'require_approval',
     risks: ['privileged'],
