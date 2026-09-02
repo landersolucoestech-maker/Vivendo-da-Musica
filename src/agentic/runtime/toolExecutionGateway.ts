@@ -1,7 +1,11 @@
 import type { AgentRisk } from '@/agentic/contracts/agentContract';
 import { EvidenceStore } from '@/agentic/evidence/evidenceStore';
 import { ApprovalReceiptStore } from '@/agentic/runtime/approvalReceiptStore';
-import { CapabilityAdapterRegistry, type CapabilityExecutionContext } from '@/agentic/runtime/capabilityAdapterRegistry';
+import {
+  CapabilityAdapterRegistry,
+  type CapabilityAdapterEvidence,
+  type CapabilityExecutionContext,
+} from '@/agentic/runtime/capabilityAdapterRegistry';
 import { CircuitBreaker } from '@/agentic/runtime/circuitBreaker';
 import { IdempotencyStore, type IdempotencyBinding } from '@/agentic/runtime/idempotencyStore';
 import { LeaseManager } from '@/agentic/runtime/leaseManager';
@@ -38,6 +42,11 @@ export class ToolExecutionGateway {
     const adapter = this.adapters.get(request.capability, request.risk) as {
       validateResource?(input: Input, resource: string): void;
       execute(input: Input, context: CapabilityExecutionContext): Promise<Output>;
+      evidence?(
+        input: Input,
+        output: Output,
+        context: CapabilityExecutionContext,
+      ): readonly CapabilityAdapterEvidence[];
     };
     adapter.validateResource?.(request.input, request.resource);
 
@@ -90,6 +99,10 @@ export class ToolExecutionGateway {
           timeoutMs: request.retry?.timeoutMs ?? 15_000,
         },
       );
+      const adapterEvidence = adapter.evidence?.(request.input, result, request) ?? [];
+      for (const record of adapterEvidence) {
+        this.appendEvidence(request, record.kind, record.payload);
+      }
       this.idempotency.complete(request.idempotencyKey, result);
       this.appendEvidence(request, 'tool_result', {
         capability: request.capability,
@@ -118,7 +131,7 @@ export class ToolExecutionGateway {
 
   private appendEvidence(
     request: ToolExecutionRequest<unknown>,
-    kind: 'tool_call' | 'tool_result' | 'error',
+    kind: 'tool_call' | 'tool_result' | 'deployment_health' | 'error',
     payload: Record<string, unknown>,
   ): void {
     this.evidence.append({
