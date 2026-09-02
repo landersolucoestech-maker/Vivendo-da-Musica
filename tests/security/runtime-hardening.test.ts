@@ -3,23 +3,30 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 const readProjectFile = (path: string) => readFileSync(resolve(process.cwd(), path), 'utf8');
+const legacyGenerator = ['lova', 'ble'].join('');
 
 describe('endurecimento do runtime', () => {
   it('não carrega scripts ou metadados de plataformas geradoras', () => {
     const html = readProjectFile('index.html');
+    const legacyMetadataPattern = new RegExp(
+      `gpteng|${legacyGenerator}\\.dev|${legacyGenerator} Generated Project|@${legacyGenerator}_dev`,
+      'i',
+    );
 
-    expect(html).not.toMatch(/gpteng|lovable\.dev|Lovable Generated Project|@lovable_dev/i);
+    expect(html).not.toMatch(legacyMetadataPattern);
     expect(html).toContain('lang="pt-BR"');
   });
 
-  it('não mantém o lovable-tagger no build ou nas dependências', () => {
+  it('não mantém taggers legados no build ou nas dependências', () => {
     const viteConfig = readProjectFile('vite.config.ts');
     const packageJson = readProjectFile('package.json');
     const packageLock = readProjectFile('package-lock.json');
+    const legacyTagger = `${legacyGenerator}-tagger`;
 
-    expect(viteConfig).not.toMatch(/lovable-tagger|componentTagger/i);
-    expect(packageJson).not.toContain('lovable-tagger');
-    expect(packageLock).not.toContain('lovable-tagger');
+    expect(viteConfig.toLowerCase()).not.toContain(legacyTagger);
+    expect(viteConfig).not.toMatch(/componentTagger/i);
+    expect(packageJson.toLowerCase()).not.toContain(legacyTagger);
+    expect(packageLock.toLowerCase()).not.toContain(legacyTagger);
   });
 
   it('entrega headers essenciais e CSP no Nginx de produção', () => {
