@@ -37,7 +37,7 @@ const productionManifest = {
   risk: 'privileged',
   allowedResources: ['hostinger:target:vm-1'],
   maxExecutions: 1,
-  requiredEvidenceKinds: ['tool_call', 'tool_result', 'verification'],
+  requiredEvidenceKinds: ['tool_call', 'deployment_health', 'tool_result', 'verification'],
   environment: 'production',
   artifactRef: 'ghcr.io/example/app:sha',
   integrityDigest: 'sha256:manifest-prod',
@@ -142,7 +142,7 @@ describe('ExecutionManifestStore', () => {
     expect(store.executionsUsed('manifest-prod')).toBe(0);
   });
 
-  it('rejects production release manifests with wildcard target or missing verification evidence', () => {
+  it('rejects production release manifests with wildcard target or missing health/verification evidence', () => {
     const store = new ExecutionManifestStore();
     expect(() => store.issue({
       id: 'manifest-unsafe-prod', correlationId: 'corr-prod', workflowId: 'corr-prod:release-agent',
@@ -152,5 +152,11 @@ describe('ExecutionManifestStore', () => {
       artifactRef: 'ghcr.io/example/app:sha', integrityDigest: 'sha256:unsafe', signature: 'signed',
       issuedAt: '2026-09-02T05:00:00.000Z', expiresAt: '2099-09-02T05:30:00.000Z',
     })).toThrow(/target Hostinger exato|evidências obrigatórias/);
+
+    expect(() => store.issue({
+      ...productionManifest,
+      id: 'manifest-no-health',
+      requiredEvidenceKinds: ['tool_call', 'tool_result', 'verification'],
+    })).toThrow('deployment_health');
   });
 });
