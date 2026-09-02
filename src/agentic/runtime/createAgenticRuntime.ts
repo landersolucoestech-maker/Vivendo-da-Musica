@@ -98,6 +98,7 @@ export const createAgenticRuntime = (options: AgenticRuntimeOptions = {}) => {
   );
   const verification = new WorkflowVerificationService(
     registry,
+    skills,
     workflows,
     evidence,
     manifests,
