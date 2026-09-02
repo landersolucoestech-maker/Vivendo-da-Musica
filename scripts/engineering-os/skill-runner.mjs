@@ -20,9 +20,6 @@ export const runSkill = async ({ runId, agentId, skillId, broker, handler, input
   const agent = getAgent(agentId);
   const skill = getSkill(skillId);
   if (!(agent.skills ?? []).includes(skillId)) throw new Error(`Skill not assigned to agent: ${agentId}/${skillId}`);
-  if ((riskRank[agent.risk] ?? Infinity) > (riskRank[skill.maxRisk] ?? 0)) {
-    throw new Error(`Agent risk exceeds skill ceiling: ${agentId}/${skillId}`);
-  }
 
   const calls = [];
   const callTool = async (request) => {
