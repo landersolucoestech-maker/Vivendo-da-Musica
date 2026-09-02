@@ -17,6 +17,13 @@ export const engineeringOrchestratorAgent: AgentContract = {
     'tests.verify',
     'evidence.collect',
   ],
+  skillIds: [
+    'repository-engineering',
+    'architecture-and-contracts',
+    'requirements-and-planning',
+    'quality-assurance',
+    'evidence-governance',
+  ],
   deniedCapabilities: [],
   humanApprovalFor: ['privileged', 'destructive'],
   maxSteps: 24,
