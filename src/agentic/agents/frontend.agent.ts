@@ -19,6 +19,7 @@ export const frontendAgent: AgentContract = {
     'evidence.collect',
     'deploy.production',
   ],
+  skillIds: ['repository-engineering', 'frontend-engineering', 'quality-assurance', 'evidence-governance'],
   deniedCapabilities: ['deploy.production'],
   humanApprovalFor: ['privileged', 'destructive'],
   maxSteps: 28,
