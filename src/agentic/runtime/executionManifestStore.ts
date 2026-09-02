@@ -56,7 +56,7 @@ const assertReleasePolicy = (manifest: ExecutionManifest): void => {
   if (!manifest.allowedResources.some((scope) => scope.startsWith('hostinger:target:') && !scope.endsWith('*'))) {
     throw new Error(`Manifesto de produção precisa fixar um target Hostinger exato: ${manifest.id}`);
   }
-  const required = ['tool_call', 'tool_result', 'verification'] as const;
+  const required = ['tool_call', 'deployment_health', 'tool_result', 'verification'] as const;
   const missing = required.filter((kind) => !manifest.requiredEvidenceKinds.includes(kind));
   if (missing.length > 0) {
     throw new Error(`Manifesto de produção sem evidências obrigatórias: ${missing.join(', ')}`);
