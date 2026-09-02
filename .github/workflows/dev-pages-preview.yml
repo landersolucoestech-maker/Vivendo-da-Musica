@@ -1,4 +1,4 @@
-name: Dev Preview Static
+name: Dev Pages Preview
 
 on:
   push:
@@ -6,16 +6,18 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
+  pages: write
+  id-token: write
 
 concurrency:
-  group: dev-preview-static
+  group: dev-pages-preview
   cancel-in-progress: true
 
 jobs:
-  build-and-publish:
-    name: Build and publish dev preview
-    runs-on: ubuntu-latest
+  build:
+    name: Build dev preview
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     env:
       VITE_SUPABASE_URL: https://ywirfqvobfnunlcsnptm.supabase.co
@@ -23,25 +25,16 @@ jobs:
       VITE_DISABLE_AUTH: "true"
       VITE_PREVIEW_MODE: "true"
       VITE_USE_MOCK_DATA: "false"
-      VITE_BASE_PATH: ./
-      VITE_ROUTER_MODE: browser
-      STATIC_BRANCH: dev-preview-static
-      PREVIEW_HEALTH_URL: https://ywirfqvobfnunlcsnptm.supabase.co/functions/v1/vivendo-preview?health=1
-      API_V1_HEALTH_URL: https://ywirfqvobfnunlcsnptm.supabase.co/functions/v1/api-v1/v1/health
-      STRIPE_BEAT_WEBHOOK_URL: https://ywirfqvobfnunlcsnptm.supabase.co/functions/v1/stripe-beat-webhook
-      STRIPE_DIGITAL_PRODUCT_WEBHOOK_URL: https://ywirfqvobfnunlcsnptm.supabase.co/functions/v1/stripe-digital-product-webhook
+      VITE_BASE_PATH: /Vivendo-da-Musica/
+      VITE_ROUTER_MODE: hash
     steps:
       - name: Checkout dev
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           ref: dev
 
-      - name: Resolve build commit
-        shell: bash
-        run: echo "BUILD_SHA=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
-
       - name: Setup Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
@@ -49,23 +42,29 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Build preview
+      - name: Validate Agentic Engineering OS
+        run: npm run test:agentic
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Build dev preview
         run: npm run build
 
-      - name: Stamp and validate compiled preview
+      - name: Add preview metadata and no-index policy
         shell: bash
         run: |
           set -euo pipefail
           python - <<'PY'
-          import os
           from pathlib import Path
-
+          import os
           index = Path('dist/index.html')
           html = index.read_text(encoding='utf-8')
+          sha = os.environ['GITHUB_SHA']
           metadata = '\n    '.join([
-              f'<meta name="vdm-preview-commit" content="{os.environ["BUILD_SHA"]}" />',
+              f'<meta name="vdm-preview-branch" content="dev" />',
+              f'<meta name="vdm-preview-commit" content="{sha}" />',
               '<meta name="robots" content="noindex, nofollow, noarchive" />',
-              '<meta name="googlebot" content="noindex, nofollow, noarchive" />',
           ])
           html = html.replace('<head>', f'<head>\n    {metadata}', 1)
           index.write_text(html, encoding='utf-8')
@@ -74,199 +73,22 @@ jobs:
           Path('dist/.nojekyll').touch()
           PY
 
-          test -f dist/index.html
-          test -f dist/404.html
-          test -f dist/robots.txt
-          test -f dist/.nojekyll
-          grep --quiet "vdm-preview-commit.*${BUILD_SHA}" dist/index.html
-          grep --quiet 'name="robots" content="noindex, nofollow, noarchive"' dist/index.html
-          grep --quiet 'name="googlebot" content="noindex, nofollow, noarchive"' dist/index.html
-          grep --quiet '^Disallow: /$' dist/robots.txt
-          grep --quiet '<div id="root"></div>' dist/index.html
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
 
-          if find dist -type f -name '*.map' -print -quit | grep -q .; then
-            echo 'Source maps are not allowed in the public preview artifact.' >&2
-            exit 1
-          fi
-
-          if grep -RIE --binary-files=without-match \
-            'SUPABASE_SERVICE_ROLE_KEY|SUPABASE_DB_PASSWORD|STRIPE_[A-Z_]*SECRET|BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY' \
-            dist; then
-            echo 'A server-side secret marker was found in the public preview artifact.' >&2
-            exit 1
-          fi
-
-      - name: Publish compiled static branch
-        env:
-          GH_TOKEN: ${{ github.token }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          publish_dir="$(mktemp -d)"
-          trap 'rm -rf "$publish_dir"' EXIT
-          cp -a dist/. "$publish_dir"/
-
-          git -C "$publish_dir" init --initial-branch="$STATIC_BRANCH"
-          git -C "$publish_dir" config user.name 'github-actions[bot]'
-          git -C "$publish_dir" config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git -C "$publish_dir" add -A
-          git -C "$publish_dir" commit -m "chore(preview): publish ${BUILD_SHA}"
-          git -C "$publish_dir" remote add origin \
-            "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
-          git -C "$publish_dir" push --force origin \
-            "HEAD:refs/heads/${STATIC_BRANCH}"
-
-      - name: Verify immutable published commit
-        shell: bash
-        run: |
-          set -euo pipefail
-          published_commit="$(git ls-remote \
-            "https://github.com/${GITHUB_REPOSITORY}.git" \
-            "refs/heads/${STATIC_BRANCH}" | awk '{print $1}')"
-          test "${#published_commit}" -eq 40
-          echo "PUBLISHED_COMMIT=${published_commit}" >> "$GITHUB_ENV"
-
-          raw_base="https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/${published_commit}"
-          curl --fail --silent --show-error \
-            -H 'Cache-Control: no-cache' \
-            "${raw_base}/index.html" \
-            | tee /tmp/published-index.html \
-            | grep --quiet "vdm-preview-commit.*${BUILD_SHA}"
-          grep --quiet 'name="robots" content="noindex, nofollow, noarchive"' /tmp/published-index.html
-          curl --fail --silent --show-error \
-            -H 'Cache-Control: no-cache' \
-            "${raw_base}/robots.txt" \
-            | grep --quiet '^Disallow: /$'
-          echo "Immutable preview commit ${published_commit} contains ${BUILD_SHA} and blocks indexing."
-
-      - name: Verify Supabase preview resolver
-        shell: bash
-        run: |
-          set -euo pipefail
-          test "${#PUBLISHED_COMMIT}" -eq 40
-
-          for attempt in 1 2 3 4 5; do
-            payload="$(curl --fail --silent --show-error \
-              -H 'Cache-Control: no-cache' \
-              "${PREVIEW_HEALTH_URL}&build=${BUILD_SHA}" || true)"
-
-            if python - "$PUBLISHED_COMMIT" "$payload" <<'PY'
-          import json
-          import sys
-
-          expected_commit, raw_payload = sys.argv[1:3]
-          payload = json.loads(raw_payload)
-          preview_url = payload.get('previewUrl', '')
-          if payload.get('ok') is not True:
-              raise SystemExit(1)
-          if payload.get('staticCommit') != expected_commit:
-              raise SystemExit(1)
-          if expected_commit not in preview_url:
-              raise SystemExit(1)
-          PY
-            then
-              echo "Supabase preview resolver verified for ${PUBLISHED_COMMIT}."
-              exit 0
-            fi
-            sleep $((attempt * 2))
-          done
-
-          echo 'The Supabase preview resolver did not return the published commit.' >&2
-          exit 1
-
-      - name: Verify remote API v1 health
-        shell: bash
-        run: |
-          set -euo pipefail
-          for attempt in 1 2 3 4 5; do
-            rm -f /tmp/api-v1-headers.txt /tmp/api-v1-health.json
-            if curl --fail --silent --show-error \
-              --dump-header /tmp/api-v1-headers.txt \
-              --output /tmp/api-v1-health.json \
-              -H 'Accept: application/json' \
-              -H 'Cache-Control: no-cache' \
-              "$API_V1_HEALTH_URL"; then
-              if python - /tmp/api-v1-headers.txt /tmp/api-v1-health.json <<'PY'
-          import json
-          import re
-          import sys
-          from pathlib import Path
-
-          headers = Path(sys.argv[1]).read_text(encoding='utf-8').lower()
-          payload = json.loads(Path(sys.argv[2]).read_text(encoding='utf-8'))
-          data = payload.get('data', {})
-          if data.get('status') != 'healthy' or data.get('version') != '1':
-              raise SystemExit(1)
-          if not re.search(r'^x-request-id: [0-9a-f-]{36}\r?$', headers, re.MULTILINE):
-              raise SystemExit(1)
-          if not re.search(r'^x-trace-id: [0-9a-f-]{36}\r?$', headers, re.MULTILINE):
-              raise SystemExit(1)
-          if not re.search(r'^x-api-version: 1\r?$', headers, re.MULTILINE):
-              raise SystemExit(1)
-          if not re.search(r'^x-content-type-options: nosniff\r?$', headers, re.MULTILINE):
-              raise SystemExit(1)
-          PY
-              then
-                echo 'Remote API v1 health verified.'
-                exit 0
-              fi
-            fi
-            sleep $((attempt * 2))
-          done
-
-          echo 'The remote API v1 health endpoint failed validation.' >&2
-          echo 'Headers:' >&2
-          cat /tmp/api-v1-headers.txt >&2 || true
-          echo 'Body:' >&2
-          cat /tmp/api-v1-health.json >&2 || true
-          exit 1
-
-      - name: Verify remote Stripe webhook guards
-        shell: bash
-        run: |
-          set -euo pipefail
-          for spec in \
-            "beat:${STRIPE_BEAT_WEBHOOK_URL}" \
-            "digital-product:${STRIPE_DIGITAL_PRODUCT_WEBHOOK_URL}"; do
-            name="${spec%%:*}"
-            url="${spec#*:}"
-            headers="/tmp/${name}-stripe-headers.txt"
-            body="/tmp/${name}-stripe-body.json"
-            status="$(curl --silent --show-error \
-              --dump-header "$headers" \
-              --output "$body" \
-              --write-out '%{http_code}' \
-              -H 'Accept: application/json' \
-              -H 'Cache-Control: no-cache' \
-              "$url")"
-
-            python - "$name" "$status" "$headers" "$body" <<'PY'
-          import json
-          import re
-          import sys
-          from pathlib import Path
-
-          name, status, headers_path, body_path = sys.argv[1:5]
-          headers = Path(headers_path).read_text(encoding='utf-8').lower()
-          payload = json.loads(Path(body_path).read_text(encoding='utf-8'))
-          if status != '405':
-              raise SystemExit(f'{name}: expected HTTP 405, got {status}')
-          if payload.get('error') != 'Método não permitido.':
-              raise SystemExit(f'{name}: unexpected response body')
-          if not re.search(r'^cache-control: no-store, max-age=0\r?$', headers, re.MULTILINE):
-              raise SystemExit(f'{name}: missing no-store header')
-          if not re.search(r'^content-type: application/json; charset=utf-8\r?$', headers, re.MULTILINE):
-              raise SystemExit(f'{name}: unexpected content type')
-          if not re.search(r'^x-content-type-options: nosniff\r?$', headers, re.MULTILINE):
-              raise SystemExit(f'{name}: missing nosniff header')
-          PY
-            echo "Remote ${name} Stripe webhook guard verified."
-          done
-
-      - name: Upload compiled preview diagnostic
-        uses: actions/upload-artifact@v7
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v4
         with:
-          name: dev-preview-${{ github.sha }}
-          path: dist
-          if-no-files-found: error
-          retention-days: 7
+          path: ./dist
+
+  deploy:
+    name: Deploy dev to GitHub Pages
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-24.04
+    needs: build
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
