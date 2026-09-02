@@ -26,6 +26,83 @@ describe('GovernedAgentExecutor', () => {
     expect(runtime.evidence.verifyIntegrity()).toBe(true);
   });
 
+  it('closes a workflow only after independent reviewer verification passes', async () => {
+    const runtime = createAgenticRuntime({
+      github: { read: vi.fn().mockResolvedValue({ content: 'ok' }), search: vi.fn(), write: vi.fn() },
+    });
+    const execution = await runtime.executor.execute({
+      agentId: 'engineering-orchestrator',
+      capability: 'repo.read',
+      risk: 'read',
+      approvedByHuman: false,
+      correlationId: 'corr-verified',
+      idempotencyKey: 'idem-verified',
+      input: { path: 'README.md' },
+    });
+
+    const completed = runtime.verification.verify({
+      workflowId: execution.workflow.id,
+      reviewerAgentId: 'reviewer-agent',
+      passed: true,
+      reason: 'Evidências e resultado verificados de forma independente.',
+    });
+
+    expect(completed.state).toBe('completed');
+    expect(completed.verified).toBe(true);
+    expect(runtime.workflows.get(execution.workflow.id)?.state).toBe('completed');
+    expect(runtime.evidence.byCorrelationId('corr-verified').some((record) => record.kind === 'verification')).toBe(true);
+    expect(runtime.evidence.verifyIntegrity()).toBe(true);
+  });
+
+  it('prevents an executor from reviewing its own workflow', async () => {
+    const runtime = createAgenticRuntime({
+      github: { read: vi.fn().mockResolvedValue({ content: 'ok' }), search: vi.fn(), write: vi.fn() },
+    });
+    const execution = await runtime.executor.execute({
+      agentId: 'reviewer-agent',
+      capability: 'repo.read',
+      risk: 'read',
+      approvedByHuman: false,
+      correlationId: 'corr-self-review',
+      idempotencyKey: 'idem-self-review',
+      input: { path: 'README.md' },
+    });
+
+    expect(() => runtime.verification.verify({
+      workflowId: execution.workflow.id,
+      reviewerAgentId: 'reviewer-agent',
+      passed: true,
+    })).toThrow('não pode aprovar a própria implementação');
+    expect(runtime.workflows.get(execution.workflow.id)?.state).toBe('verifying');
+  });
+
+  it('turns a rejected independent verification into a terminal failed workflow', async () => {
+    const runtime = createAgenticRuntime({
+      github: { read: vi.fn().mockResolvedValue({ content: 'bad' }), search: vi.fn(), write: vi.fn() },
+    });
+    const execution = await runtime.executor.execute({
+      agentId: 'engineering-orchestrator',
+      capability: 'repo.read',
+      risk: 'read',
+      approvedByHuman: false,
+      correlationId: 'corr-rejected',
+      idempotencyKey: 'idem-rejected',
+      input: { path: 'README.md' },
+    });
+
+    const failed = runtime.verification.verify({
+      workflowId: execution.workflow.id,
+      reviewerAgentId: 'reviewer-agent',
+      passed: false,
+      reason: 'Resultado não satisfaz os critérios de verificação.',
+    });
+
+    expect(failed.state).toBe('failed');
+    expect(failed.verified).toBe(false);
+    expect(failed.failureReason).toContain('não satisfaz');
+    expect(runtime.workflows.get(execution.workflow.id)?.state).toBe('failed');
+  });
+
   it('blocks an agent contract denial before a deployment transport can be called', async () => {
     const deploy = vi.fn();
     const runtime = createAgenticRuntime({
