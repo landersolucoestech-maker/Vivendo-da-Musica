@@ -32,8 +32,8 @@ export interface SupabaseAuditCheckpointClient {
 /**
  * Control-plane only transport.
  *
- * The caller must provide a server-side Supabase client authorized as
- * service_role. No privileged key is read, imported or exposed by this module.
+ * The caller must provide an already-authorized server-side Supabase client.
+ * No privileged credential is read, imported or exposed by this module.
  */
 export class SupabaseAuditCheckpointTransport implements AuditCheckpointTransport {
   constructor(private readonly client: SupabaseAuditCheckpointClient) {}
