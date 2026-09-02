@@ -137,12 +137,13 @@ describe('GovernedAgentExecutor', () => {
     expect(deploy).not.toHaveBeenCalled();
   });
 
-  it('requires signed manifest, bound approval receipt and lease before Hostinger production deploy', async () => {
+  it('requires signed manifest, integrity binding, approval receipt and lease before Hostinger production deploy', async () => {
     const deploy = vi.fn().mockResolvedValue({
       deploymentId: 'dep-1', environment: 'production', artifactRef: 'ghcr.io/example/app:sha',
     });
     const runtime = createAgenticRuntime({
       manifestSignatureVerifier: { verify: vi.fn().mockReturnValue(true) },
+      manifestIntegrityVerifier: { verify: vi.fn().mockReturnValue(true) },
       hostinger: { config: { mode: 'vps-docker', targetId: 'vm-1' }, transport: { deploy } },
     });
 
@@ -152,7 +153,8 @@ describe('GovernedAgentExecutor', () => {
       id: 'manifest-release-1', correlationId, workflowId, agentId: 'release-agent',
       capability: 'deploy.production', risk: 'privileged', allowedResources: ['hostinger:target:vm-1'],
       maxExecutions: 1, requiredEvidenceKinds: ['tool_call', 'tool_result', 'verification'],
-      environment: 'production', artifactRef: 'ghcr.io/example/app:sha', signature: 'signed-by-control-plane',
+      environment: 'production', artifactRef: 'ghcr.io/example/app:sha',
+      integrityDigest: 'sha256:test-release-manifest', signature: 'signed-by-control-plane',
       issuedAt: '2026-09-02T05:00:00.000Z', expiresAt: '2099-09-02T05:30:00.000Z',
     });
     runtime.approvals.issue({
