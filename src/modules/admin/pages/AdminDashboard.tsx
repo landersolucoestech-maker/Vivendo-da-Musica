@@ -11,7 +11,6 @@ import {
 import DataTable from '@/shared/components/DataTable';
 import EmptyState from '@/shared/components/EmptyState';
 import LoadingState from '@/shared/components/LoadingState';
-import StatCard from '@/shared/components/StatCard';
 import { Badge } from '@/shared/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/components/ui/card';
 
@@ -44,13 +43,62 @@ const AdminDashboard = () => {
 
       {summary.data && !isLoading && !hasError && (
         <>
-          <section className="mb-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-            <StatCard label="Perfis cadastrados" value={String(summary.data.profiles)} icon={Users} />
-            <StatCard label="Cursos publicados" value={String(summary.data.publishedCourses)} icon={BookOpen} />
-            <StatCard label="Matrículas ativas" value={String(summary.data.activeEnrollments)} icon={GraduationCap} />
-            <StatCard label="Aulas concluídas" value={String(summary.data.completedLessons)} icon={CheckCircle2} />
-            <StatCard label="Comentários em aulas" value={String(summary.data.comments)} icon={MessageSquareText} />
-            <StatCard label="Conversões de afiliados" value={String(summary.data.affiliateConversions)} icon={Waypoints} />
+          <section className="mb-8">
+            <Card>
+              <CardHeader className="pb-4">
+                <p className="vdm-eyebrow">Visão geral</p>
+                <CardTitle className="mt-1 text-xl">Operação da plataforma</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid gap-6 border-b border-border pb-6 md:grid-cols-3 md:gap-0">
+                  <div className="md:pr-6">
+                    <div className="mb-4 flex size-10 items-center justify-center rounded-lg border border-border bg-muted/30 text-brand-medium">
+                      <Users className="size-5" />
+                    </div>
+                    <p className="text-3xl font-bold tracking-tight text-foreground">{summary.data.profiles}</p>
+                    <p className="mt-1 text-sm text-muted-foreground">Perfis cadastrados</p>
+                  </div>
+                  <div className="md:border-l md:border-border md:px-6">
+                    <div className="mb-4 flex size-10 items-center justify-center rounded-lg border border-border bg-muted/30 text-brand-medium">
+                      <BookOpen className="size-5" />
+                    </div>
+                    <p className="text-3xl font-bold tracking-tight text-foreground">{summary.data.publishedCourses}</p>
+                    <p className="mt-1 text-sm text-muted-foreground">Cursos publicados</p>
+                  </div>
+                  <div className="md:border-l md:border-border md:pl-6">
+                    <div className="mb-4 flex size-10 items-center justify-center rounded-lg border border-border bg-muted/30 text-brand-medium">
+                      <GraduationCap className="size-5" />
+                    </div>
+                    <p className="text-3xl font-bold tracking-tight text-foreground">{summary.data.activeEnrollments}</p>
+                    <p className="mt-1 text-sm text-muted-foreground">Matrículas ativas</p>
+                  </div>
+                </div>
+
+                <div className="grid gap-4 pt-5 sm:grid-cols-3 sm:gap-0">
+                  <div className="flex items-center gap-3 sm:pr-5">
+                    <CheckCircle2 className="size-4 shrink-0 text-muted-foreground" />
+                    <div>
+                      <p className="text-lg font-semibold text-foreground">{summary.data.completedLessons}</p>
+                      <p className="text-xs text-muted-foreground">Aulas concluídas</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3 sm:border-l sm:border-border sm:px-5">
+                    <MessageSquareText className="size-4 shrink-0 text-muted-foreground" />
+                    <div>
+                      <p className="text-lg font-semibold text-foreground">{summary.data.comments}</p>
+                      <p className="text-xs text-muted-foreground">Comentários em aulas</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3 sm:border-l sm:border-border sm:pl-5">
+                    <Waypoints className="size-4 shrink-0 text-muted-foreground" />
+                    <div>
+                      <p className="text-lg font-semibold text-foreground">{summary.data.affiliateConversions}</p>
+                      <p className="text-xs text-muted-foreground">Conversões de afiliados</p>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           </section>
 
           <section className="mb-8 grid gap-5 xl:grid-cols-[1.15fr_0.85fr]">
