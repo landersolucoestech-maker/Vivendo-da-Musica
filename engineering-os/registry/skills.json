@@ -1,7 +1,7 @@
 {
   "version": 2,
   "skills": [
-    {"id":"repository-inventory","maxRisk":"low","allowedTools":["repository.read"],"requiredEvidenceKinds":["artifact","diff"]},
+    {"id":"repository-inventory","maxRisk":"low","allowedTools":["repository.read"],"requiredEvidenceKinds":["artifact"]},
     {"id":"architecture-design","maxRisk":"medium","allowedTools":["repository.read"],"requiredEvidenceKinds":["artifact","review"]},
     {"id":"contract-design","maxRisk":"medium","allowedTools":["repository.read","repository.write-source","repository.write-test"],"requiredEvidenceKinds":["artifact","test"]},
     {"id":"implementation","maxRisk":"high","allowedTools":["repository.read","repository.write-source","repository.write-test"],"requiredEvidenceKinds":["diff","test"]},
