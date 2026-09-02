@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { isDevAuthBypassEnabled } from '@/shared/utils/devAuthBypass';
 import { MOCK_PROFILE } from '@/shared/utils/devMockData';
+import { DevPreviewNavigator } from '@/shared/components/DevPreviewNavigator';
 import type { UserRole } from '@/modules/auth/types/role';
 
 interface AuthProfile {
@@ -24,9 +25,15 @@ const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [session, setSession] = useState<Session | null>(null);
-  const [isSessionLoading, setIsSessionLoading] = useState(true);
+  const [isSessionLoading, setIsSessionLoading] = useState(!isDevAuthBypassEnabled);
 
   useEffect(() => {
+    if (isDevAuthBypassEnabled) {
+      setSession(null);
+      setIsSessionLoading(false);
+      return;
+    }
+
     supabase.auth.getSession().then(({ data }) => {
       setSession(data.session);
       setIsSessionLoading(false);
@@ -53,7 +60,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (error) throw error;
       return data as AuthProfile | null;
     },
-    enabled: !!userId,
+    enabled: !!userId && !isDevAuthBypassEnabled,
   });
 
   const fallbackProfile = isDevAuthBypassEnabled && !session ? MOCK_PROFILE : null;
@@ -63,10 +70,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     user: session?.user ?? null,
     profile: profile ?? fallbackProfile,
     role: profile?.role ?? fallbackProfile?.role ?? null,
-    isLoading: isSessionLoading || (!!userId && isProfileLoading),
+    isLoading: isDevAuthBypassEnabled ? false : isSessionLoading || (!!userId && isProfileLoading),
   };
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider value={value}>
+      <DevPreviewNavigator />
+      {children}
+    </AuthContext.Provider>
+  );
 };
 
 export const useAuthContext = () => {
