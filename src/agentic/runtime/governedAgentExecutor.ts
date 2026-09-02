@@ -1,4 +1,5 @@
 import type { AgentExecutionRequest } from '@/agentic/contracts/agentContract';
+import { AuditCheckpointGate } from '@/agentic/evidence/auditCheckpointGate';
 import { EvidenceStore } from '@/agentic/evidence/evidenceStore';
 import { AgentExecutionKernel } from '@/agentic/runtime/agentExecutionKernel';
 import { ExecutionManifestStore } from '@/agentic/runtime/executionManifestStore';
@@ -30,6 +31,7 @@ export class GovernedAgentExecutor {
     private readonly workflows: WorkflowStore,
     private readonly evidence: EvidenceStore,
     private readonly manifests: ExecutionManifestStore,
+    private readonly auditCheckpoints: AuditCheckpointGate,
   ) {}
 
   async execute<Input, Output>(request: GovernedExecutionRequest<Input>): Promise<GovernedExecutionResult<Output>> {
@@ -78,11 +80,21 @@ export class GovernedAgentExecutor {
       this.transition(workflow, request, 'awaiting_approval');
     }
     this.transition(workflow, request, 'approved');
-    this.transition(workflow, request, 'executing');
-    workflow.consumeStep();
-    this.workflows.save(workflow.current());
 
     try {
+      await this.auditCheckpoints.persistIfRequired({
+        phase: 'pre_execution',
+        correlationId: request.correlationId,
+        workflowId,
+        agentId: request.agentId,
+        capability: request.capability,
+        risk: request.risk,
+      });
+
+      this.transition(workflow, request, 'executing');
+      workflow.consumeStep();
+      this.workflows.save(workflow.current());
+
       const result = await this.gateway.execute<Input, Output>({
         correlationId: request.correlationId,
         workflowId,
@@ -97,6 +109,16 @@ export class GovernedAgentExecutor {
         leaseResource: request.leaseResource,
         retry: request.retry,
       });
+
+      await this.auditCheckpoints.persistIfRequired({
+        phase: 'post_execution',
+        correlationId: request.correlationId,
+        workflowId,
+        agentId: request.agentId,
+        capability: request.capability,
+        risk: request.risk,
+      });
+
       this.transition(workflow, request, 'verifying');
       return { result, workflow: workflow.current() };
     } catch (error) {
