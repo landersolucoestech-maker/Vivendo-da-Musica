@@ -48,7 +48,7 @@ export class ExecutionManifestStore {
   constructor(private readonly signatureVerifier?: ExecutionManifestSignatureVerifier) {}
 
   issue(input: ExecutionManifestInput): ExecutionManifest {
-    const manifest = executionManifestSchema.parse(input);
+    const manifest = executionManifestSchema.parse(input) as ExecutionManifest;
     if (Date.parse(manifest.expiresAt) <= Date.parse(manifest.issuedAt)) {
       throw new Error(`Execution Manifest expira antes ou no instante da emissão: ${manifest.id}`);
     }
