@@ -16,6 +16,7 @@ export const observabilityAgent: AgentContract = {
     'observability.verify',
     'evidence.collect',
   ],
+  skillIds: ['repository-engineering', 'observability-engineering', 'evidence-governance'],
   deniedCapabilities: ['repo.write'],
   humanApprovalFor: ['privileged', 'destructive'],
   maxSteps: 20,
