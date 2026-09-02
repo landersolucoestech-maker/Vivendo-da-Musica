@@ -13,7 +13,7 @@ import { useOpenOpportunities } from "@/modules/opportunities/hooks/useOpportuni
 import { ROUTES } from "@/shared/constants/routes";
 
 const PAGE_SIZE = 9;
-const TYPE_FILTERS = ['Todos', 'Freelance', 'Meio perÃ­odo', 'Pontual', 'Projeto'];
+const TYPE_FILTERS = ['Todos', 'Freelance', 'Meio período', 'Pontual', 'Projeto'];
 
 const PublicOpportunitiesPage = () => {
   const navigate = useNavigate();
