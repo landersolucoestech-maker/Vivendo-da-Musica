@@ -29,6 +29,8 @@ export class DeterministicAgentRuntime {
         allowed: false,
         reason: error instanceof Error ? error.message : 'Agente indisponível.',
         agent: null,
+        skillId: null,
+        skillVersion: null,
       };
     }
 
@@ -37,6 +39,8 @@ export class DeterministicAgentRuntime {
         allowed: false,
         reason: `Capability não declarada para ${agent.id}: ${request.capability}`,
         agent,
+        skillId: null,
+        skillVersion: null,
       };
     }
 
@@ -45,6 +49,8 @@ export class DeterministicAgentRuntime {
         allowed: false,
         reason: `Capability explicitamente negada para ${agent.id}: ${request.capability}`,
         agent,
+        skillId: null,
+        skillVersion: null,
       };
     }
 
@@ -54,6 +60,8 @@ export class DeterministicAgentRuntime {
         allowed: false,
         reason: skill.reason,
         agent,
+        skillId: skill.skill?.id ?? null,
+        skillVersion: skill.skill?.version ?? null,
       };
     }
 
@@ -62,6 +70,8 @@ export class DeterministicAgentRuntime {
         allowed: false,
         reason: `Skill não atribuída para ${agent.id}: ${skill.skill.id}`,
         agent,
+        skillId: skill.skill.id,
+        skillVersion: skill.skill.version,
       };
     }
 
@@ -70,13 +80,17 @@ export class DeterministicAgentRuntime {
         allowed: false,
         reason: `Aprovação humana obrigatória para risco ${request.risk}.`,
         agent,
+        skillId: skill.skill.id,
+        skillVersion: skill.skill.version,
       };
     }
 
     return {
       allowed: true,
-      reason: `Execução admitida pelos gates determinísticos via Skill ${skill.skill.id}.`,
+      reason: `Execução admitida pelos gates determinísticos via Skill ${skill.skill.id}@${skill.skill.version}.`,
       agent,
+      skillId: skill.skill.id,
+      skillVersion: skill.skill.version,
     };
   }
 }
