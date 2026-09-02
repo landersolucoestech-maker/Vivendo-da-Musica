@@ -1,28 +1,32 @@
-import { Link, useParams } from "react-router-dom";
-import { Star, Users, PlayCircle, CheckCircle, Lock, Clock } from "lucide-react";
-import PublicLayout from "@/app/layouts/PublicLayout";
-import { Button } from "@/shared/components/ui/button";
-import LoadingState from "@/shared/components/LoadingState";
-import ErrorState from "@/shared/components/ErrorState";
-import EmptyState from "@/shared/components/EmptyState";
-import CourseCard from "@/modules/courses/components/CourseCard";
-import AcademyContentDetail from "@/modules/courses/components/AcademyContentDetail";
+import { Link, useParams } from 'react-router-dom';
+import { CheckCircle, Clock, Lock, PlayCircle, Star, Users } from 'lucide-react';
+
+import PublicLayout from '@/app/layouts/PublicLayout';
+import AcademyContentDetail from '@/modules/courses/components/AcademyContentDetail';
+import CourseCard from '@/modules/courses/components/CourseCard';
+import { usePublishedAcademyContentBySlug } from '@/modules/courses/hooks/useAcademyContents';
+import { useCourseCatalogDetail, useRelatedCourses } from '@/modules/courses/hooks/useCourseCatalogDetail';
+import { useCourseExtras } from '@/modules/courses/hooks/useCourseExtras';
+import { useCourses } from '@/modules/courses/hooks/useCourses';
+import { useInstructor } from '@/modules/courses/hooks/useInstructors';
+import { academyService } from '@/modules/courses/services/academy.service';
+import type { MockCourse } from '@/modules/courses/types/course.types';
+import { useCart } from '@/modules/checkout/store/CartContext';
+import { useProgressCalculation } from '@/modules/lessons/hooks/useProgressCalculation';
+import { useCourseModules } from '@/modules/modules-manager/hooks/useModules';
+import EmptyState from '@/shared/components/EmptyState';
+import ErrorState from '@/shared/components/ErrorState';
+import LoadingState from '@/shared/components/LoadingState';
 import {
-  Accordion, AccordionContent, AccordionItem, AccordionTrigger,
-} from "@/shared/components/ui/accordion";
-import { useCart } from "@/modules/checkout/store/CartContext";
-import { useToast } from "@/shared/hooks/use-toast";
-import { useCourses } from "@/modules/courses/hooks/useCourses";
-import { useModules } from "@/modules/modules-manager/hooks/useModules";
-import { useProgressCalculation } from "@/modules/lessons/hooks/useProgressCalculation";
-import { useCourseExtras } from "@/modules/courses/hooks/useCourseExtras";
-import { useCourseCatalogDetail, useRelatedCourses } from "@/modules/courses/hooks/useCourseCatalogDetail";
-import { usePublishedAcademyContentBySlug } from "@/modules/courses/hooks/useAcademyContents";
-import { useInstructor } from "@/modules/courses/hooks/useInstructors";
-import { academyService } from "@/modules/courses/services/academy.service";
-import { slugify } from "@/shared/utils/utils";
-import type { MockCourse } from "@/modules/courses/types/course.types";
-import { formatPriceOrFree as formatPrice } from "@/shared/utils/formatters";
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from '@/shared/components/ui/accordion';
+import { Button } from '@/shared/components/ui/button';
+import { useToast } from '@/shared/hooks/use-toast';
+import { formatPriceOrFree as formatPrice } from '@/shared/utils/formatters';
+import { slugify } from '@/shared/utils/utils';
 
 const formatStudentCount = (count: number) =>
   `${count.toLocaleString('pt-BR')} ${count === 1 ? 'aluno' : 'alunos'}`;
@@ -42,10 +46,12 @@ const MockCourseDetail = ({ course }: { course: MockCourse }) => {
           <p className="mb-4 text-muted-foreground">{course.description}</p>
 
           <div className="mb-8 flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
-            <span className="flex items-center gap-1">
-              <Star className="size-4 fill-amber-400 text-amber-400" />
-              {course.rating} ({course.reviewCount.toLocaleString('pt-BR')})
-            </span>
+            {course.reviewCount > 0 && (
+              <span className="flex items-center gap-1">
+                <Star className="size-4 fill-amber-400 text-amber-400" />
+                {course.rating} ({course.reviewCount.toLocaleString('pt-BR')})
+              </span>
+            )}
             <span className="flex items-center gap-1"><Users className="size-4" />{formatStudentCount(course.studentsCount)}</span>
             <span className="flex items-center gap-1"><Clock className="size-4" />{course.durationHours}h de conteúdo</span>
           </div>
@@ -58,7 +64,9 @@ const MockCourseDetail = ({ course }: { course: MockCourse }) => {
               />
               <div>
                 <p className="font-medium">{instructor.name}</p>
-                <p className="text-sm text-muted-foreground">{instructor.specialty} · {formatStudentCount(instructor.studentsCount)}</p>
+                <p className="text-sm text-muted-foreground">
+                  {[instructor.specialty, formatStudentCount(instructor.studentsCount)].filter(Boolean).join(' · ')}
+                </p>
               </div>
             </div>
           )}
@@ -149,8 +157,8 @@ const MockCourseDetail = ({ course }: { course: MockCourse }) => {
             <Button
               className="w-full"
               onClick={() => {
-                addItem({ kind: "course", id: course.id, title: course.title, priceCents: course.priceCents, currency: course.currency });
-                toast({ title: "Adicionado ao carrinho", description: course.title });
+                addItem({ kind: 'course', id: course.id, title: course.title, priceCents: course.priceCents, currency: course.currency });
+                toast({ title: 'Adicionado ao carrinho', description: course.title });
               }}
             >
               Matricular-se
@@ -164,11 +172,11 @@ const MockCourseDetail = ({ course }: { course: MockCourse }) => {
 
 const RealCourseDetail = ({ slug }: { slug: string }) => {
   const { data: courses, isLoading: coursesLoading, isError: coursesError } = useCourses();
-  const { data: modules, isLoading: modulesLoading } = useModules();
+  const course = courses?.find((candidate) => candidate.slug === slug);
+  const { data: modules, isLoading: modulesLoading } = useCourseModules(course?.id);
   const modulesWithProgress = useProgressCalculation(modules);
   const { data: extras } = useCourseExtras(slug);
-
-  const course = courses?.find((candidate) => candidate.slug === slug);
+  const firstLesson = modulesWithProgress.flatMap((module) => module.lessons)[0];
 
   if (coursesLoading) {
     return <PublicLayout><LoadingState rows={4} className="h-20 rounded-lg" /></PublicLayout>;
@@ -194,19 +202,24 @@ const RealCourseDetail = ({ slug }: { slug: string }) => {
     <PublicLayout>
       <div className="grid gap-10 lg:grid-cols-[1fr_360px]">
         <div>
-          <p className="mb-2 text-sm font-medium text-brand-medium">{extras?.level}</p>
+          {extras?.level && <p className="mb-2 text-sm font-medium text-brand-medium">{extras.level}</p>}
           <h1 className="mb-3 text-3xl font-bold">{course.title}</h1>
           <p className="mb-4 text-muted-foreground">{course.description}</p>
 
-          <div className="mb-8 flex items-center gap-4 text-sm text-muted-foreground">
-            <span className="flex items-center gap-1">
-              <Star className="size-4 fill-amber-400 text-amber-400" />
-              {extras?.rating} ({extras?.reviewCount})
-            </span>
-            <span className="flex items-center gap-1">
-              <Users className="size-4" />
-              {extras?.instructorName}
-            </span>
+          <div className="mb-8 flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
+            {(extras?.reviewCount ?? 0) > 0 && (
+              <span className="flex items-center gap-1">
+                <Star className="size-4 fill-amber-400 text-amber-400" />
+                {extras?.rating} ({extras?.reviewCount})
+              </span>
+            )}
+            {(extras?.studentsCount ?? 0) > 0 && (
+              <span className="flex items-center gap-1">
+                <Users className="size-4" />
+                {formatStudentCount(extras?.studentsCount ?? 0)}
+              </span>
+            )}
+            {extras?.instructorName && <span>Com {extras.instructorName}</span>}
           </div>
 
           <h2 className="mb-4 text-lg font-semibold">Conteúdo do curso</h2>
@@ -249,8 +262,8 @@ const RealCourseDetail = ({ slug }: { slug: string }) => {
               )}
             </div>
             <p className="mb-4 text-2xl font-bold">{formatPrice(course.price_cents, course.currency)}</p>
-            {modulesWithProgress.length > 0 ? (
-              <Link to={`/aula/${modulesWithProgress[0]?.lessons[0]?.id}`}>
+            {firstLesson ? (
+              <Link to={`/aula/${firstLesson.id}`}>
                 <Button className="w-full">Começar curso</Button>
               </Link>
             ) : (
