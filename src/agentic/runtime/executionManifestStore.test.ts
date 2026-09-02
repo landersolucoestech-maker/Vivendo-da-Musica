@@ -28,6 +28,36 @@ const readContext = {
   idempotencyKey: 'idem-read-1',
 };
 
+const productionManifest = {
+  id: 'manifest-prod',
+  correlationId: 'corr-prod',
+  workflowId: 'corr-prod:release-agent',
+  agentId: 'release-agent',
+  capability: 'deploy.production',
+  risk: 'privileged',
+  allowedResources: ['hostinger:target:vm-1'],
+  maxExecutions: 1,
+  requiredEvidenceKinds: ['tool_call', 'tool_result', 'verification'],
+  environment: 'production',
+  artifactRef: 'ghcr.io/example/app:sha',
+  integrityDigest: 'sha256:manifest-prod',
+  signature: 'signed-control-plane-envelope',
+  issuedAt: '2026-09-02T05:00:00.000Z',
+  expiresAt: '2099-09-02T05:30:00.000Z',
+} satisfies ExecutionManifestInput;
+
+const productionContext = {
+  correlationId: 'corr-prod',
+  workflowId: 'corr-prod:release-agent',
+  agentId: 'release-agent',
+  capability: 'deploy.production',
+  risk: 'privileged' as const,
+  resource: 'hostinger:target:vm-1',
+  artifactRef: 'ghcr.io/example/app:sha',
+  executionNonce: 'nonce-prod',
+  idempotencyKey: 'idem-prod',
+};
+
 describe('ExecutionManifestStore', () => {
   it('enforces resource scope and execution budget', () => {
     const store = new ExecutionManifestStore();
@@ -88,23 +118,27 @@ describe('ExecutionManifestStore', () => {
     expect(store.executionsUsed('manifest-read')).toBe(0);
   });
 
-  it('fails closed on privileged execution without a valid signature verifier', () => {
-    const verify = vi.fn().mockReturnValue(false);
-    const store = new ExecutionManifestStore({ verify });
-    store.issue({
-      id: 'manifest-prod', correlationId: 'corr-prod', workflowId: 'corr-prod:release-agent',
-      agentId: 'release-agent', capability: 'deploy.production', risk: 'privileged',
-      allowedResources: ['hostinger:target:vm-1'], maxExecutions: 1,
-      requiredEvidenceKinds: ['tool_call', 'tool_result', 'verification'],
-      environment: 'production', artifactRef: 'ghcr.io/example/app:sha', signature: 'invalid-signature',
-      issuedAt: '2026-09-02T05:00:00.000Z', expiresAt: '2099-09-02T05:30:00.000Z',
-    });
+  it('fails closed on privileged execution when the canonical integrity digest is invalid', () => {
+    const store = new ExecutionManifestStore(
+      { verify: vi.fn().mockReturnValue(true) },
+      { verify: vi.fn().mockReturnValue(false) },
+    );
+    store.issue(productionManifest);
 
-    expect(() => store.assertAndConsume('manifest-prod', {
-      correlationId: 'corr-prod', workflowId: 'corr-prod:release-agent', agentId: 'release-agent',
-      capability: 'deploy.production', risk: 'privileged', resource: 'hostinger:target:vm-1',
-      artifactRef: 'ghcr.io/example/app:sha', executionNonce: 'nonce-prod', idempotencyKey: 'idem-prod',
-    })).toThrow('Assinatura');
+    expect(() => store.assertAndConsume('manifest-prod', productionContext))
+      .toThrow('Integrity digest');
+    expect(store.executionsUsed('manifest-prod')).toBe(0);
+  });
+
+  it('fails closed on privileged execution with invalid signature even when integrity is valid', () => {
+    const signatureVerify = vi.fn().mockReturnValue(false);
+    const integrityVerify = vi.fn().mockReturnValue(true);
+    const store = new ExecutionManifestStore({ verify: signatureVerify }, { verify: integrityVerify });
+    store.issue(productionManifest);
+
+    expect(() => store.assertAndConsume('manifest-prod', productionContext)).toThrow('Assinatura');
+    expect(integrityVerify).toHaveBeenCalledOnce();
+    expect(signatureVerify).toHaveBeenCalledOnce();
     expect(store.executionsUsed('manifest-prod')).toBe(0);
   });
 
@@ -115,7 +149,7 @@ describe('ExecutionManifestStore', () => {
       agentId: 'release-agent', capability: 'deploy.production', risk: 'privileged',
       allowedResources: ['hostinger:target:*'], maxExecutions: 1,
       requiredEvidenceKinds: ['tool_call', 'tool_result'], environment: 'production',
-      artifactRef: 'ghcr.io/example/app:sha', signature: 'signed',
+      artifactRef: 'ghcr.io/example/app:sha', integrityDigest: 'sha256:unsafe', signature: 'signed',
       issuedAt: '2026-09-02T05:00:00.000Z', expiresAt: '2099-09-02T05:30:00.000Z',
     })).toThrow(/target Hostinger exato|evidências obrigatórias/);
   });
