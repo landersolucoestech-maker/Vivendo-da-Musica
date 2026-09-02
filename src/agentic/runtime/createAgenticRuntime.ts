@@ -19,6 +19,7 @@ import {
 import { IdempotencyStore } from '@/agentic/runtime/idempotencyStore';
 import { LeaseManager } from '@/agentic/runtime/leaseManager';
 import { ToolExecutionGateway } from '@/agentic/runtime/toolExecutionGateway';
+import { WorkflowVerificationService } from '@/agentic/runtime/workflowVerificationService';
 import { WorkflowStore } from '@/agentic/workflow/workflowStore';
 
 export interface AgenticRuntimeOptions {
@@ -68,6 +69,7 @@ export const createAgenticRuntime = (options: AgenticRuntimeOptions = {}) => {
   const kernel = new AgentExecutionKernel(registry, policies, evidence);
   const gateway = new ToolExecutionGateway(adapters, idempotency, approvals, leases, evidence);
   const executor = new GovernedAgentExecutor(kernel, gateway, workflows, evidence);
+  const verification = new WorkflowVerificationService(registry, workflows, evidence);
 
   return Object.freeze({
     registry,
@@ -82,5 +84,6 @@ export const createAgenticRuntime = (options: AgenticRuntimeOptions = {}) => {
     kernel,
     delegation: new DelegationProtocol(registry),
     executor,
+    verification,
   });
 };
