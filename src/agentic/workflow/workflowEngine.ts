@@ -46,6 +46,17 @@ export class WorkflowEngine {
     };
   }
 
+  static restore(snapshot: WorkflowSnapshot): WorkflowEngine {
+    if (!snapshot.id.trim()) throw new Error('Workflow persistido sem identificador.');
+    if (!Number.isInteger(snapshot.maxSteps) || snapshot.maxSteps <= 0) throw new Error('Workflow persistido com maxSteps inválido.');
+    if (!Number.isInteger(snapshot.stepsExecuted) || snapshot.stepsExecuted < 0 || snapshot.stepsExecuted > snapshot.maxSteps) {
+      throw new Error('Workflow persistido com stepsExecuted inválido.');
+    }
+    const engine = new WorkflowEngine(snapshot.id, snapshot.maxSteps);
+    engine.snapshot = { ...snapshot };
+    return engine;
+  }
+
   current(): Readonly<WorkflowSnapshot> {
     return Object.freeze({ ...this.snapshot });
   }
