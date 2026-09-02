@@ -20,6 +20,7 @@ export const backendAgent: AgentContract = {
     'evidence.collect',
     'deploy.production',
   ],
+  skillIds: ['repository-engineering', 'backend-api-engineering', 'quality-assurance', 'evidence-governance'],
   deniedCapabilities: ['deploy.production'],
   humanApprovalFor: ['privileged', 'destructive'],
   maxSteps: 30,
