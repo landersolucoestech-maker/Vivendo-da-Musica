@@ -17,6 +17,7 @@ export interface DeploymentResult {
 
 export interface DeploymentProviderAdapter {
   id: string;
+  resourceId: string;
   deploy(request: DeploymentRequest): Promise<DeploymentResult>;
   rollback?(request: DeploymentRequest & { deploymentId: string }): Promise<DeploymentResult>;
 }
@@ -32,6 +33,7 @@ export class DeploymentProviderRegistry {
     if (provider.id !== id) {
       throw new Error(`Deployment provider id precisa estar normalizado: ${id}`);
     }
+    if (!provider.resourceId.trim()) throw new Error(`Deployment provider sem resourceId: ${id}`);
     if (this.providers.has(id)) throw new Error(`Deployment provider já registrado: ${id}`);
 
     // Preserve the original provider instance. Spreading a class instance would
