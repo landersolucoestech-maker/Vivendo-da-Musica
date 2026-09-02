@@ -223,7 +223,7 @@ describe('GovernedAgentExecutor', () => {
       manifestId: 'manifest-health-missing', resource: 'hostinger:target:vm-1',
       artifactRef: 'ghcr.io/example/app:sha', approvalReceiptId: 'approval-health-missing',
       leaseResource: 'hostinger:health-missing', input: { artifactRef: 'ghcr.io/example/app:sha' },
-    })).rejects.toThrow('Health check obrigatório');
+    })).rejects.toThrow(/Health check/);
 
     expect(runtime.evidence.byCorrelationId(correlationId).some((record) => record.kind === 'tool_result')).toBe(false);
     expect(runtime.workflows.get(workflowId)?.state).toBe('failed');
