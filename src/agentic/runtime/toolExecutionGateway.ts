@@ -9,6 +9,8 @@ import { ResilientExecutor, type RetryPolicy } from '@/agentic/runtime/resilient
 
 export interface ToolExecutionRequest<Input = unknown> extends CapabilityExecutionContext {
   input: Input;
+  manifestId: string;
+  resource: string;
   approvalReceiptId?: string;
   leaseResource?: string;
   retry?: Partial<RetryPolicy>;
@@ -32,6 +34,8 @@ export class ToolExecutionGateway {
         capability: request.capability,
         risk: request.risk,
         idempotencyKey: request.idempotencyKey,
+        manifestId: request.manifestId,
+        resource: request.resource,
         cached: true,
         success: true,
       });
@@ -57,6 +61,8 @@ export class ToolExecutionGateway {
       capability: request.capability,
       risk: request.risk,
       idempotencyKey: request.idempotencyKey,
+      manifestId: request.manifestId,
+      resource: request.resource,
       leaseResource: request.leaseResource ?? null,
       approvalReceiptId: request.approvalReceiptId ?? null,
     });
@@ -79,6 +85,8 @@ export class ToolExecutionGateway {
         capability: request.capability,
         risk: request.risk,
         idempotencyKey: request.idempotencyKey,
+        manifestId: request.manifestId,
+        resource: request.resource,
         cached: false,
         success: true,
       });
@@ -90,6 +98,8 @@ export class ToolExecutionGateway {
         capability: request.capability,
         risk: request.risk,
         idempotencyKey: request.idempotencyKey,
+        manifestId: request.manifestId,
+        resource: request.resource,
         message,
       });
       throw error;
