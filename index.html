@@ -7,30 +7,6 @@
     <meta name="color-scheme" content="dark light" />
     <meta name="referrer" content="strict-origin-when-cross-origin" />
 
-    <script>
-      (() => {
-        if (!window.location.hostname.endsWith('github.io')) return;
-
-        const basePath = '/Vivendo-da-Musica';
-        const { pathname, hash } = window.location;
-        let targetHash = hash;
-
-        if (!targetHash || targetHash === '#') {
-          const deepPath = pathname.startsWith(basePath)
-            ? pathname.slice(basePath.length) || '/'
-            : '/';
-          targetHash = `#${deepPath.startsWith('/') ? deepPath : `/${deepPath}`}`;
-        }
-
-        const normalizedPath = `${basePath}/${targetHash}`;
-        const currentPath = `${pathname}${window.location.search}${hash}`;
-
-        if (currentPath !== normalizedPath) {
-          window.history.replaceState(null, '', normalizedPath);
-        }
-      })();
-    </script>
-
     <title>Vivendo da Música</title>
     <meta
       name="description"
