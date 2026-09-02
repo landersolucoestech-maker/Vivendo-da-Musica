@@ -8,7 +8,7 @@ on:
       - '.github/workflows/refresh-security-lockfile.yml'
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   refresh:
@@ -32,17 +32,14 @@ jobs:
       - name: Run high severity audit gate
         run: npm run audit:high
 
-      - name: Capture npm audit report
-        if: always()
-        run: npm audit --json > npm-audit.json || true
-
-      - name: Upload refreshed lockfile
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          name: refreshed-security-lockfile
-          path: |
-            package-lock.json
-            npm-audit.json
-          if-no-files-found: error
-          retention-days: 1
+      - name: Commit refreshed lockfile
+        run: |
+          if git diff --quiet -- package-lock.json; then
+            echo "package-lock.json already satisfies the security refresh."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package-lock.json
+          git commit -m "fix(deps): resolve high severity audit findings"
+          git push origin HEAD:dev
