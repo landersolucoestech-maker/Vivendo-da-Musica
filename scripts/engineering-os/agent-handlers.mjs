@@ -7,12 +7,12 @@ export const createAgentHandlerRegistry = ({ broker, strategies = {} } = {}) => 
 
   const register = ({ agentId, skillId, strategy }) => {
     const agent = getAgent(agentId);
-    const skill = getSkill(skillId);
+    getSkill(skillId);
     if (!(agent.skills ?? []).includes(skillId)) throw new Error(`Skill not assigned to agent: ${agentId}/${skillId}`);
     if (typeof strategy !== 'function') throw new Error(`Agent strategy must be a function: ${agentId}/${skillId}`);
     if (handlers.has(agentId)) throw new Error(`Agent handler already registered: ${agentId}`);
 
-    const handler = async ({ run, step, callTool: executorCallTool }) => {
+    const handler = async ({ run, step }) => {
       if (step.agentId !== agentId) throw new Error(`Handler agent mismatch: ${agentId}/${step.agentId}`);
       const result = await runSkill({
         runId: run.id,
@@ -30,7 +30,7 @@ export const createAgentHandlerRegistry = ({ broker, strategies = {} } = {}) => 
           input,
           agent: runtimeAgent,
           skill: runtimeSkill,
-          callTool: executorCallTool ?? callTool
+          callTool
         })
       });
 
@@ -38,8 +38,7 @@ export const createAgentHandlerRegistry = ({ broker, strategies = {} } = {}) => 
       const evidence = result.evidence ?? [];
       const gates = Object.fromEntries((step.gates ?? []).map((gateId) => [gateId, {
         status: 'passed',
-        reason: `skill:${skillId}:completed`,
-        evidenceIds: []
+        reason: `skill:${skillId}:completed`
       }]));
       return { output, evidence, gates, skillFingerprint: result.fingerprint, outputFingerprint: fingerprint(output) };
     };
