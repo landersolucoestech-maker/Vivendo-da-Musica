@@ -11,6 +11,7 @@ const receiptSchema = z.object({
   headHash: z.string().nullable(),
   recordCount: z.number().int().nonnegative(),
   persistedAt: z.string().datetime(),
+  checkpointDigest: z.string().regex(/^[0-9a-f]{64}$/),
 });
 
 export interface SupabaseAuditCheckpointRpcResult {
