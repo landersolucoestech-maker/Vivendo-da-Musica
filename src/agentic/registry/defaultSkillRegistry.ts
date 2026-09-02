@@ -1,0 +1,145 @@
+import type { AgentRisk } from '@/agentic/contracts/agentContract';
+import type { SkillContract } from '@/agentic/contracts/skillContract';
+import { SkillRegistry } from '@/agentic/registry/skillRegistry';
+
+const allRisks: AgentRisk[] = ['read', 'write', 'privileged', 'destructive'];
+const nonDestructiveRisks: AgentRisk[] = ['read', 'write', 'privileged'];
+
+const skills: SkillContract[] = [
+  {
+    id: 'repository-engineering',
+    version: '1.0.0',
+    name: 'Repository Engineering',
+    objective: 'Investigar, pesquisar e alterar o repositório somente através de capabilities declaradas.',
+    enabled: true,
+    capabilityPrefixes: ['repo.'],
+    allowedRisks: allRisks,
+    requiredEvidence: ['diff', 'tests'],
+  },
+  {
+    id: 'architecture-and-contracts',
+    version: '1.0.0',
+    name: 'Architecture and Contracts',
+    objective: 'Analisar arquitetura, boundaries e contratos executáveis antes de mudanças estruturais.',
+    enabled: true,
+    capabilityPrefixes: ['architecture.', 'contracts.'],
+    allowedRisks: nonDestructiveRisks,
+    requiredEvidence: ['architecture-decision'],
+  },
+  {
+    id: 'requirements-and-planning',
+    version: '1.0.0',
+    name: 'Requirements and Planning',
+    objective: 'Transformar requisitos em planos verificáveis, critérios de aceite e decomposição determinística.',
+    enabled: true,
+    capabilityPrefixes: ['requirements.', 'product.', 'implementation.'],
+    allowedRisks: nonDestructiveRisks,
+    requiredEvidence: ['acceptance-criteria'],
+  },
+  {
+    id: 'frontend-engineering',
+    version: '1.0.0',
+    name: 'Frontend Engineering',
+    objective: 'Implementar e revisar interfaces, acessibilidade e comportamento do cliente.',
+    enabled: true,
+    capabilityPrefixes: ['frontend.', 'ux.', 'accessibility.'],
+    allowedRisks: nonDestructiveRisks,
+    requiredEvidence: ['tests'],
+  },
+  {
+    id: 'backend-api-engineering',
+    version: '1.0.0',
+    name: 'Backend and API Engineering',
+    objective: 'Implementar serviços, APIs e integrações com contratos, idempotência e isolamento.',
+    enabled: true,
+    capabilityPrefixes: ['backend.', 'api.'],
+    allowedRisks: allRisks,
+    requiredEvidence: ['contract-tests'],
+  },
+  {
+    id: 'database-security-engineering',
+    version: '1.0.0',
+    name: 'Database Engineering',
+    objective: 'Governar schema, migrations, RLS, RPCs e integridade de dados com fail-closed.',
+    enabled: true,
+    capabilityPrefixes: ['database.'],
+    allowedRisks: allRisks,
+    requiredEvidence: ['migration-validation', 'rls-validation'],
+  },
+  {
+    id: 'security-engineering',
+    version: '1.0.0',
+    name: 'Security Engineering',
+    objective: 'Executar threat modeling, auditoria e revisão de controles de segurança.',
+    enabled: true,
+    capabilityPrefixes: ['security.'],
+    allowedRisks: nonDestructiveRisks,
+    requiredEvidence: ['security-review'],
+  },
+  {
+    id: 'quality-assurance',
+    version: '1.0.0',
+    name: 'Quality Assurance',
+    objective: 'Planejar, executar e verificar testes e quality gates sem autoaprovação.',
+    enabled: true,
+    capabilityPrefixes: ['tests.', 'quality.'],
+    allowedRisks: nonDestructiveRisks,
+    requiredEvidence: ['test-results'],
+  },
+  {
+    id: 'performance-engineering',
+    version: '1.0.0',
+    name: 'Performance Engineering',
+    objective: 'Medir, perfilar e otimizar desempenho com budgets verificáveis.',
+    enabled: true,
+    capabilityPrefixes: ['performance.'],
+    allowedRisks: nonDestructiveRisks,
+    requiredEvidence: ['performance-results'],
+  },
+  {
+    id: 'observability-engineering',
+    version: '1.0.0',
+    name: 'Observability Engineering',
+    objective: 'Governar logs, métricas, tracing, alertas e SLOs.',
+    enabled: true,
+    capabilityPrefixes: ['observability.', 'telemetry.'],
+    allowedRisks: nonDestructiveRisks,
+    requiredEvidence: ['observability-results'],
+  },
+  {
+    id: 'evidence-governance',
+    version: '1.0.0',
+    name: 'Evidence Governance',
+    objective: 'Coletar e preservar evidências verificáveis sem permitir autoatestação do agente.',
+    enabled: true,
+    capabilityPrefixes: ['evidence.'],
+    allowedRisks: nonDestructiveRisks,
+    requiredEvidence: [],
+  },
+  {
+    id: 'release-and-deployment',
+    version: '1.0.0',
+    name: 'Release and Deployment',
+    objective: 'Governar staging, promoção, deploy e rollback através de providers aprovados.',
+    enabled: true,
+    capabilityPrefixes: ['release.', 'deploy.'],
+    allowedRisks: allRisks,
+    requiredEvidence: ['release-gates', 'rollback-plan'],
+  },
+  {
+    id: 'review-and-verification',
+    version: '1.0.0',
+    name: 'Independent Review',
+    objective: 'Executar revisão independente e verificação sem conceder autoaprovação ao implementador.',
+    enabled: true,
+    capabilityPrefixes: ['review.', 'verification.'],
+    allowedRisks: nonDestructiveRisks,
+    requiredEvidence: ['review-result'],
+  },
+];
+
+export const createDefaultSkillRegistry = (): SkillRegistry => {
+  const registry = new SkillRegistry();
+  for (const skill of skills) registry.register(skill);
+  return registry;
+};
