@@ -10,6 +10,7 @@ export const architectureAgent: AgentContract = {
   capabilities: [
     'repo.read',
     'repo.search',
+    'repo.write',
     'architecture.inspect',
     'architecture.plan',
     'contracts.review',
