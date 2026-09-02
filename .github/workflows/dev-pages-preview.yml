@@ -51,10 +51,18 @@ jobs:
       - name: Build dev preview
         run: npm run build
 
-      - name: Add preview metadata and no-index policy
+      - name: Harden Pages artifact
         shell: bash
         run: |
           set -euo pipefail
+          if find dist -type f -name '*.map' -print -quit | grep -q .; then
+            echo 'Source maps are forbidden in the public development preview.' >&2
+            exit 1
+          fi
+          if grep -R -E -n 'SUPABASE_SERVICE_ROLE_KEY|STRIPE_[A-Z_]*SECRET|PRIVATE KEY' dist; then
+            echo 'Potential secret marker found in public preview artifact.' >&2
+            exit 1
+          fi
           python - <<'PY'
           from pathlib import Path
           import os
@@ -62,9 +70,10 @@ jobs:
           html = index.read_text(encoding='utf-8')
           sha = os.environ['GITHUB_SHA']
           metadata = '\n    '.join([
-              f'<meta name="vdm-preview-branch" content="dev" />',
+              '<meta name="vdm-preview-branch" content="dev" />',
               f'<meta name="vdm-preview-commit" content="{sha}" />',
               '<meta name="robots" content="noindex, nofollow, noarchive" />',
+              '<meta name="googlebot" content="noindex, nofollow, noarchive" />',
           ])
           html = html.replace('<head>', f'<head>\n    {metadata}', 1)
           index.write_text(html, encoding='utf-8')
@@ -72,12 +81,15 @@ jobs:
           Path('dist/robots.txt').write_text('User-agent: *\nDisallow: /\n', encoding='utf-8')
           Path('dist/.nojekyll').touch()
           PY
+          grep --quiet '^Disallow: /$' dist/robots.txt
+          grep --quiet 'vdm-preview-branch" content="dev"' dist/index.html
+          grep --quiet "vdm-preview-commit\" content=\"${GITHUB_SHA}\"" dist/index.html
 
       - name: Configure Pages
-        uses: actions/configure-pages@v5
+        uses: actions/configure-pages@v6
 
       - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v4
+        uses: actions/upload-pages-artifact@v5
         with:
           path: ./dist
 
@@ -91,4 +103,4 @@ jobs:
     steps:
       - name: Deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5
