@@ -30,6 +30,18 @@ const STATUS_LABELS: Record<CompanyApplicationStatus, string> = {
 
 const selectClassName = 'flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring';
 
+const safeHttpsUrl = (value: string | null) => {
+  if (!value) return null;
+
+  try {
+    const parsed = new URL(value);
+    if (parsed.protocol !== 'https:' || !parsed.hostname || parsed.username || parsed.password) return null;
+    return parsed.toString();
+  } catch {
+    return null;
+  }
+};
+
 const CompanyCandidatesPage = () => {
   const { data, isLoading, isError, error, refetch } = useCompanyCandidates();
   const queryClient = useQueryClient();
@@ -60,6 +72,11 @@ const CompanyCandidatesPage = () => {
         .includes(term);
     });
   }, [data, opportunityId, search, status]);
+
+  const selectedPortfolioUrl = selected
+    ? safeHttpsUrl(selected.applicationPortfolioUrl) ?? safeHttpsUrl(selected.portfolioUrl)
+    : null;
+  const selectedResumeUrl = selected ? safeHttpsUrl(selected.resumeUrl) : null;
 
   const openCandidate = (candidate: CompanyCandidate) => {
     setSelected(candidate);
@@ -134,7 +151,7 @@ const CompanyCandidatesPage = () => {
                   <span>{candidate.city && candidate.state ? `${candidate.city}, ${candidate.state}` : 'Localização não informada'}</span>
                   <span>{candidate.experienceYears} {candidate.experienceYears === 1 ? 'ano' : 'anos'} de experiência</span>
                   <span>Candidatura em {new Date(candidate.appliedAt).toLocaleDateString('pt-BR')}</span>
-                  <span>{candidate.portfolioUrl || candidate.applicationPortfolioUrl ? 'Portfólio disponível' : 'Sem portfólio informado'}</span>
+                  <span>{safeHttpsUrl(candidate.applicationPortfolioUrl) || safeHttpsUrl(candidate.portfolioUrl) ? 'Portfólio disponível' : 'Sem portfólio informado'}</span>
                 </div>
 
                 <Button className="mt-5 w-full" variant="outline" onClick={() => openCandidate(candidate)}>Analisar candidatura</Button>
@@ -165,8 +182,8 @@ const CompanyCandidatesPage = () => {
                     <span>Interesses: {selected.preferredRoles.join(', ') || 'Não informados'}</span>
                   </div>
                   <div className="mt-4 flex flex-wrap gap-3">
-                    {(selected.applicationPortfolioUrl || selected.portfolioUrl) && <Button asChild variant="outline" size="sm"><a href={selected.applicationPortfolioUrl || selected.portfolioUrl || '#'} target="_blank" rel="noreferrer">Abrir portfólio<ExternalLink className="size-4" /></a></Button>}
-                    {selected.resumeUrl && <Button asChild variant="outline" size="sm"><a href={selected.resumeUrl} target="_blank" rel="noreferrer">Abrir currículo<ExternalLink className="size-4" /></a></Button>}
+                    {selectedPortfolioUrl && <Button asChild variant="outline" size="sm"><a href={selectedPortfolioUrl} target="_blank" rel="noreferrer">Abrir portfólio<ExternalLink className="size-4" /></a></Button>}
+                    {selectedResumeUrl && <Button asChild variant="outline" size="sm"><a href={selectedResumeUrl} target="_blank" rel="noreferrer">Abrir currículo<ExternalLink className="size-4" /></a></Button>}
                   </div>
                 </section>
 
