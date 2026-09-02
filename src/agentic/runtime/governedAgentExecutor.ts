@@ -1,0 +1,85 @@
+import type { AgentExecutionRequest } from '@/agentic/contracts/agentContract';
+import { EvidenceStore } from '@/agentic/evidence/evidenceStore';
+import { AgentExecutionKernel } from '@/agentic/runtime/agentExecutionKernel';
+import { ToolExecutionGateway, type ToolExecutionRequest } from '@/agentic/runtime/toolExecutionGateway';
+import type { WorkflowSnapshot, WorkflowState } from '@/agentic/workflow/workflowEngine';
+import { WorkflowStore } from '@/agentic/workflow/workflowStore';
+
+export interface GovernedExecutionRequest<Input = unknown> extends AgentExecutionRequest {
+  input: Input;
+  idempotencyKey: string;
+  approvalReceiptId?: string;
+  leaseResource?: string;
+  retry?: ToolExecutionRequest<Input>['retry'];
+}
+
+export interface GovernedExecutionResult<Output = unknown> {
+  result: Output;
+  workflow: Readonly<WorkflowSnapshot>;
+}
+
+export class GovernedAgentExecutor {
+  constructor(
+    private readonly kernel: AgentExecutionKernel,
+    private readonly gateway: ToolExecutionGateway,
+    private readonly workflows: WorkflowStore,
+    private readonly evidence: EvidenceStore,
+  ) {}
+
+  async execute<Input, Output>(request: GovernedExecutionRequest<Input>): Promise<GovernedExecutionResult<Output>> {
+    const admission = this.kernel.admit(request);
+    if (!admission.allowed || !admission.workflow) {
+      throw new Error(`Execução não admitida: ${admission.reason}`);
+    }
+
+    const workflow = admission.workflow;
+    this.transition(workflow, request, 'planned');
+
+    if (admission.policy?.requiresApproval) {
+      this.transition(workflow, request, 'awaiting_approval');
+    }
+    this.transition(workflow, request, 'approved');
+    this.transition(workflow, request, 'executing');
+    workflow.consumeStep();
+    this.workflows.save(workflow.current());
+
+    try {
+      const result = await this.gateway.execute<Input, Output>({
+        correlationId: request.correlationId,
+        workflowId: workflow.current().id,
+        agentId: request.agentId,
+        capability: request.capability,
+        risk: request.risk,
+        idempotencyKey: request.idempotencyKey,
+        input: request.input,
+        approvalReceiptId: request.approvalReceiptId,
+        leaseResource: request.leaseResource,
+        retry: request.retry,
+      });
+      this.transition(workflow, request, 'verifying');
+      return { result, workflow: workflow.current() };
+    } catch (error) {
+      this.transition(workflow, request, 'failed');
+      throw error;
+    }
+  }
+
+  private transition(
+    workflow: { transition(next: WorkflowState): Readonly<WorkflowSnapshot>; current(): Readonly<WorkflowSnapshot> },
+    request: AgentExecutionRequest,
+    next: WorkflowState,
+  ): void {
+    const previous = workflow.current().state;
+    const snapshot = workflow.transition(next);
+    this.workflows.save(snapshot);
+    this.evidence.append({
+      id: `${request.correlationId}:workflow_transition:${this.evidence.all().length}`,
+      correlationId: request.correlationId,
+      workflowId: snapshot.id,
+      agentId: request.agentId,
+      kind: 'workflow_transition',
+      occurredAt: new Date().toISOString(),
+      payload: { from: previous, to: next, stepsExecuted: snapshot.stepsExecuted },
+    });
+  }
+}
