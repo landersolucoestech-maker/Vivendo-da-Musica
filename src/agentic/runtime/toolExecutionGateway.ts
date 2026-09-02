@@ -9,8 +9,6 @@ import { ResilientExecutor, type RetryPolicy } from '@/agentic/runtime/resilient
 
 export interface ToolExecutionRequest<Input = unknown> extends CapabilityExecutionContext {
   input: Input;
-  manifestId: string;
-  resource: string;
   approvalReceiptId?: string;
   leaseResource?: string;
   retry?: Partial<RetryPolicy>;
@@ -28,6 +26,12 @@ export class ToolExecutionGateway {
   ) {}
 
   async execute<Input, Output>(request: ToolExecutionRequest<Input>): Promise<Output> {
+    const adapter = this.adapters.get(request.capability, request.risk) as {
+      validateResource?(input: Input, resource: string): void;
+      execute(input: Input, context: CapabilityExecutionContext): Promise<Output>;
+    };
+    adapter.validateResource?.(request.input, request.resource);
+
     const existing = this.idempotency.get(request.idempotencyKey);
     if (existing?.state === 'completed') {
       this.appendEvidence(request, 'tool_result', {
@@ -52,10 +56,6 @@ export class ToolExecutionGateway {
       if (!request.leaseResource) throw new Error(`Lease obrigatória para risco ${request.risk}.`);
       this.leases.assertHeld(request.leaseResource, request.agentId);
     }
-
-    const adapter = this.adapters.get(request.capability, request.risk) as {
-      execute(input: Input, context: CapabilityExecutionContext): Promise<Output>;
-    };
 
     this.appendEvidence(request, 'tool_call', {
       capability: request.capability,
