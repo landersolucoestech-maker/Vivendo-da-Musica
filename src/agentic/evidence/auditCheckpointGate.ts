@@ -7,6 +7,7 @@ import type {
 import { EvidenceStore } from '@/agentic/evidence/evidenceStore';
 
 const requiresDurableAudit = (risk: AgentRisk): boolean => risk === 'privileged' || risk === 'destructive';
+const sha256Pattern = /^[0-9a-f]{64}$/;
 
 const assertReceipt = (
   receipt: Readonly<AuditCheckpointReceipt>,
@@ -19,6 +20,9 @@ const assertReceipt = (
   }
   if (receipt.headHash !== headHash) throw new Error('Audit checkpoint receipt com headHash divergente.');
   if (receipt.recordCount !== recordCount) throw new Error('Audit checkpoint receipt com recordCount divergente.');
+  if (receipt.checkpointDigest !== undefined && !sha256Pattern.test(receipt.checkpointDigest)) {
+    throw new Error('Audit checkpoint receipt com checkpointDigest inválido.');
+  }
 };
 
 export class AuditCheckpointGate {
