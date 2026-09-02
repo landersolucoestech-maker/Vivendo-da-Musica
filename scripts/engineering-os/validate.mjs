@@ -29,11 +29,13 @@ if (!runtimePolicy.completion?.forbidClaimOnlyEvidence) errors.push('policy-clai
 
 const tools = readJson('engineering-os/registry/tools.json');
 const toolIds = new Set();
+const toolsById = new Map();
 const validApprovals = new Set(['never', 'policy', 'required']);
 for (const tool of tools.tools ?? []) {
   if (!tool.id || !tool.scope || !tool.capability) errors.push(`tool-invalid:${tool.id ?? 'unknown'}`);
   if (toolIds.has(tool.id)) errors.push(`tool-duplicate:${tool.id}`);
   toolIds.add(tool.id);
+  toolsById.set(tool.id, tool);
   if (!validRisks.has(tool.risk)) errors.push(`tool-risk-invalid:${tool.id}:${tool.risk}`);
   if (!validApprovals.has(tool.approval)) errors.push(`tool-approval-invalid:${tool.id}:${tool.approval}`);
   if (!Number.isSafeInteger(tool.timeoutMs) || tool.timeoutMs <= 0) errors.push(`tool-timeout-invalid:${tool.id}`);
@@ -45,14 +47,14 @@ for (const tool of tools.tools ?? []) {
 
 const skills = readJson('engineering-os/registry/skills.json');
 const skillIds = new Set();
-const skillsById = new Map();
 for (const skill of skills.skills ?? []) {
   if (!skill.id || !validRisks.has(skill.maxRisk)) errors.push(`skill-invalid:${skill.id ?? 'unknown'}`);
   if (skillIds.has(skill.id)) errors.push(`skill-duplicate:${skill.id}`);
   skillIds.add(skill.id);
-  skillsById.set(skill.id, skill);
   for (const toolId of skill.allowedTools ?? []) {
     if (!toolIds.has(toolId)) errors.push(`skill-tool-unknown:${skill.id}:${toolId}`);
+    const tool = toolsById.get(toolId);
+    if (tool && riskRank[tool.risk] > riskRank[skill.maxRisk]) errors.push(`skill-tool-risk-exceeds:${skill.id}:${toolId}`);
   }
   for (const kind of skill.requiredEvidenceKinds ?? []) {
     if (!runtimePolicy.evidence.allowedKinds.includes(kind)) errors.push(`skill-evidence-kind-unknown:${skill.id}:${kind}`);
@@ -61,8 +63,6 @@ for (const skill of skills.skills ?? []) {
 for (const agent of registry.agents) {
   for (const skillId of agent.skills ?? []) {
     if (!skillIds.has(skillId)) errors.push(`agent-skill-unknown:${agent.id}:${skillId}`);
-    const skill = skillsById.get(skillId);
-    if (skill && riskRank[agent.risk] > riskRank[skill.maxRisk]) errors.push(`agent-skill-risk-exceeds:${agent.id}:${skillId}`);
   }
 }
 
