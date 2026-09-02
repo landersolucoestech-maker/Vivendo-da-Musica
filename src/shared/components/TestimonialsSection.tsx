@@ -8,6 +8,8 @@ import { ROUTES } from '@/shared/constants/routes';
 const TestimonialsSection = () => {
   const { data: testimonials } = useTestimonials();
 
+  if (!testimonials?.length) return null;
+
   return (
     <section className="border-y border-white/8 bg-[#090909] py-20 sm:py-24">
       <div className="vdm-container py-0">
@@ -22,8 +24,8 @@ const TestimonialsSection = () => {
         </div>
 
         <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
-          {(testimonials ?? []).map((testimonial) => (
-            <article key={testimonial.studentName} className="vdm-surface flex min-h-64 flex-col p-5 sm:p-6">
+          {testimonials.map((testimonial) => (
+            <article key={`${testimonial.courseSlug}-${testimonial.studentName}`} className="vdm-surface flex min-h-64 flex-col p-5 sm:p-6">
               <div className="mb-5 flex items-center justify-between">
                 <Quote className="size-7 text-primary/70" />
                 <div className="flex items-center gap-1 text-amber-400" aria-label={`${testimonial.rating} estrelas`}>
