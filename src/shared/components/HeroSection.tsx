@@ -1,9 +1,32 @@
-import { ArrowRight, BookOpen, Music2, Play } from 'lucide-react';
+import { ArrowRight, BookOpen, Briefcase, Library, Music2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 import { VdmBrand } from '@/shared/components/brand/VdmBrand';
 import { Button } from '@/shared/components/ui/button';
 import { ROUTES } from '@/shared/constants/routes';
+
+const PLATFORM_AREAS = [
+  {
+    icon: BookOpen,
+    title: 'Formação estruturada',
+    description: 'Cursos e trilhas para desenvolver conhecimento aplicável ao mercado musical.',
+  },
+  {
+    icon: Music2,
+    title: 'Recursos profissionais',
+    description: 'Materiais e ferramentas para apoiar produção, lançamento e evolução de carreira.',
+  },
+  {
+    icon: Library,
+    title: 'Conteúdo especializado',
+    description: 'Conhecimento sobre produção, direitos, distribuição, marketing e gestão musical.',
+  },
+  {
+    icon: Briefcase,
+    title: 'Carreira e oportunidades',
+    description: 'Conexões entre aprendizado, mercado e desenvolvimento profissional.',
+  },
+];
 
 const HeroSection = () => (
   <section id="home" className="relative overflow-hidden border-b border-white/10 pb-20 pt-12 lg:pb-28">
@@ -60,11 +83,11 @@ const HeroSection = () => (
             </div>
             <div className="vdm-surface flex items-center gap-3 p-4 text-left">
               <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary">
-                <Play className="size-5 fill-current" />
+                <Briefcase className="size-5" />
               </span>
               <div>
-                <p className="text-sm font-semibold text-white">Acesso sob demanda</p>
-                <p className="mt-0.5 text-xs text-muted-foreground">Estude no seu ritmo</p>
+                <p className="text-sm font-semibold text-white">Mercado e carreira</p>
+                <p className="mt-0.5 text-xs text-muted-foreground">Conhecimento aplicado</p>
               </div>
             </div>
           </div>
@@ -73,44 +96,33 @@ const HeroSection = () => (
         <div className="relative mx-auto w-full max-w-xl lg:max-w-none">
           <div className="absolute -inset-10 rounded-full bg-primary/15 blur-3xl" />
           <div className="relative overflow-hidden rounded-[2rem] border border-white/10 bg-[#111111] p-5 shadow-[0_32px_90px_rgba(0,0,0,0.42)] sm:p-7">
-            <div className="mb-6 flex items-center justify-between">
+            <div className="mb-6 flex items-center justify-between gap-4">
               <VdmBrand compact />
               <span className="rounded-full border border-primary/25 bg-primary/10 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-primary">
                 Plataforma completa
               </span>
             </div>
 
-            <div className="space-y-4">
-              <div className="rounded-2xl border border-white/8 bg-black/25 p-5">
-                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-white/35">Sua evolução</p>
-                <div className="mt-4 flex items-end justify-between gap-4">
-                  <div>
-                    <p className="font-display text-3xl font-bold text-white">Produção Musical</p>
-                    <p className="mt-1 text-sm text-muted-foreground">Trilha profissional em andamento</p>
-                  </div>
-                  <span className="text-2xl font-bold text-primary">68%</span>
-                </div>
-                <div className="mt-5 h-2 overflow-hidden rounded-full bg-white/8">
-                  <div className="h-full w-[68%] rounded-full bg-gradient-brand" />
-                </div>
-              </div>
+            <div className="rounded-2xl border border-white/8 bg-black/25 p-5 sm:p-6">
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-primary">Um ecossistema para evoluir</p>
+              <h2 className="mt-3 font-display text-2xl font-bold text-white sm:text-3xl">
+                Formação, recursos e mercado no mesmo ambiente.
+              </h2>
+              <p className="mt-3 text-sm leading-6 text-muted-foreground">
+                A plataforma conecta aprendizado, conteúdo especializado, ferramentas e oportunidades sem simular resultados ou progresso do aluno.
+              </p>
+            </div>
 
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="rounded-2xl border border-white/8 bg-black/20 p-5">
-                  <p className="text-xs font-semibold uppercase tracking-[0.14em] text-white/35">Próxima aula</p>
-                  <p className="mt-3 text-lg font-semibold text-white">Mixagem e equilíbrio</p>
-                  <p className="mt-1 text-sm text-muted-foreground">Módulo 4 · Aula 3</p>
-                  <span className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-primary">
-                    Continuar
-                    <ArrowRight className="size-4" />
+            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              {PLATFORM_AREAS.map(({ icon: Icon, title, description }) => (
+                <div key={title} className="rounded-2xl border border-white/8 bg-black/20 p-4">
+                  <span className="flex size-9 items-center justify-center rounded-lg bg-primary/12 text-primary">
+                    <Icon className="size-4" />
                   </span>
+                  <p className="mt-4 text-sm font-semibold text-white">{title}</p>
+                  <p className="mt-1 text-xs leading-5 text-muted-foreground">{description}</p>
                 </div>
-                <div className="rounded-2xl border border-white/8 bg-gradient-to-br from-primary/15 to-violet-700/5 p-5">
-                  <p className="text-xs font-semibold uppercase tracking-[0.14em] text-primary">Marketplace</p>
-                  <p className="mt-3 text-lg font-semibold text-white">Recursos para sua carreira</p>
-                  <p className="mt-1 text-sm leading-6 text-muted-foreground">Beats, templates, presets e materiais exclusivos.</p>
-                </div>
-              </div>
+              ))}
             </div>
           </div>
         </div>
