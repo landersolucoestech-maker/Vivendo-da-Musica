@@ -9,12 +9,15 @@ const readJson = (relativePath) => JSON.parse(fs.readFileSync(path.join(root, re
 
 const errors = [];
 const validRisks = new Set(['low', 'medium', 'high', 'critical']);
+const riskRank = { low: 1, medium: 2, high: 3, critical: 4 };
 const ids = new Set();
+const agentsById = new Map();
 for (const agent of registry.agents) {
   if (!agent.id || !agent.name || !agent.risk) errors.push(`agent-invalid:${agent.id ?? 'unknown'}`);
   if (!validRisks.has(agent.risk)) errors.push(`agent-risk-invalid:${agent.id}:${agent.risk}`);
   if (ids.has(agent.id)) errors.push(`agent-duplicate:${agent.id}`);
   ids.add(agent.id);
+  agentsById.set(agent.id, agent);
   for (const scope of agent.allowedScopes ?? []) {
     if ((agent.deniedScopes ?? []).includes(scope)) errors.push(`agent-scope-conflict:${agent.id}:${scope}`);
   }
@@ -42,10 +45,12 @@ for (const tool of tools.tools ?? []) {
 
 const skills = readJson('engineering-os/registry/skills.json');
 const skillIds = new Set();
+const skillsById = new Map();
 for (const skill of skills.skills ?? []) {
   if (!skill.id || !validRisks.has(skill.maxRisk)) errors.push(`skill-invalid:${skill.id ?? 'unknown'}`);
   if (skillIds.has(skill.id)) errors.push(`skill-duplicate:${skill.id}`);
   skillIds.add(skill.id);
+  skillsById.set(skill.id, skill);
   for (const toolId of skill.allowedTools ?? []) {
     if (!toolIds.has(toolId)) errors.push(`skill-tool-unknown:${skill.id}:${toolId}`);
   }
@@ -56,6 +61,8 @@ for (const skill of skills.skills ?? []) {
 for (const agent of registry.agents) {
   for (const skillId of agent.skills ?? []) {
     if (!skillIds.has(skillId)) errors.push(`agent-skill-unknown:${agent.id}:${skillId}`);
+    const skill = skillsById.get(skillId);
+    if (skill && riskRank[agent.risk] > riskRank[skill.maxRisk]) errors.push(`agent-skill-risk-exceeds:${agent.id}:${skillId}`);
   }
 }
 
@@ -80,7 +87,12 @@ for (const file of fs.readdirSync(workflowDir).filter((name) => name.endsWith('.
   for (const step of workflow.steps ?? []) {
     if (stepIds.has(step.id)) errors.push(`workflow-step-duplicate:${workflowId}:${step.id}`);
     stepIds.add(step.id);
-    if (!ids.has(step.agent)) errors.push(`workflow-agent-unknown:${workflowId}:${step.id}:${step.agent}`);
+    const agent = agentsById.get(step.agent);
+    if (!agent) errors.push(`workflow-agent-unknown:${workflowId}:${step.id}:${step.agent}`);
+    if (!step.skill || !skillIds.has(step.skill)) errors.push(`workflow-skill-unknown:${workflowId}:${step.id}:${step.skill ?? 'missing'}`);
+    if (agent && step.skill && !(agent.skills ?? []).includes(step.skill)) errors.push(`workflow-skill-not-assigned:${workflowId}:${step.id}:${step.agent}:${step.skill}`);
+    const scope = step.scope ?? 'read';
+    if (agent && !(agent.allowedScopes ?? []).includes(scope)) errors.push(`workflow-scope-not-allowed:${workflowId}:${step.id}:${step.agent}:${scope}`);
     for (const gate of step.gates ?? []) {
       if (!(workflow.requiredGates ?? []).includes(gate)) errors.push(`workflow-gate-not-required:${workflowId}:${gate}`);
     }
