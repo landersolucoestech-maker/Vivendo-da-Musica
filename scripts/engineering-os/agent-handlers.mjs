@@ -1,7 +1,9 @@
 import { getAgent, fingerprint } from './runtime.mjs';
 import { getSkill, runSkill } from './skill-runner.mjs';
 
-export const createAgentHandlerRegistry = ({ broker, strategies = {} } = {}) => {
+const handlerKey = (agentId, skillId) => `${agentId}:${skillId}`;
+
+export const createAgentHandlerRegistry = ({ broker, strategies = [] } = {}) => {
   if (!broker) throw new Error('Agent handler registry requires a tool broker');
   const handlers = new Map();
 
@@ -10,7 +12,8 @@ export const createAgentHandlerRegistry = ({ broker, strategies = {} } = {}) => 
     getSkill(skillId);
     if (!(agent.skills ?? []).includes(skillId)) throw new Error(`Skill not assigned to agent: ${agentId}/${skillId}`);
     if (typeof strategy !== 'function') throw new Error(`Agent strategy must be a function: ${agentId}/${skillId}`);
-    if (handlers.has(agentId)) throw new Error(`Agent handler already registered: ${agentId}`);
+    const key = handlerKey(agentId, skillId);
+    if (handlers.has(key)) throw new Error(`Agent skill handler already registered: ${agentId}/${skillId}`);
 
     const handler = async ({ run, step }) => {
       if (step.agentId !== agentId) throw new Error(`Handler agent mismatch: ${agentId}/${step.agentId}`);
@@ -44,26 +47,30 @@ export const createAgentHandlerRegistry = ({ broker, strategies = {} } = {}) => 
       return { output, evidence, gates, skillFingerprint: result.fingerprint, outputFingerprint: fingerprint(output) };
     };
 
-    handlers.set(agentId, handler);
+    handlers.set(key, handler);
     return handler;
   };
 
-  for (const [agentId, specification] of Object.entries(strategies)) {
-    register({ agentId, skillId: specification.skillId, strategy: specification.run });
-  }
+  for (const specification of strategies) register(specification);
 
   return {
     register,
-    get(agentId) {
-      const handler = handlers.get(agentId);
-      if (!handler) throw new Error(`No executable handler registered: ${agentId}`);
+    get(agentId, skillId) {
+      const handler = handlers.get(handlerKey(agentId, skillId));
+      if (!handler) throw new Error(`No executable handler registered: ${agentId}/${skillId}`);
       return handler;
     },
-    has(agentId) {
-      return handlers.has(agentId);
+    has(agentId, skillId) {
+      return handlers.has(handlerKey(agentId, skillId));
     },
     toObject() {
       return Object.fromEntries(handlers.entries());
     }
   };
 };
+
+export const resolveAgentHandler = (handlers, { agentId, skillId }) => (
+  handlers?.[handlerKey(agentId, skillId)]
+  ?? handlers?.[agentId]
+  ?? null
+);
