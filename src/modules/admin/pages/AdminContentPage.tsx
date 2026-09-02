@@ -4,6 +4,7 @@ import AdminLayout from '@/app/layouts/AdminLayout';
 import PageHeader from '@/shared/components/PageHeader';
 import DataTable from '@/shared/components/DataTable';
 import EmptyState from '@/shared/components/EmptyState';
+import LoadingState from '@/shared/components/LoadingState';
 import SearchInput from '@/shared/components/SearchInput';
 import FilterBar from '@/shared/components/FilterBar';
 import {
@@ -43,7 +44,11 @@ import type {
   AcademyUploadResult,
 } from '@/modules/courses/types/academyContent.types';
 
-const STATUS_FILTERS = ['Todos', 'draft', 'published'];
+const STATUS_FILTERS = [
+  { value: 'Todos', label: 'Todos' },
+  { value: 'draft', label: 'Rascunhos' },
+  { value: 'published', label: 'Publicados' },
+];
 
 const AdminContentPage = () => {
   const { toast } = useToast();
@@ -156,12 +161,7 @@ const AdminContentPage = () => {
         }
       />
 
-      <div className="mb-6 flex flex-col gap-4 sm:flex-row">
-        <SearchInput value={search} onChange={setSearch} placeholder="Buscar conteúdos..." className="flex-1" />
-        <FilterBar options={STATUS_FILTERS} value={status} onChange={setStatus} />
-      </div>
-
-      {isLoading && <p className="text-sm text-muted-foreground">Carregando conteúdos...</p>}
+      {isLoading && <LoadingState rows={6} />}
 
       {isError && (
         <div className="mb-6 rounded-lg border border-border bg-card p-5 text-sm text-muted-foreground">
@@ -170,51 +170,60 @@ const AdminContentPage = () => {
         </div>
       )}
 
-      {!isLoading && !isError && (contents ?? []).length === 0 ? (
-        <EmptyState title="Nenhum conteúdo cadastrado" description="Crie o primeiro conteúdo educacional da Academia." />
-      ) : (
-        <DataTable
-          rows={filtered}
-          rowKey={(content) => content.id}
-          emptyLabel="Nenhum conteúdo encontrado."
-          columns={[
-            { header: 'Título', cell: (content) => content.title },
-            { header: 'Slug', cell: (content) => content.slug },
-            { header: 'Categoria', cell: (content) => content.category || '-' },
-            {
-              header: 'Mídias',
-              cell: (content) => [
-                content.videoUrl ? 'Vídeo' : null,
-                content.body ? 'Texto' : null,
-                content.attachments?.length ? `${content.attachments.length} materiais` : null,
-              ].filter(Boolean).join(' / ') || '-',
-            },
-            { header: 'Status', cell: (content) => <AcademyContentStatusBadge status={content.status} /> },
-            {
-              header: 'Ações',
-              cell: (content) => (
-                <div className="flex flex-wrap justify-end gap-2">
-                  <Button size="sm" variant="outline" className="border-border" onClick={() => setViewing(content)}>
-                    <Eye className="mr-2 size-4" />
-                    Visualizar
-                  </Button>
-                  <Button size="sm" variant="outline" className="border-border" onClick={() => void handleTogglePublish(content)}>
-                    {content.status === 'published' ? <EyeOff className="mr-2 size-4" /> : <Eye className="mr-2 size-4" />}
-                    {content.status === 'published' ? 'Despublicar' : 'Publicar'}
-                  </Button>
-                  <Button size="sm" variant="outline" className="border-border" onClick={() => { setEditing(content); setIsCreating(false); }}>
-                    <Pencil className="mr-2 size-4" />
-                    Editar
-                  </Button>
-                  <Button size="sm" variant="outline" className="border-border" onClick={() => setPendingDelete(content)}>
-                    <Trash2 className="mr-2 size-4" />
-                    Excluir
-                  </Button>
-                </div>
-              ),
-            },
-          ]}
-        />
+      {contents && !isLoading && !isError && (
+        <>
+          <div className="mb-6 flex flex-col gap-4 sm:flex-row">
+            <SearchInput value={search} onChange={setSearch} placeholder="Buscar conteúdos..." className="flex-1" />
+            <FilterBar options={STATUS_FILTERS} value={status} onChange={setStatus} />
+          </div>
+
+          {contents.length === 0 ? (
+            <EmptyState title="Nenhum conteúdo cadastrado" description="Crie o primeiro conteúdo educacional da Academia." />
+          ) : (
+            <DataTable
+              rows={filtered}
+              rowKey={(content) => content.id}
+              emptyLabel="Nenhum conteúdo encontrado."
+              columns={[
+                { header: 'Título', cell: (content) => content.title },
+                { header: 'Slug', cell: (content) => content.slug },
+                { header: 'Categoria', cell: (content) => content.category || '-' },
+                {
+                  header: 'Mídias',
+                  cell: (content) => [
+                    content.videoUrl ? 'Vídeo' : null,
+                    content.body ? 'Texto' : null,
+                    content.attachments?.length ? `${content.attachments.length} materiais` : null,
+                  ].filter(Boolean).join(' / ') || '-',
+                },
+                { header: 'Status', cell: (content) => <AcademyContentStatusBadge status={content.status} /> },
+                {
+                  header: 'Ações',
+                  cell: (content) => (
+                    <div className="flex flex-wrap justify-end gap-2">
+                      <Button size="sm" variant="outline" className="border-border" onClick={() => setViewing(content)}>
+                        <Eye className="mr-2 size-4" />
+                        Visualizar
+                      </Button>
+                      <Button size="sm" variant="outline" className="border-border" onClick={() => void handleTogglePublish(content)}>
+                        {content.status === 'published' ? <EyeOff className="mr-2 size-4" /> : <Eye className="mr-2 size-4" />}
+                        {content.status === 'published' ? 'Despublicar' : 'Publicar'}
+                      </Button>
+                      <Button size="sm" variant="outline" className="border-border" onClick={() => { setEditing(content); setIsCreating(false); }}>
+                        <Pencil className="mr-2 size-4" />
+                        Editar
+                      </Button>
+                      <Button size="sm" variant="outline" className="border-border" onClick={() => setPendingDelete(content)}>
+                        <Trash2 className="mr-2 size-4" />
+                        Excluir
+                      </Button>
+                    </div>
+                  ),
+                },
+              ]}
+            />
+          )}
+        </>
       )}
 
       <Dialog open={editorOpen} onOpenChange={(open) => !open && closeEditor()}>
