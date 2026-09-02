@@ -1,6 +1,8 @@
 import type { AgentRisk } from '@/agentic/contracts/agentContract';
 import type { SkillContract } from '@/agentic/contracts/skillContract';
 import { SkillRegistry } from '@/agentic/registry/skillRegistry';
+import { authorizationHardeningSkill } from '@/agentic/skills/authorizationHardening.skill';
+import { databaseMigrationSafetySkill } from '@/agentic/skills/databaseMigrationSafety.skill';
 
 const allRisks: AgentRisk[] = ['read', 'write', 'privileged', 'destructive'];
 const nonDestructiveRisks: AgentRisk[] = ['read', 'write', 'privileged'];
@@ -66,26 +68,8 @@ const skills: SkillContract[] = [
     allowedRisks: allRisks,
     requiredEvidence: ['tool_result'],
   },
-  {
-    id: 'authorization-hardening',
-    version: '1.0.0',
-    name: 'Authorization Hardening',
-    objective: 'Auditar e endurecer autenticação, autorização, RLS, grants e boundaries privilegiados com testes negativos e revisão independente.',
-    enabled: true,
-    capabilityPrefixes: ['authorization.'],
-    allowedRisks: nonDestructiveRisks,
-    requiredEvidence: ['tool_result', 'verification'],
-  },
-  {
-    id: 'database-migration-safety',
-    version: '1.0.0',
-    name: 'Database Migration Safety',
-    objective: 'Planejar, preparar e revisar migrations com compatibilidade, reversibilidade, evidência e gates explícitos de produção.',
-    enabled: true,
-    capabilityPrefixes: ['migration.'],
-    allowedRisks: allRisks,
-    requiredEvidence: ['tool_result', 'verification'],
-  },
+  authorizationHardeningSkill,
+  databaseMigrationSafetySkill,
   {
     id: 'security-engineering',
     version: '1.0.0',
