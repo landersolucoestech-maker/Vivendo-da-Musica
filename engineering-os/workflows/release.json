@@ -1,15 +1,15 @@
 {
   "id": "release",
-  "version": 1,
+  "version": 2,
   "risk": "critical",
   "steps": [
-    {"id":"readiness","agent":"release-engineer","scope":"plan","required":true,"gates":["release-readiness-evidence"]},
-    {"id":"security","agent":"security-engineer","scope":"evidence","required":true,"gates":["security-evidence"]},
-    {"id":"quality","agent":"quality-engineer","scope":"evidence","required":true,"gates":["quality-evidence"]},
-    {"id":"rollback-plan","agent":"rollback-engineer","scope":"plan","required":true,"gates":["rollback-evidence"]},
-    {"id":"release-metadata","agent":"release-engineer","scope":"release-metadata-write","operation":"release","required":true,"gates":["release-metadata-evidence"]},
-    {"id":"independent-review","agent":"completion-auditor","scope":"evidence","required":true,"gates":["independent-review"]},
-    {"id":"production-deploy","agent":"production-operator","scope":"production-write","operation":"production-deploy","required":true,"gates":["deployment-evidence"]}
+    {"id":"readiness","agent":"release-engineer","skill":"release-readiness","scope":"plan","required":true,"gates":["release-readiness-evidence"]},
+    {"id":"security","agent":"security-engineer","skill":"security-review","scope":"evidence","required":true,"gates":["security-evidence"]},
+    {"id":"quality","agent":"quality-engineer","skill":"quality-certification","scope":"evidence","required":true,"gates":["quality-evidence"]},
+    {"id":"rollback-plan","agent":"rollback-engineer","skill":"release-readiness","scope":"plan","required":true,"gates":["rollback-evidence"]},
+    {"id":"release-metadata","agent":"release-engineer","skill":"release-readiness","scope":"release-metadata-write","operation":"release","required":true,"gates":["release-metadata-evidence"]},
+    {"id":"independent-review","agent":"completion-auditor","skill":"code-review","scope":"evidence","required":true,"gates":["independent-review"]},
+    {"id":"production-deploy","agent":"production-operator","skill":"production-operation","scope":"production-write","operation":"production-deploy","required":true,"gates":["deployment-evidence"]}
   ],
   "requiredGates": ["release-readiness-evidence","security-evidence","quality-evidence","rollback-evidence","release-metadata-evidence","independent-review","deployment-evidence"]
 }
