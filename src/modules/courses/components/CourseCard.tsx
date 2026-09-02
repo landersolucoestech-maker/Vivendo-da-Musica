@@ -1,4 +1,4 @@
-import { Download, FileText, PlayCircle, Star } from 'lucide-react';
+import { Download, FileText, Music2, PlayCircle, Star } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 import FavoriteButton from '@/modules/dashboard/components/FavoriteButton';
@@ -20,8 +20,9 @@ const CourseCard = ({ course }: { course: CatalogCourse }) => (
             className="absolute inset-0 size-full object-cover transition duration-300 group-hover:scale-[1.03]"
           />
         ) : (
-          <div className="absolute inset-0 flex items-center justify-center bg-black/25 p-5 text-center">
-            <span className="text-xs font-semibold uppercase tracking-[0.16em] text-white/90">{course.category}</span>
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-black/25 p-5 text-center">
+            <Music2 className="size-7 text-white/90" />
+            <span className="text-xs font-semibold uppercase tracking-[0.16em] text-white/80">Vivendo da Música</span>
           </div>
         )}
         <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
@@ -60,12 +61,14 @@ const CourseCard = ({ course }: { course: CatalogCourse }) => (
               </span>
             )}
           </div>
-        ) : (
+        ) : course.reviewCount > 0 ? (
           <div className="flex items-center gap-1.5 text-sm">
             <Star className="size-4 fill-amber-400 text-amber-400" />
             <span className="font-semibold text-white">{course.rating}</span>
             <span className="text-muted-foreground">({course.reviewCount})</span>
           </div>
+        ) : (
+          <p className="text-sm text-muted-foreground">Ainda sem avaliações</p>
         )}
 
         <div className="mt-auto flex items-end justify-between border-t border-white/8 pt-4">
