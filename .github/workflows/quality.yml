@@ -32,6 +32,8 @@ jobs:
       - run: npm run lint
       - name: Validate deployment provider policy
         run: npm run test:deployment-provider
+      - name: Reject legacy starter branding
+        run: npm run test:legacy-branding
       - name: Validate Agentic Engineering OS
         run: npm run test:agentic
       - run: npm run test
