@@ -16,6 +16,7 @@ export const architectureAgent: AgentContract = {
     'contracts.review',
     'evidence.collect',
   ],
+  skillIds: ['repository-engineering', 'architecture-and-contracts', 'evidence-governance'],
   deniedCapabilities: ['repo.write'],
   humanApprovalFor: ['privileged', 'destructive'],
   maxSteps: 18,
