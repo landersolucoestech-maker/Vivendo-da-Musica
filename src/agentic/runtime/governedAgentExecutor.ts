@@ -1,6 +1,7 @@
 import type { AgentExecutionRequest } from '@/agentic/contracts/agentContract';
 import { EvidenceStore } from '@/agentic/evidence/evidenceStore';
 import { AgentExecutionKernel } from '@/agentic/runtime/agentExecutionKernel';
+import { ExecutionManifestStore } from '@/agentic/runtime/executionManifestStore';
 import { ToolExecutionGateway, type ToolExecutionRequest } from '@/agentic/runtime/toolExecutionGateway';
 import type { WorkflowSnapshot, WorkflowState } from '@/agentic/workflow/workflowEngine';
 import { WorkflowStore } from '@/agentic/workflow/workflowStore';
@@ -8,6 +9,9 @@ import { WorkflowStore } from '@/agentic/workflow/workflowStore';
 export interface GovernedExecutionRequest<Input = unknown> extends AgentExecutionRequest {
   input: Input;
   idempotencyKey: string;
+  manifestId: string;
+  resource: string;
+  artifactRef?: string | null;
   approvalReceiptId?: string;
   leaseResource?: string;
   retry?: ToolExecutionRequest<Input>['retry'];
@@ -24,6 +28,7 @@ export class GovernedAgentExecutor {
     private readonly gateway: ToolExecutionGateway,
     private readonly workflows: WorkflowStore,
     private readonly evidence: EvidenceStore,
+    private readonly manifests: ExecutionManifestStore,
   ) {}
 
   async execute<Input, Output>(request: GovernedExecutionRequest<Input>): Promise<GovernedExecutionResult<Output>> {
@@ -33,6 +38,33 @@ export class GovernedAgentExecutor {
     }
 
     const workflow = admission.workflow;
+    const workflowId = workflow.current().id;
+    const manifest = this.manifests.assertAndConsume(request.manifestId, {
+      correlationId: request.correlationId,
+      workflowId,
+      agentId: request.agentId,
+      capability: request.capability,
+      risk: request.risk,
+      resource: request.resource,
+      artifactRef: request.artifactRef,
+    });
+
+    this.evidence.append({
+      id: `${request.correlationId}:admission:${this.evidence.all().length}`,
+      correlationId: request.correlationId,
+      workflowId,
+      agentId: request.agentId,
+      kind: 'admission',
+      occurredAt: new Date().toISOString(),
+      payload: {
+        manifestId: manifest.id,
+        capability: manifest.capability,
+        resource: request.resource,
+        executionBudgetUsed: this.manifests.executionsUsed(manifest.id),
+        executionBudgetMax: manifest.maxExecutions,
+      },
+    });
+
     this.transition(workflow, request, 'planned');
 
     if (admission.policy?.requiresApproval) {
@@ -46,11 +78,13 @@ export class GovernedAgentExecutor {
     try {
       const result = await this.gateway.execute<Input, Output>({
         correlationId: request.correlationId,
-        workflowId: workflow.current().id,
+        workflowId,
         agentId: request.agentId,
         capability: request.capability,
         risk: request.risk,
         idempotencyKey: request.idempotencyKey,
+        manifestId: manifest.id,
+        resource: request.resource,
         input: request.input,
         approvalReceiptId: request.approvalReceiptId,
         leaseResource: request.leaseResource,
