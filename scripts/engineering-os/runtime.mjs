@@ -32,12 +32,8 @@ export const getAgent = (agentId) => {
 
 export const authorize = ({ agentId, scope, operation, approvals = [] }) => {
   const agent = getAgent(agentId);
-  if (agent.deniedScopes.includes(scope)) {
-    return { allowed: false, reason: `scope-denied:${scope}` };
-  }
-  if (!agent.allowedScopes.includes(scope)) {
-    return { allowed: false, reason: `scope-not-allowed:${scope}` };
-  }
+  if (agent.deniedScopes.includes(scope)) return { allowed: false, reason: `scope-denied:${scope}` };
+  if (!agent.allowedScopes.includes(scope)) return { allowed: false, reason: `scope-not-allowed:${scope}` };
 
   const protectedAction = runtimePolicy.protectedScopes.includes(scope)
     || runtimePolicy.destructiveOperations.includes(operation)
@@ -47,7 +43,6 @@ export const authorize = ({ agentId, scope, operation, approvals = [] }) => {
   if (protectedAction && !approvals.includes(scope) && !approvals.includes(operation)) {
     return { allowed: false, reason: `approval-required:${operation || scope}` };
   }
-
   return { allowed: true, reason: 'authorized' };
 };
 
@@ -124,12 +119,29 @@ export const setGate = (run, gateId, { status, evidenceIds = [], reason = null }
 
 export const evaluateCompletion = ({ run, workflow }) => {
   const failures = [];
+  const evidenceById = new Map((run.evidence ?? []).map((item) => [item.id, item]));
   if (runtimePolicy.completion.requireAllRequiredGates) {
     for (const gateId of workflow.requiredGates ?? []) {
       const gate = run.gates[gateId];
-      if (!gate) failures.push(`missing-gate:${gateId}`);
-      else if (gate.status !== 'passed') failures.push(`gate-not-passed:${gateId}:${gate.status}`);
-      else if (runtimePolicy.completion.requireEvidenceForEachGate && gate.evidenceIds.length === 0) failures.push(`gate-without-evidence:${gateId}`);
+      if (!gate) {
+        failures.push(`missing-gate:${gateId}`);
+        continue;
+      }
+      if (gate.status !== 'passed') {
+        failures.push(`gate-not-passed:${gateId}:${gate.status}`);
+        continue;
+      }
+      if (runtimePolicy.completion.requireEvidenceForEachGate && gate.evidenceIds.length === 0) {
+        failures.push(`gate-without-evidence:${gateId}`);
+        continue;
+      }
+      const producer = (workflow.steps ?? []).find((step) => (step.gates ?? []).includes(gateId));
+      if (producer) {
+        const hasProducerEvidence = gate.evidenceIds
+          .map((id) => evidenceById.get(id))
+          .some((evidence) => evidence?.producerAgentId === producer.agent && evidence?.producerSkillId === producer.skill);
+        if (!hasProducerEvidence) failures.push(`gate-evidence-provenance-mismatch:${gateId}:${producer.agent}:${producer.skill}`);
+      }
     }
   }
   if (runtimePolicy.completion.requireIndependentReviewForRisk.includes(run.risk)) {
