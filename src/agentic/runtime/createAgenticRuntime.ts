@@ -10,6 +10,7 @@ import { ApprovalReceiptStore } from '@/agentic/runtime/approvalReceiptStore';
 import { CapabilityAdapterRegistry } from '@/agentic/runtime/capabilityAdapterRegistry';
 import { DelegationProtocol } from '@/agentic/runtime/delegationProtocol';
 import { DeploymentProviderRegistry } from '@/agentic/runtime/deploymentProviderRegistry';
+import { GovernedAgentExecutor } from '@/agentic/runtime/governedAgentExecutor';
 import {
   HostingerDeploymentProvider,
   type HostingerDeploymentConfig,
@@ -60,6 +61,10 @@ export const createAgenticRuntime = (options: AgenticRuntimeOptions = {}) => {
     registerAdapters(adapters, createDeploymentCapabilityAdapters(deploymentProviders, 'hostinger'));
   }
 
+  const kernel = new AgentExecutionKernel(registry, policies, evidence);
+  const gateway = new ToolExecutionGateway(adapters, idempotency, approvals, leases, evidence);
+  const executor = new GovernedAgentExecutor(kernel, gateway, workflows, evidence);
+
   return Object.freeze({
     registry,
     policies,
@@ -70,8 +75,8 @@ export const createAgenticRuntime = (options: AgenticRuntimeOptions = {}) => {
     approvals,
     leases,
     workflows,
-    kernel: new AgentExecutionKernel(registry, policies, evidence),
+    kernel,
     delegation: new DelegationProtocol(registry),
-    gateway: new ToolExecutionGateway(adapters, idempotency, approvals, leases, evidence),
+    executor,
   });
 };
