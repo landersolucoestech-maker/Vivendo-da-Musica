@@ -29,8 +29,14 @@ export class DeploymentProviderRegistry {
     if (this.sealed) throw new Error('DeploymentProviderRegistry selado; novos providers não podem ser registrados.');
     const id = provider.id.trim().toLowerCase();
     if (!id) throw new Error('Deployment provider precisa de identificador.');
+    if (provider.id !== id) {
+      throw new Error(`Deployment provider id precisa estar normalizado: ${id}`);
+    }
     if (this.providers.has(id)) throw new Error(`Deployment provider já registrado: ${id}`);
-    this.providers.set(id, { ...provider, id });
+
+    // Preserve the original provider instance. Spreading a class instance would
+    // strip prototype methods such as deploy()/rollback() and break execution.
+    this.providers.set(id, provider);
   }
 
   seal(): void {
