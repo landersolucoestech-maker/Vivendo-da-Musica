@@ -45,4 +45,6 @@ export interface AgentAdmissionDecision {
   allowed: boolean;
   reason: string;
   agent: AgentContract | null;
+  skillId: string | null;
+  skillVersion: string | null;
 }
