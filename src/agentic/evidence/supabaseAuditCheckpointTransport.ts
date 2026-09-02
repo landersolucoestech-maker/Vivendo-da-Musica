@@ -18,29 +18,36 @@ export interface SupabaseAuditCheckpointRpcResult {
   error: { message?: string } | null;
 }
 
-export type SupabaseAuditCheckpointRpc = (params: Readonly<{
-  p_checkpoint: Readonly<EvidenceCheckpoint>;
-  p_context: Readonly<AuditCheckpointContext>;
-}>) => PromiseLike<Readonly<SupabaseAuditCheckpointRpcResult>>;
+export interface SupabaseAuditCheckpointClient {
+  rpc(
+    functionName: 'persist_agentic_audit_checkpoint',
+    params: Readonly<{
+      p_checkpoint: Readonly<EvidenceCheckpoint>;
+      p_context: Readonly<AuditCheckpointContext>;
+    }>,
+  ): PromiseLike<Readonly<SupabaseAuditCheckpointRpcResult>>;
+}
 
 /**
  * Control-plane only transport.
  *
- * The caller is responsible for providing an RPC implementation backed by a
- * server-side Supabase client authorized as service_role. No privileged key is
- * read, imported or exposed by this module.
+ * The caller must provide a server-side Supabase client authorized as
+ * service_role. No privileged key is read, imported or exposed by this module.
  */
 export class SupabaseAuditCheckpointTransport implements AuditCheckpointTransport {
-  constructor(private readonly rpc: SupabaseAuditCheckpointRpc) {}
+  constructor(private readonly client: SupabaseAuditCheckpointClient) {}
 
   async persist(
     checkpoint: Readonly<EvidenceCheckpoint>,
     context: Readonly<AuditCheckpointContext>,
   ): Promise<Readonly<AuditCheckpointReceipt>> {
-    const result = await this.rpc(Object.freeze({
-      p_checkpoint: checkpoint,
-      p_context: context,
-    }));
+    const result = await this.client.rpc(
+      'persist_agentic_audit_checkpoint',
+      Object.freeze({
+        p_checkpoint: checkpoint,
+        p_context: context,
+      }),
+    );
 
     if (result.error) {
       throw new Error('Falha ao persistir audit checkpoint no Supabase.');
@@ -56,5 +63,5 @@ export class SupabaseAuditCheckpointTransport implements AuditCheckpointTranspor
 }
 
 export const createSupabaseAuditCheckpointTransport = (
-  rpc: SupabaseAuditCheckpointRpc,
-): AuditCheckpointTransport => new SupabaseAuditCheckpointTransport(rpc);
+  client: SupabaseAuditCheckpointClient,
+): AuditCheckpointTransport => new SupabaseAuditCheckpointTransport(client);
