@@ -2,6 +2,7 @@ import { manifestHasRequiredEvidence } from '@/agentic/contracts/executionManife
 import { AuditCheckpointGate } from '@/agentic/evidence/auditCheckpointGate';
 import { EvidenceStore } from '@/agentic/evidence/evidenceStore';
 import { AgentRegistry } from '@/agentic/registry/agentRegistry';
+import { SkillRegistry } from '@/agentic/registry/skillRegistry';
 import { ExecutionManifestStore } from '@/agentic/runtime/executionManifestStore';
 import { evaluateIndependentReview } from '@/agentic/runtime/separationOfDuties';
 import { WorkflowEngine, type WorkflowSnapshot } from '@/agentic/workflow/workflowEngine';
@@ -17,6 +18,7 @@ export interface WorkflowVerificationRequest {
 export class WorkflowVerificationService {
   constructor(
     private readonly registry: AgentRegistry,
+    private readonly skills: SkillRegistry,
     private readonly workflows: WorkflowStore,
     private readonly evidence: EvidenceStore,
     private readonly manifests: ExecutionManifestStore,
@@ -42,6 +44,11 @@ export class WorkflowVerificationService {
       throw new Error(`Execution Manifest não pertence ao workflow: ${request.workflowId}`);
     }
 
+    const skillResolution = this.skills.resolve(manifest.capability, manifest.risk);
+    if (!skillResolution.allowed || !skillResolution.skill) {
+      throw new Error(`Workflow sem Skill válida para conclusão: ${skillResolution.reason}`);
+    }
+
     const reviewer = this.registry.get(request.reviewerAgentId);
     const separation = evaluateIndependentReview({
       executorAgentId: executionEvidence.agentId,
@@ -52,12 +59,17 @@ export class WorkflowVerificationService {
     if (!separation.allowed) throw new Error(separation.reason);
 
     if (request.passed) {
-      const requiredBeforeReview = manifest.requiredEvidenceKinds.filter((kind) => kind !== 'verification');
-      const missing = requiredBeforeReview.filter((kind) => !this.evidence.all().some((record) =>
+      const requiredBeforeReview = new Set([
+        ...manifest.requiredEvidenceKinds.filter((kind) => kind !== 'verification'),
+        ...skillResolution.skill.requiredEvidence.filter((kind) => kind !== 'verification'),
+      ]);
+      const missing = [...requiredBeforeReview].filter((kind) => !this.evidence.all().some((record) =>
         record.workflowId === request.workflowId && record.kind === kind,
       ));
       if (missing.length > 0) {
-        throw new Error(`Evidências obrigatórias ausentes para conclusão: ${missing.join(', ')}`);
+        throw new Error(
+          `Evidências obrigatórias ausentes para conclusão (${skillResolution.skill.id}): ${missing.join(', ')}`,
+        );
       }
     }
 
@@ -76,6 +88,9 @@ export class WorkflowVerificationService {
         executorAgentId: executionEvidence.agentId,
         reviewerAgentId: reviewer.id,
         manifestId: manifest.id,
+        skillId: skillResolution.skill.id,
+        skillVersion: skillResolution.skill.version,
+        skillRequiredEvidence: skillResolution.skill.requiredEvidence,
         separationOfDuties: separation.reason,
       },
     });
