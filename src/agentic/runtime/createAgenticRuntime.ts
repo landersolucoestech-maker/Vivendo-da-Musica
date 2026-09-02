@@ -61,6 +61,10 @@ export const createAgenticRuntime = (options: AgenticRuntimeOptions = {}) => {
     registerAdapters(adapters, createDeploymentCapabilityAdapters(deploymentProviders, 'hostinger'));
   }
 
+  registry.seal();
+  adapters.seal();
+  deploymentProviders.seal();
+
   const kernel = new AgentExecutionKernel(registry, policies, evidence);
   const gateway = new ToolExecutionGateway(adapters, idempotency, approvals, leases, evidence);
   const executor = new GovernedAgentExecutor(kernel, gateway, workflows, evidence);
