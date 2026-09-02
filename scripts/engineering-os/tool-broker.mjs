@@ -80,6 +80,7 @@ export const createToolBroker = ({
       if (tool.sideEffect !== 'none' && tool.idempotent && !idempotencyKey) throw new Error(`Idempotency key required: ${toolId}`);
 
       const request = { runId, agentId, toolId, operation, input, resource };
+      let idempotencyReserved = false;
       if (idempotencyKey) {
         const reservation = idempotency.reserve({ key: idempotencyKey, request });
         if (reservation.replay) {
@@ -87,9 +88,16 @@ export const createToolBroker = ({
           return { ...structuredClone(reservation.result), replayed: true };
         }
         if (reservation.pending) throw new Error(`Idempotent operation already in progress: ${idempotencyKey}`);
+        idempotencyReserved = true;
       }
 
-      const budget = reserveBudget(runId);
+      let budget;
+      try {
+        budget = reserveBudget(runId);
+      } catch (error) {
+        if (idempotencyReserved) idempotency.fail({ key: idempotencyKey });
+        throw error;
+      }
       audit.append({ type: 'tool.budget-reserved', actor: agentId, runId, payload: { toolId, calls: budget.calls, maxCalls: budget.maxCalls } });
 
       let lock = null;
@@ -140,9 +148,12 @@ export const createToolBroker = ({
         throw error;
       } finally {
         const durationMs = Date.now() - startedAt;
-        const updatedBudget = recordDuration(runId, durationMs);
-        audit.append({ type: 'tool.budget-recorded', actor: agentId, runId, payload: { toolId, durationMs, totalDurationMs: updatedBudget.totalDurationMs } });
-        if (lock) locks.release({ resource, token: lock.token });
+        try {
+          const updatedBudget = recordDuration(runId, durationMs);
+          audit.append({ type: 'tool.budget-recorded', actor: agentId, runId, payload: { toolId, durationMs, totalDurationMs: updatedBudget.totalDurationMs } });
+        } finally {
+          if (lock) locks.release({ resource, token: lock.token });
+        }
       }
     },
 
