@@ -28,10 +28,20 @@ const required = (value: string, field: string): string => {
   return normalized;
 };
 
+const pathResource = (path: string): string => `repo:path:${required(path, 'path')}`;
+
+const assertResource = (actual: string, expected: string): void => {
+  if (actual !== expected) throw new Error(`Resource do adapter divergente: esperado ${expected}.`);
+};
+
 export const createRepositoryCapabilityAdapters = (transport: RepositoryTransport): CapabilityAdapter[] => [
   {
     capability: 'repo.read',
     allowedRisks: ['read'],
+    validateResource(input: unknown, resource: string) {
+      const value = input as RepositoryReadInput;
+      assertResource(resource, pathResource(value.path));
+    },
     execute(input: unknown) {
       const value = input as RepositoryReadInput;
       return transport.read({ ...value, path: required(value.path, 'path') });
@@ -40,6 +50,9 @@ export const createRepositoryCapabilityAdapters = (transport: RepositoryTranspor
   {
     capability: 'repo.search',
     allowedRisks: ['read'],
+    validateResource(_input: unknown, resource: string) {
+      assertResource(resource, 'repo:search');
+    },
     execute(input: unknown) {
       const value = input as RepositorySearchInput;
       return transport.search({ query: required(value.query, 'query') });
@@ -48,6 +61,10 @@ export const createRepositoryCapabilityAdapters = (transport: RepositoryTranspor
   {
     capability: 'repo.write',
     allowedRisks: ['write'],
+    validateResource(input: unknown, resource: string) {
+      const value = input as RepositoryWriteInput;
+      assertResource(resource, pathResource(value.path));
+    },
     execute(input: unknown) {
       const value = input as RepositoryWriteInput;
       return transport.write({
