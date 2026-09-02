@@ -1,0 +1,15 @@
+{
+  "id": "incident",
+  "version": 1,
+  "risk": "critical",
+  "steps": [
+    {"id":"triage","agent":"incident-responder","scope":"read","required":true,"gates":["triage-evidence"]},
+    {"id":"forensics","agent":"security-engineer","scope":"evidence","required":true,"gates":["forensics-evidence"]},
+    {"id":"containment-plan","agent":"incident-responder","scope":"plan","operation":"containment","required":true,"gates":["containment-evidence"]},
+    {"id":"recovery-plan","agent":"recovery-engineer","scope":"plan","required":true,"gates":["recovery-plan-evidence"]},
+    {"id":"verification","agent":"reliability-engineer","scope":"evidence","required":true,"gates":["verification-evidence"]},
+    {"id":"security-review","agent":"reviewer","scope":"evidence","required":true,"gates":["security-review-evidence"]},
+    {"id":"completion-review","agent":"completion-auditor","scope":"evidence","required":true,"gates":["independent-review"]}
+  ],
+  "requiredGates": ["triage-evidence","forensics-evidence","containment-evidence","recovery-plan-evidence","verification-evidence","security-review-evidence","independent-review"]
+}
