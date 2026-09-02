@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vivendodamusica.local/engineering-os/approval.schema.json",
+  "title": "Engineering OS Approval",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "runId", "requestedBy", "scope", "operation", "risk", "reason", "status", "createdAt", "updatedAt", "expiresAt", "fingerprint"],
+  "properties": {
+    "id": { "type": "string", "minLength": 1 },
+    "runId": { "type": "string", "minLength": 1 },
+    "requestedBy": { "type": "string", "minLength": 1 },
+    "scope": { "type": "string", "minLength": 1 },
+    "operation": { "type": "string", "minLength": 1 },
+    "toolId": { "type": ["string", "null"] },
+    "risk": { "enum": ["low", "medium", "high", "critical"] },
+    "reason": { "type": "string", "minLength": 1 },
+    "status": { "enum": ["pending", "approved", "rejected", "expired", "consumed"] },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "updatedAt": { "type": "string", "format": "date-time" },
+    "expiresAt": { "type": "string", "format": "date-time" },
+    "approvedBy": { "type": ["string", "null"] },
+    "decisionReason": { "type": ["string", "null"] },
+    "consumedAt": { "type": ["string", "null"], "format": "date-time" },
+    "fingerprint": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+  }
+}
