@@ -1,3 +1,4 @@
+import { createDeploymentCapabilityAdapters } from '@/agentic/adapters/deploymentCapabilityAdapters';
 import { EvidenceStore } from '@/agentic/evidence/evidenceStore';
 import { createDefaultPolicyEngine } from '@/agentic/policy/defaultPolicySet';
 import { createDefaultAgentRegistry } from '@/agentic/registry/defaultAgentRegistry';
@@ -39,6 +40,9 @@ export const createAgenticRuntime = (options: AgenticRuntimeOptions = {}) => {
       options.hostinger.config,
       options.hostinger.transport,
     ));
+    for (const adapter of createDeploymentCapabilityAdapters(deploymentProviders, 'hostinger')) {
+      adapters.register(adapter);
+    }
   }
 
   return Object.freeze({
