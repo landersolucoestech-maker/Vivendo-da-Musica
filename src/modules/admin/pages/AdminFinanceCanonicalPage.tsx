@@ -6,6 +6,7 @@ import AdminLayout from '@/app/layouts/AdminLayout';
 import { adminCanonicalFinanceService, type CanonicalAdminOrder, type CanonicalPayout } from '@/modules/admin/services/adminCanonicalFinance.service';
 import DataTable from '@/shared/components/DataTable';
 import ErrorState from '@/shared/components/ErrorState';
+import LoadingState from '@/shared/components/LoadingState';
 import PageHeader from '@/shared/components/PageHeader';
 import StatCard from '@/shared/components/StatCard';
 import StatusBadge from '@/shared/components/StatusBadge';
@@ -56,20 +57,24 @@ const AdminFinanceCanonicalPage = () => {
   return (
     <AdminLayout>
       <PageHeader title="Financeiro canônico" subtitle="Pagamentos, ajustes, obrigações, repasses e ledger da plataforma." />
-      {isError ? <ErrorState description={error.message} onRetry={() => void refetch()} /> : (
+
+      {isLoading && <LoadingState rows={6} />}
+      {isError && <ErrorState description={error.message} onRetry={() => void refetch()} />}
+
+      {data && !isLoading && !isError && (
         <>
           <div className="mb-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
-            <StatCard label="Vendas brutas" value={formatPrice(data?.summary.grossPaidCents ?? 0)} icon={ReceiptText} />
-            <StatCard label="Reembolsado" value={formatPrice(data?.summary.refundedCents ?? 0)} icon={RotateCcw} />
-            <StatCard label="Chargebacks" value={formatPrice(data?.summary.chargebackCents ?? 0)} icon={AlertTriangle} />
-            <StatCard label="Receita da plataforma" value={formatPrice(data?.summary.platformRevenueCents ?? 0)} icon={WalletCards} />
-            <StatCard label="Obrigações a repassar" value={formatPrice(data?.summary.payableCents ?? 0)} icon={Banknote} />
-            <StatCard label="Saldo de caixa" value={formatPrice(data?.summary.cashBalanceCents ?? 0)} icon={WalletCards} />
+            <StatCard label="Vendas brutas" value={formatPrice(data.summary.grossPaidCents)} icon={ReceiptText} />
+            <StatCard label="Reembolsado" value={formatPrice(data.summary.refundedCents)} icon={RotateCcw} />
+            <StatCard label="Chargebacks" value={formatPrice(data.summary.chargebackCents)} icon={AlertTriangle} />
+            <StatCard label="Receita da plataforma" value={formatPrice(data.summary.platformRevenueCents)} icon={WalletCards} />
+            <StatCard label="Obrigações a repassar" value={formatPrice(data.summary.payableCents)} icon={Banknote} />
+            <StatCard label="Saldo de caixa" value={formatPrice(data.summary.cashBalanceCents)} icon={WalletCards} />
           </div>
 
           <section className="mb-10">
             <h2 className="mb-3 font-display text-lg font-semibold text-white">Pedidos e pagamentos</h2>
-            <DataTable rows={data?.orders ?? []} rowKey={(order) => order.id} emptyLabel={isLoading ? 'Carregando pedidos...' : 'Nenhum pedido registrado.'} columns={[
+            <DataTable rows={data.orders} rowKey={(order) => order.id} emptyLabel="Nenhum pedido registrado." columns={[
               { header: 'Pedido', cell: (order) => order.id.slice(0, 8) },
               { header: 'Itens', cell: (order) => order.itemTitles.join(', ') || '—' },
               { header: 'Total', cell: (order) => formatPrice(order.totalCents, order.currency) },
@@ -82,7 +87,7 @@ const AdminFinanceCanonicalPage = () => {
 
           <section>
             <h2 className="mb-3 font-display text-lg font-semibold text-white">Repasses unificados</h2>
-            <DataTable rows={data?.payouts ?? []} rowKey={(payout) => payout.id} emptyLabel="Nenhum repasse solicitado." columns={[
+            <DataTable rows={data.payouts} rowKey={(payout) => payout.id} emptyLabel="Nenhum repasse solicitado." columns={[
               { header: 'Beneficiário', cell: (payout) => payout.beneficiaryType === 'affiliate' ? 'Afiliado' : 'Vendedor / instrutor' },
               { header: 'Destino', cell: (payout) => payout.destinationLabel },
               { header: 'Valor', cell: (payout) => formatPrice(payout.amountCents, payout.currency) },
