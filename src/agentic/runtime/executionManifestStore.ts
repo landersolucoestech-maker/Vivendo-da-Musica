@@ -13,10 +13,13 @@ interface ManifestConsumptionContext extends ManifestExecutionContext {
 
 interface NonceBinding {
   manifestId: string;
+  correlationId: string;
   workflowId: string;
   agentId: string;
   capability: string;
+  risk: ManifestExecutionContext['risk'];
   resource: string;
+  artifactRef: string | null;
   idempotencyKey: string;
 }
 
@@ -57,10 +60,13 @@ const assertReleasePolicy = (manifest: ExecutionManifest): void => {
 
 const sameBinding = (left: NonceBinding, right: NonceBinding): boolean =>
   left.manifestId === right.manifestId
+  && left.correlationId === right.correlationId
   && left.workflowId === right.workflowId
   && left.agentId === right.agentId
   && left.capability === right.capability
+  && left.risk === right.risk
   && left.resource === right.resource
+  && left.artifactRef === right.artifactRef
   && left.idempotencyKey === right.idempotencyKey;
 
 export class ExecutionManifestStore {
@@ -95,22 +101,6 @@ export class ExecutionManifestStore {
     if (!executionNonce) throw new Error('Execution nonce obrigatório.');
     if (!idempotencyKey) throw new Error('Idempotency key obrigatória para consumir Execution Manifest.');
 
-    const binding: NonceBinding = {
-      manifestId,
-      workflowId: context.workflowId,
-      agentId: context.agentId,
-      capability: context.capability,
-      resource: context.resource,
-      idempotencyKey,
-    };
-    const existingBinding = this.nonceBindings.get(executionNonce);
-    if (existingBinding) {
-      if (!sameBinding(existingBinding, binding)) {
-        throw new Error(`Replay de execution nonce detectado: ${executionNonce}`);
-      }
-      return manifest;
-    }
-
     if (manifest.correlationId !== context.correlationId) throw new Error('Manifest correlationId divergente.');
     if (manifest.workflowId !== context.workflowId) throw new Error('Manifest workflowId divergente.');
     if (manifest.agentId !== context.agentId) throw new Error('Manifest agentId divergente.');
@@ -127,6 +117,25 @@ export class ExecutionManifestStore {
       if (!manifest.signature) throw new Error(`Execution Manifest assinado é obrigatório para risco ${context.risk}.`);
       if (!this.signatureVerifier) throw new Error('Verifier de assinatura do Execution Manifest não configurado.');
       if (!this.signatureVerifier.verify(manifest)) throw new Error('Assinatura do Execution Manifest inválida.');
+    }
+
+    const binding: NonceBinding = {
+      manifestId,
+      correlationId: context.correlationId,
+      workflowId: context.workflowId,
+      agentId: context.agentId,
+      capability: context.capability,
+      risk: context.risk,
+      resource: context.resource,
+      artifactRef: context.artifactRef ?? null,
+      idempotencyKey,
+    };
+    const existingBinding = this.nonceBindings.get(executionNonce);
+    if (existingBinding) {
+      if (!sameBinding(existingBinding, binding)) {
+        throw new Error(`Replay de execution nonce detectado: ${executionNonce}`);
+      }
+      return manifest;
     }
 
     const used = this.executions.get(manifest.id) ?? 0;
