@@ -61,6 +61,8 @@ export class GovernedAgentExecutor {
       occurredAt: new Date().toISOString(),
       payload: {
         manifestId: manifest.id,
+        manifestSchemaVersion: manifest.schemaVersion,
+        manifestIntegrityDigest: manifest.integrityDigest,
         capability: manifest.capability,
         resource: request.resource,
         executionNonce: request.executionNonce,
