@@ -99,6 +99,7 @@ const InstructorAudiencePage = lazy(() => import("@/modules/instructor/pages/Ins
 const InstructorReportsPage = lazy(() => import("@/modules/instructor/pages/InstructorReportsPage"));
 
 const queryClient = new QueryClient();
+const routerBasename = import.meta.env.BASE_URL === "/" ? undefined : import.meta.env.BASE_URL.replace(/\/$/, "");
 
 const LessonRoute = () => {
   const { lessonId } = useParams();
@@ -133,7 +134,7 @@ const App = () => (
       <TooltipProvider>
         <Toaster />
         <Sonner />
-        <BrowserRouter>
+        <BrowserRouter basename={routerBasename}>
           <Suspense fallback={<FullScreenSpinner />}>
           <Routes>
             {/* Public */}
