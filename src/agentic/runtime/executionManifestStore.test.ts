@@ -52,6 +52,18 @@ describe('ExecutionManifestStore', () => {
     expect(store.hasConsumedNonce('nonce-read-1')).toBe(true);
   });
 
+  it('revalidates manifest expiry before accepting an idempotent nonce replay', () => {
+    const store = new ExecutionManifestStore();
+    store.issue(readManifest);
+    store.assertAndConsume('manifest-read', readContext, new Date('2026-09-02T05:10:00.000Z'));
+    expect(() => store.assertAndConsume(
+      'manifest-read',
+      readContext,
+      new Date('2100-09-02T05:10:00.000Z'),
+    )).toThrow('expirado');
+    expect(store.executionsUsed('manifest-read')).toBe(1);
+  });
+
   it('rejects nonce reuse when the operation binding changes', () => {
     const store = new ExecutionManifestStore();
     store.issue(readManifest);
