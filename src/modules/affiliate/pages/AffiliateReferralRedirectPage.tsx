@@ -13,16 +13,12 @@ interface AffiliateReferralRedirectPageProps {
   slug: string;
 }
 
-const isSafeDestination = (value: string) => {
-  if (value.startsWith('/') && !value.startsWith('//')) return true;
+const INTERNAL_DESTINATION_PATTERN = /^\/[A-Za-z0-9/_?=&%#.-]*$/;
 
-  try {
-    const parsed = new URL(value);
-    return parsed.protocol === 'https:';
-  } catch {
-    return false;
-  }
-};
+const isSafeDestination = (value: string) =>
+  value.length <= 2048
+  && INTERNAL_DESTINATION_PATTERN.test(value)
+  && !value.startsWith('//');
 
 const AffiliateReferralRedirectPage = ({ slug }: AffiliateReferralRedirectPageProps) => {
   const [destination, setDestination] = useState<string | null>(null);
@@ -45,13 +41,7 @@ const AffiliateReferralRedirectPage = ({ slug }: AffiliateReferralRedirectPagePr
       }
 
       setAffiliateReferralSlug(slug);
-
-      if (resolved.startsWith('/')) {
-        setDestination(resolved);
-        return;
-      }
-
-      window.location.replace(resolved);
+      setDestination(resolved);
     };
 
     void resolveReferral();
