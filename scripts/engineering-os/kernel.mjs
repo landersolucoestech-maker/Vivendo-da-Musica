@@ -1,5 +1,6 @@
 import path from 'node:path';
 import { createAgentHandlerRegistry } from './agent-handlers.mjs';
+import { createBudgetStore } from './budget-store.mjs';
 import { builtInStrategies } from './builtin-strategies.mjs';
 import { createCheckpointStore } from './checkpoint-store.mjs';
 import { createExecutionAdapters } from './execution-adapters.mjs';
@@ -26,7 +27,8 @@ export const createEngineeringKernel = ({
     ...createExecutionAdapters({ workspaceRoot }),
     ...adapterOverrides
   };
-  const broker = createToolBroker({ adapters, ...brokerOptions });
+  const budgetStore = createBudgetStore({ directory: path.join(runtimeRoot, 'budgets') });
+  const broker = createToolBroker({ adapters, budgetStore, ...brokerOptions });
   const handlerRegistry = createAgentHandlerRegistry({ broker, strategies });
   const stateStore = new RunStateStore(path.join(runtimeRoot, 'state'));
   const checkpointStore = createCheckpointStore({ directory: path.join(runtimeRoot, 'checkpoints') });
@@ -50,6 +52,7 @@ export const createEngineeringKernel = ({
     runtimeRoot,
     adapters,
     broker,
+    budgetStore,
     approvals: broker.approvals,
     audit: broker.audit,
     handlers: handlerRegistry,
