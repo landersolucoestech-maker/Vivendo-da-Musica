@@ -96,31 +96,33 @@ const HeroSection = () => (
         <div className="relative mx-auto w-full max-w-xl lg:max-w-none">
           <div className="absolute -inset-10 rounded-full bg-primary/15 blur-3xl" />
           <div className="relative overflow-hidden rounded-[2rem] border border-white/10 bg-[#111111] p-5 shadow-[0_32px_90px_rgba(0,0,0,0.42)] sm:p-7">
-            <div className="mb-6 flex items-center justify-between gap-4">
+            <div className="flex items-center justify-between gap-4 border-b border-white/8 pb-6">
               <VdmBrand compact />
               <span className="rounded-full border border-primary/25 bg-primary/10 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-primary">
                 Plataforma completa
               </span>
             </div>
 
-            <div className="rounded-2xl border border-white/8 bg-black/25 p-5 sm:p-6">
+            <div className="py-7">
               <p className="text-xs font-semibold uppercase tracking-[0.14em] text-primary">Um ecossistema para evoluir</p>
-              <h2 className="mt-3 font-display text-2xl font-bold text-white sm:text-3xl">
+              <h2 className="mt-3 max-w-lg font-display text-2xl font-bold text-white sm:text-3xl">
                 Formação, recursos e mercado no mesmo ambiente.
               </h2>
-              <p className="mt-3 text-sm leading-6 text-muted-foreground">
-                A plataforma conecta aprendizado, conteúdo especializado, ferramentas e oportunidades sem simular resultados ou progresso do aluno.
+              <p className="mt-3 max-w-lg text-sm leading-6 text-muted-foreground">
+                Desenvolva conhecimento, amplie seu repertório profissional e encontre recursos para avançar em diferentes etapas da carreira musical.
               </p>
             </div>
 
-            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            <div className="divide-y divide-white/8 border-t border-white/8">
               {PLATFORM_AREAS.map(({ icon: Icon, title, description }) => (
-                <div key={title} className="rounded-2xl border border-white/8 bg-black/20 p-4">
-                  <span className="flex size-9 items-center justify-center rounded-lg bg-primary/12 text-primary">
+                <div key={title} className="grid grid-cols-[auto_minmax(0,1fr)] gap-4 py-4 first:pt-5 last:pb-0">
+                  <span className="mt-0.5 flex size-9 items-center justify-center rounded-lg bg-primary/12 text-primary">
                     <Icon className="size-4" />
                   </span>
-                  <p className="mt-4 text-sm font-semibold text-white">{title}</p>
-                  <p className="mt-1 text-xs leading-5 text-muted-foreground">{description}</p>
+                  <div>
+                    <p className="text-sm font-semibold text-white">{title}</p>
+                    <p className="mt-1 text-xs leading-5 text-muted-foreground">{description}</p>
+                  </div>
                 </div>
               ))}
             </div>
