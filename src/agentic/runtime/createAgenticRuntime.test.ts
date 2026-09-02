@@ -11,7 +11,7 @@ describe('createAgenticRuntime', () => {
     expect(runtime.deploymentProviders.list()).toEqual([]);
   });
 
-  it('registers Hostinger only when an explicit trusted deployment configuration is supplied', () => {
+  it('registers Hostinger and governed release adapters only with explicit trusted configuration', () => {
     const runtime = createAgenticRuntime({
       hostinger: {
         config: { mode: 'vps-docker', targetId: 'vm-123' },
@@ -21,6 +21,11 @@ describe('createAgenticRuntime', () => {
 
     expect(runtime.deploymentProviders.list()).toEqual(['hostinger']);
     expect(runtime.deploymentProviders.get('hostinger').id).toBe('hostinger');
+    expect(runtime.adapters.listCapabilities()).toEqual([
+      'deploy.production',
+      'deploy.staging',
+      'rollback.production',
+    ]);
   });
 
   it('allows declared reads and requires human approval for privileged risk by default', () => {
