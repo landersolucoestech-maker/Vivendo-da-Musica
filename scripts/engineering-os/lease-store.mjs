@@ -25,14 +25,15 @@ export const createLeaseStore = ({ directory, now = () => Date.now() }) => {
     fs.writeFileSync(temp, `${JSON.stringify(value, null, 2)}\n`, { encoding: 'utf8', flag: 'wx' });
     fs.renameSync(temp, file);
   };
+  const writeExclusive = (resource, value) => {
+    fs.writeFileSync(fileFor(resource), `${JSON.stringify(value, null, 2)}\n`, { encoding: 'utf8', flag: 'wx' });
+  };
   const active = (lease) => lease && lease.expiresAtMs > now();
 
   return {
     acquire({ resource, owner, ttlMs = 60000 }) {
       if (!resource || !owner) throw new Error('Lease requires resource and owner');
       if (!Number.isSafeInteger(ttlMs) || ttlMs < 1000 || ttlMs > 3600000) throw new Error('Invalid lease TTL');
-      const existing = readRaw(resource);
-      if (active(existing) && existing.owner !== owner) throw new Error(`Lease already held: ${resource}`);
       const lease = {
         resource,
         owner,
@@ -41,11 +42,23 @@ export const createLeaseStore = ({ directory, now = () => Date.now() }) => {
         expiresAt: new Date(now() + ttlMs).toISOString(),
         expiresAtMs: now() + ttlMs
       };
-      writeAtomic(resource, lease);
-      return structuredClone(lease);
+
+      for (let attempt = 0; attempt < 2; attempt += 1) {
+        try {
+          writeExclusive(resource, lease);
+          return structuredClone(lease);
+        } catch (error) {
+          if (error?.code !== 'EEXIST') throw error;
+          const existing = readRaw(resource);
+          if (active(existing)) throw new Error(`Lease already held: ${resource}`);
+          if (existing) fs.rmSync(fileFor(resource), { force: true });
+        }
+      }
+      throw new Error(`Lease acquisition race lost: ${resource}`);
     },
 
     renew({ resource, owner, token, ttlMs = 60000 }) {
+      if (!Number.isSafeInteger(ttlMs) || ttlMs < 1000 || ttlMs > 3600000) throw new Error('Invalid lease TTL');
       const existing = readRaw(resource);
       if (!active(existing)) throw new Error(`Lease expired or missing: ${resource}`);
       if (existing.owner !== owner || existing.token !== token) throw new Error(`Lease ownership mismatch: ${resource}`);
