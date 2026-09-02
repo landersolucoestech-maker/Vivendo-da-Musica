@@ -7,6 +7,7 @@ export const evidenceKindSchema = z.enum([
   'approval',
   'tool_call',
   'tool_result',
+  'deployment_health',
   'verification',
   'workflow_transition',
   'error',
