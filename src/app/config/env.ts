@@ -8,10 +8,14 @@ function requireEnv(key: string): string {
   return value;
 }
 
+const isPagesPreview = import.meta.env.MODE === 'pages';
+
 export const env = {
   supabaseUrl: requireEnv('VITE_SUPABASE_URL'),
   supabasePublishableKey: requireEnv('VITE_SUPABASE_PUBLISHABLE_KEY'),
   appUrl: import.meta.env.VITE_APP_URL ?? 'http://localhost:8080',
   stripePublishableKey: import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY ?? '',
-  isDevAuthBypassEnabled: import.meta.env.DEV && import.meta.env.VITE_DEV_BYPASS_AUTH === 'true',
+  isPagesPreview,
+  isDevAuthBypassEnabled:
+    isPagesPreview || (import.meta.env.DEV && import.meta.env.VITE_DEV_BYPASS_AUTH === 'true'),
 } as const;
