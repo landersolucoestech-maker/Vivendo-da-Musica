@@ -100,7 +100,13 @@ export const createWorkflowExecutor = ({ stateStore, broker, handlers = {}, audi
         for (const evidence of result?.evidence ?? []) {
           const ledgerRecord = evidenceStore.append({ runId, agentId: step.agentId, evidence });
           ledgerRecordIds.push(ledgerRecord.id);
-          run = addEvidence(run, { ...evidence, ledgerRecordId: ledgerRecord.id });
+          run = addEvidence(run, {
+            ...evidence,
+            ledgerRecordId: ledgerRecord.id,
+            producerAgentId: step.agentId,
+            producerSkillId: step.skillId,
+            producerStepId: step.stepId
+          });
           evidenceIds.push(run.evidence.at(-1).id);
         }
 
