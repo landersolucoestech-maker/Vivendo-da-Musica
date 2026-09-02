@@ -20,6 +20,11 @@ tmp/
 temp/
 *.local
 
+# Test and build artifacts
+playwright-report/
+test-results/
+*.tsbuildinfo
+
 # Environment variables (contains real Supabase/Stripe keys)
 .env
 .env.*
