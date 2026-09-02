@@ -79,7 +79,6 @@ const Dashboard = () => {
   );
   const totalLessons = modulesWithProgress.reduce((total, module) => total + module.lessons.length, 0);
   const remainingLessons = Math.max(0, totalLessons - completedLessons);
-  const completedModules = modulesWithProgress.filter((module) => module.progress >= 100).length;
 
   const firstIncompleteLesson = useMemo(() => {
     for (const module of modulesWithProgress) {
@@ -157,21 +156,6 @@ const Dashboard = () => {
               <Button asChild variant="outline" className="h-11 rounded-xl border-white/12 bg-white/[0.025] px-5">
                 <Link to={ROUTES.myCourses}>Ver meus cursos</Link>
               </Button>
-            </div>
-
-            <div className="mt-8 grid max-w-2xl grid-cols-3 gap-3">
-              <div className="rounded-2xl border border-white/8 bg-black/20 px-4 py-3">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-white/35">Aulas concluídas</p>
-                <p className="mt-1 font-display text-xl font-bold text-white">{completedLessons}</p>
-              </div>
-              <div className="rounded-2xl border border-white/8 bg-black/20 px-4 py-3">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-white/35">Aulas restantes</p>
-                <p className="mt-1 font-display text-xl font-bold text-white">{remainingLessons}</p>
-              </div>
-              <div className="rounded-2xl border border-white/8 bg-black/20 px-4 py-3">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-white/35">Módulos concluídos</p>
-                <p className="mt-1 font-display text-xl font-bold text-white">{completedModules}</p>
-              </div>
             </div>
           </div>
 
