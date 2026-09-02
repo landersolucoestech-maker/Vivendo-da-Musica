@@ -5,6 +5,7 @@ import { AgentExecutionKernel } from '@/agentic/runtime/agentExecutionKernel';
 import { ApprovalReceiptStore } from '@/agentic/runtime/approvalReceiptStore';
 import { CapabilityAdapterRegistry } from '@/agentic/runtime/capabilityAdapterRegistry';
 import { DelegationProtocol } from '@/agentic/runtime/delegationProtocol';
+import { DeploymentProviderRegistry } from '@/agentic/runtime/deploymentProviderRegistry';
 import { IdempotencyStore } from '@/agentic/runtime/idempotencyStore';
 import { LeaseManager } from '@/agentic/runtime/leaseManager';
 import { ToolExecutionGateway } from '@/agentic/runtime/toolExecutionGateway';
@@ -15,6 +16,7 @@ export const createAgenticRuntime = () => {
   const policies = createDefaultPolicyEngine();
   const evidence = new EvidenceStore();
   const adapters = new CapabilityAdapterRegistry();
+  const deploymentProviders = new DeploymentProviderRegistry();
   const idempotency = new IdempotencyStore();
   const approvals = new ApprovalReceiptStore();
   const leases = new LeaseManager();
@@ -25,6 +27,7 @@ export const createAgenticRuntime = () => {
     policies,
     evidence,
     adapters,
+    deploymentProviders,
     idempotency,
     approvals,
     leases,
