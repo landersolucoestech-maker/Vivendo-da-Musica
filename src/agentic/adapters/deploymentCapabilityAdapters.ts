@@ -15,6 +15,13 @@ const assertArtifactRef = (artifactRef: string): string => {
   return value;
 };
 
+const assertProviderResource = (providers: DeploymentProviderRegistry, providerId: string, resource: string): void => {
+  const expected = providers.get(providerId).resourceId;
+  if (resource !== expected) {
+    throw new Error(`Resource de deploy divergente do target configurado: esperado ${expected}.`);
+  }
+};
+
 export const createDeploymentCapabilityAdapters = (
   providers: DeploymentProviderRegistry,
   providerId = 'hostinger',
@@ -25,6 +32,9 @@ export const createDeploymentCapabilityAdapters = (
   ): CapabilityAdapter<DeployArtifactInput> => ({
     capability,
     allowedRisks: ['privileged'],
+    validateResource(_input, resource) {
+      assertProviderResource(providers, providerId, resource);
+    },
     async execute(input: DeployArtifactInput, context: CapabilityExecutionContext) {
       const provider = providers.get(providerId);
       return provider.deploy({
@@ -39,6 +49,9 @@ export const createDeploymentCapabilityAdapters = (
   const rollback: CapabilityAdapter<RollbackArtifactInput> = {
     capability: 'rollback.production',
     allowedRisks: ['destructive'],
+    validateResource(_input, resource) {
+      assertProviderResource(providers, providerId, resource);
+    },
     async execute(input: RollbackArtifactInput, context: CapabilityExecutionContext) {
       const provider = providers.get(providerId);
       if (!provider.rollback) throw new Error(`Rollback não suportado pelo deployment provider: ${providerId}`);
