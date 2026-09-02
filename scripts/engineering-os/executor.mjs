@@ -8,6 +8,7 @@ import {
   transitionRun
 } from './runtime.mjs';
 import { selectNextStep } from './dispatcher.mjs';
+import { createEvidenceLedger } from './evidence-ledger.mjs';
 
 const nowIso = () => new Date().toISOString();
 
@@ -24,13 +25,15 @@ const setStep = (run, stepId, patch) => ({
   updatedAt: nowIso()
 });
 
-export const createWorkflowExecutor = ({ stateStore, broker, handlers = {}, audit = broker?.audit ?? null } = {}) => {
+export const createWorkflowExecutor = ({ stateStore, broker, handlers = {}, audit = broker?.audit ?? null, evidenceLedger = null } = {}) => {
   if (!stateStore) throw new Error('Workflow executor requires a state store');
   if (!broker) throw new Error('Workflow executor requires a tool broker');
-
+  const evidenceStore = evidenceLedger ?? createEvidenceLedger({ audit });
   const persist = (run, expectedFingerprint = null) => stateStore.write(run, expectedFingerprint);
 
   return {
+    evidenceLedger: evidenceStore,
+
     initialize({ workflowId, metadata = {} }) {
       const workflow = loadWorkflow(workflowId);
       let run = createRun({ workflowId, risk: workflow.risk ?? 'medium', metadata });
@@ -74,8 +77,11 @@ export const createWorkflowExecutor = ({ stateStore, broker, handlers = {}, audi
       try {
         const result = await handler({ run: structuredClone(run), step: structuredClone(step), callTool });
         const evidenceIds = [];
+        const ledgerRecordIds = [];
         for (const evidence of result?.evidence ?? []) {
-          run = addEvidence(run, evidence);
+          const ledgerRecord = evidenceStore.append({ runId, agentId: step.agentId, evidence });
+          ledgerRecordIds.push(ledgerRecord.id);
+          run = addEvidence(run, { ...evidence, ledgerRecordId: ledgerRecord.id });
           evidenceIds.push(run.evidence.at(-1).id);
         }
 
@@ -94,10 +100,11 @@ export const createWorkflowExecutor = ({ stateStore, broker, handlers = {}, audi
           status: 'completed',
           completedAt: nowIso(),
           outputFingerprint: fingerprint(result?.output ?? null),
-          evidenceIds
+          evidenceIds,
+          ledgerRecordIds
         });
         persist(run, runningFingerprint);
-        audit?.append({ type: 'step.completed', actor: step.agentId, runId, payload: { stepId: step.stepId, evidenceIds } });
+        audit?.append({ type: 'step.completed', actor: step.agentId, runId, payload: { stepId: step.stepId, evidenceIds, ledgerRecordIds } });
         return { type: 'completed-step', step, result: structuredClone(result ?? {}), run: structuredClone(run) };
       } catch (error) {
         const latest = stateStore.read(runId) ?? run;
@@ -120,7 +127,7 @@ export const createWorkflowExecutor = ({ stateStore, broker, handlers = {}, audi
       const previousFingerprint = fingerprint(run);
       run = transitionRun(run, 'completed', 'completion-gate-passed');
       persist(run, previousFingerprint);
-      audit?.append({ type: 'run.completed', actor: 'orchestrator', runId, payload: { evaluationFingerprint: evaluation.fingerprint } });
+      audit?.append({ type: 'run.completed', actor: 'orchestrator', runId, payload: { evaluationFingerprint: evaluation.fingerprint, evidenceLedgerDigest: evidenceStore.digest() } });
       return { finalized: true, evaluation, run: structuredClone(run) };
     }
   };
