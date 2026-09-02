@@ -70,7 +70,7 @@ describe('Engineering OS operational runtime', () => {
 
     await expect(handler({
       run: { id: 'run-skill', workflowId: 'brownfield', metadata: {} },
-      step: { agentId: 'frontend-engineer', stepId: 'implementation', gates: [] }
+      step: { agentId: 'frontend-engineer', skillId: 'implementation', stepId: 'implementation', gates: [] }
     })).rejects.toThrow(/Tool not allowed by skill/);
   });
 
