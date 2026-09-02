@@ -6,6 +6,20 @@ import {
   type ManifestExecutionContext,
 } from '@/agentic/contracts/executionManifest';
 
+interface ManifestConsumptionContext extends ManifestExecutionContext {
+  executionNonce: string;
+  idempotencyKey: string;
+}
+
+interface NonceBinding {
+  manifestId: string;
+  workflowId: string;
+  agentId: string;
+  capability: string;
+  resource: string;
+  idempotencyKey: string;
+}
+
 const requiresSignature = (risk: ManifestExecutionContext['risk']): boolean =>
   risk === 'privileged' || risk === 'destructive';
 
@@ -41,9 +55,18 @@ const assertReleasePolicy = (manifest: ExecutionManifest): void => {
   }
 };
 
+const sameBinding = (left: NonceBinding, right: NonceBinding): boolean =>
+  left.manifestId === right.manifestId
+  && left.workflowId === right.workflowId
+  && left.agentId === right.agentId
+  && left.capability === right.capability
+  && left.resource === right.resource
+  && left.idempotencyKey === right.idempotencyKey;
+
 export class ExecutionManifestStore {
   private readonly manifests = new Map<string, ExecutionManifest>();
   private readonly executions = new Map<string, number>();
+  private readonly nonceBindings = new Map<string, NonceBinding>();
 
   constructor(private readonly signatureVerifier?: ExecutionManifestSignatureVerifier) {}
 
@@ -65,8 +88,29 @@ export class ExecutionManifestStore {
     return manifest;
   }
 
-  assertAndConsume(manifestId: string, context: ManifestExecutionContext, now = new Date()): ExecutionManifest {
+  assertAndConsume(manifestId: string, context: ManifestConsumptionContext, now = new Date()): ExecutionManifest {
     const manifest = this.get(manifestId);
+    const executionNonce = context.executionNonce.trim();
+    const idempotencyKey = context.idempotencyKey.trim();
+    if (!executionNonce) throw new Error('Execution nonce obrigatório.');
+    if (!idempotencyKey) throw new Error('Idempotency key obrigatória para consumir Execution Manifest.');
+
+    const binding: NonceBinding = {
+      manifestId,
+      workflowId: context.workflowId,
+      agentId: context.agentId,
+      capability: context.capability,
+      resource: context.resource,
+      idempotencyKey,
+    };
+    const existingBinding = this.nonceBindings.get(executionNonce);
+    if (existingBinding) {
+      if (!sameBinding(existingBinding, binding)) {
+        throw new Error(`Replay de execution nonce detectado: ${executionNonce}`);
+      }
+      return manifest;
+    }
+
     if (manifest.correlationId !== context.correlationId) throw new Error('Manifest correlationId divergente.');
     if (manifest.workflowId !== context.workflowId) throw new Error('Manifest workflowId divergente.');
     if (manifest.agentId !== context.agentId) throw new Error('Manifest agentId divergente.');
@@ -89,6 +133,7 @@ export class ExecutionManifestStore {
     if (used >= manifest.maxExecutions) {
       throw new Error(`Budget do Execution Manifest excedido (${manifest.maxExecutions}): ${manifest.id}`);
     }
+    this.nonceBindings.set(executionNonce, Object.freeze(binding));
     this.executions.set(manifest.id, used + 1);
     return manifest;
   }
@@ -96,5 +141,9 @@ export class ExecutionManifestStore {
   executionsUsed(manifestId: string): number {
     this.get(manifestId);
     return this.executions.get(manifestId) ?? 0;
+  }
+
+  hasConsumedNonce(executionNonce: string): boolean {
+    return this.nonceBindings.has(executionNonce.trim());
   }
 }
