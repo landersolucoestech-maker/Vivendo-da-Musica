@@ -6,6 +6,8 @@ import type {
   ExecutionManifestIntegrityVerifier,
   ExecutionManifestSignatureVerifier,
 } from '@/agentic/contracts/executionManifest';
+import { AuditCheckpointGate } from '@/agentic/evidence/auditCheckpointGate';
+import type { AuditCheckpointTransport } from '@/agentic/evidence/auditCheckpointTransport';
 import { EvidenceStore } from '@/agentic/evidence/evidenceStore';
 import { createDefaultPolicyEngine } from '@/agentic/policy/defaultPolicySet';
 import { createDefaultAgentRegistry } from '@/agentic/registry/defaultAgentRegistry';
@@ -32,6 +34,7 @@ export interface AgenticRuntimeOptions {
   github?: RepositoryTransport;
   supabase?: SupabaseTransport;
   posthog?: PostHogTransport;
+  auditCheckpointTransport?: AuditCheckpointTransport;
   manifestSignatureVerifier?: ExecutionManifestSignatureVerifier;
   manifestIntegrityVerifier?: ExecutionManifestIntegrityVerifier;
   hostinger?: {
@@ -51,6 +54,7 @@ export const createAgenticRuntime = (options: AgenticRuntimeOptions = {}) => {
   const registry = createDefaultAgentRegistry();
   const policies = createDefaultPolicyEngine();
   const evidence = new EvidenceStore();
+  const auditCheckpoints = new AuditCheckpointGate(evidence, options.auditCheckpointTransport);
   const adapters = new CapabilityAdapterRegistry();
   const deploymentProviders = new DeploymentProviderRegistry();
   const idempotency = new IdempotencyStore();
@@ -81,13 +85,27 @@ export const createAgenticRuntime = (options: AgenticRuntimeOptions = {}) => {
 
   const kernel = new AgentExecutionKernel(registry, policies, evidence);
   const gateway = new ToolExecutionGateway(adapters, idempotency, approvals, leases, evidence, quotas);
-  const executor = new GovernedAgentExecutor(kernel, gateway, workflows, evidence, manifests);
-  const verification = new WorkflowVerificationService(registry, workflows, evidence, manifests);
+  const executor = new GovernedAgentExecutor(
+    kernel,
+    gateway,
+    workflows,
+    evidence,
+    manifests,
+    auditCheckpoints,
+  );
+  const verification = new WorkflowVerificationService(
+    registry,
+    workflows,
+    evidence,
+    manifests,
+    auditCheckpoints,
+  );
 
   return Object.freeze({
     registry,
     policies,
     evidence,
+    auditCheckpoints,
     adapters,
     deploymentProviders,
     idempotency,
