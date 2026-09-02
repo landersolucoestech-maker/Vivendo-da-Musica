@@ -36,7 +36,7 @@ describe('Engineering OS runtime', () => {
     })).toThrow(/Claim-only evidence is forbidden/);
   });
 
-  it('does not report completion until every required gate has evidence', () => {
+  it('does not report completion until every required gate has evidence from its bound producer', () => {
     const workflow = loadWorkflow('brownfield');
     let run = createRun({ workflowId: 'brownfield', risk: 'high' });
     run = transitionRun(run, 'planned', 'plan-created');
@@ -46,17 +46,39 @@ describe('Engineering OS runtime', () => {
     expect(evaluateCompletion({ run, workflow }).complete).toBe(false);
 
     for (const gateId of workflow.requiredGates) {
+      const producer = workflow.steps.find((step) => step.gates.includes(gateId));
       const evidence = {
         id: `evidence-${gateId}`,
         kind: gateId === 'independent-review' ? 'review' : 'test',
         source: `fixture:${gateId}`,
         result: 'passed',
         timestamp: new Date().toISOString(),
+        producerAgentId: producer.agent,
+        producerSkillId: producer.skill,
       };
       run = addEvidence(run, evidence);
       run = setGate(run, gateId, { status: 'passed', evidenceIds: [evidence.id] });
     }
 
     expect(evaluateCompletion({ run, workflow }).complete).toBe(true);
+  });
+
+  it('rejects a passed gate backed only by evidence from the wrong producer', () => {
+    const workflow = loadWorkflow('brownfield');
+    let run = createRun({ workflowId: 'brownfield', risk: 'high' });
+    run = addEvidence(run, {
+      id: 'borrowed-evidence',
+      kind: 'test',
+      source: 'fixture',
+      result: 'passed',
+      timestamp: new Date().toISOString(),
+      producerAgentId: 'backend-engineer',
+      producerSkillId: 'implementation',
+    });
+    run = setGate(run, 'inventory-evidence', { status: 'passed', evidenceIds: ['borrowed-evidence'] });
+
+    expect(evaluateCompletion({ run, workflow }).failures).toContain(
+      'gate-evidence-provenance-mismatch:inventory-evidence:repo-archaeologist:repository-inventory',
+    );
   });
 });
