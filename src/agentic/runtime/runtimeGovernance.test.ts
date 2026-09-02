@@ -26,7 +26,8 @@ describe('agentic runtime governance', () => {
 
     await expect(gateway.execute({
       correlationId: 'c1', workflowId: 'w1', agentId: 'release-agent', capability: 'deploy.production',
-      risk: 'privileged', idempotencyKey: 'k1', leaseResource: 'production', input: {},
+      risk: 'privileged', idempotencyKey: 'k1', manifestId: 'm1', resource: 'hostinger:target:vm-1',
+      leaseResource: 'production', input: {},
     })).rejects.toThrow('Approval receipt obrigatório');
 
     approvals.issue({
@@ -36,9 +37,11 @@ describe('agentic runtime governance', () => {
 
     await expect(gateway.execute({
       correlationId: 'c1', workflowId: 'w1', agentId: 'release-agent', capability: 'deploy.production',
-      risk: 'privileged', idempotencyKey: 'k2', leaseResource: 'production', approvalReceiptId: 'a1', input: {},
+      risk: 'privileged', idempotencyKey: 'k2', manifestId: 'm1', resource: 'hostinger:target:vm-1',
+      leaseResource: 'production', approvalReceiptId: 'a1', input: {},
     })).resolves.toBe('ok');
     expect(evidence.byCorrelationId('c1').map((record) => record.kind)).toEqual(['tool_call', 'tool_result']);
+    expect(evidence.byCorrelationId('c1')[0]?.payload.manifestId).toBe('m1');
     expect(evidence.verifyIntegrity()).toBe(true);
   });
 
@@ -58,7 +61,7 @@ describe('agentic runtime governance', () => {
     );
     const request = {
       correlationId: 'c2', workflowId: 'w2', agentId: 'engineering-orchestrator', capability: 'repo.read',
-      risk: 'read' as const, idempotencyKey: 'same', input: {},
+      risk: 'read' as const, idempotencyKey: 'same', manifestId: 'm2', resource: 'repo:path:README.md', input: {},
     };
     await gateway.execute(request);
     await gateway.execute(request);
