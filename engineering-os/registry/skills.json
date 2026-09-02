@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 2,
   "skills": [
     {"id":"repository-inventory","maxRisk":"low","allowedTools":["repository.read"],"requiredEvidenceKinds":["artifact","diff"]},
     {"id":"architecture-design","maxRisk":"medium","allowedTools":["repository.read"],"requiredEvidenceKinds":["artifact","review"]},
@@ -23,6 +23,7 @@
     {"id":"accessibility-audit","maxRisk":"medium","allowedTools":["repository.read","repository.write-test","quality.execute"],"requiredEvidenceKinds":["test","review"]},
     {"id":"quality-certification","maxRisk":"high","allowedTools":["repository.read","quality.execute","repository.write-ci"],"requiredEvidenceKinds":["workflow","test"]},
     {"id":"release-readiness","maxRisk":"critical","allowedTools":["repository.read","quality.execute","release.write-metadata"],"requiredEvidenceKinds":["workflow","review"]},
+    {"id":"production-operation","maxRisk":"critical","allowedTools":["repository.read","production.deploy","production.rollback"],"requiredEvidenceKinds":["workflow","artifact","review"]},
     {"id":"incident-recovery","maxRisk":"critical","allowedTools":["repository.read","quality.execute"],"requiredEvidenceKinds":["artifact","review","test"]}
   ]
 }
