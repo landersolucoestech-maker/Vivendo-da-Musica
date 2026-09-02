@@ -13,6 +13,7 @@ import { createDefaultPolicyEngine } from '@/agentic/policy/defaultPolicySet';
 import { createDefaultAgentRegistry } from '@/agentic/registry/defaultAgentRegistry';
 import { createDefaultSkillRegistry } from '@/agentic/registry/defaultSkillRegistry';
 import { AgentExecutionKernel } from '@/agentic/runtime/agentExecutionKernel';
+import { assertAgentSkillConsistency } from '@/agentic/runtime/agentSkillConsistency';
 import { ApprovalReceiptStore } from '@/agentic/runtime/approvalReceiptStore';
 import { CapabilityAdapterRegistry } from '@/agentic/runtime/capabilityAdapterRegistry';
 import { createDefaultCapabilityQuotaStore } from '@/agentic/runtime/capabilityQuotaStore';
@@ -54,6 +55,8 @@ const registerAdapters = (
 export const createAgenticRuntime = (options: AgenticRuntimeOptions = {}) => {
   const registry = createDefaultAgentRegistry();
   const skills = createDefaultSkillRegistry();
+  assertAgentSkillConsistency(registry, skills);
+
   const policies = createDefaultPolicyEngine();
   const evidence = new EvidenceStore();
   const auditCheckpoints = new AuditCheckpointGate(evidence, options.auditCheckpointTransport);
