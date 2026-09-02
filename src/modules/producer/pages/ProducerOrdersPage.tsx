@@ -3,16 +3,35 @@ import { CalendarDays, CircleDollarSign, ShoppingBag } from 'lucide-react';
 import ProducerLayout from '@/app/layouts/ProducerLayout';
 import { useProducerOrders } from '@/modules/producer/hooks/useProducerProducts';
 import DataTable from '@/shared/components/DataTable';
+import LoadingState from '@/shared/components/LoadingState';
 import StatCard from '@/shared/components/StatCard';
 import { Badge } from '@/shared/components/ui/badge';
 import { formatPrice } from '@/shared/utils/formatters';
 
 const ProducerOrdersPage = () => {
-  const { data, isError } = useProducerOrders();
-  const orders = data ?? [];
-  const paidOrders = orders.filter((item) => item.paidAt);
+  const { data, isLoading, isError } = useProducerOrders();
+
+  if (isLoading) {
+    return (
+      <ProducerLayout>
+        <LoadingState rows={5} />
+      </ProducerLayout>
+    );
+  }
+
+  if (isError || !data) {
+    return (
+      <ProducerLayout>
+        <p className="rounded-xl border border-destructive/30 bg-destructive/10 p-4 text-sm text-red-300">
+          Não foi possível carregar os pedidos.
+        </p>
+      </ProducerLayout>
+    );
+  }
+
+  const paidOrders = data.filter((item) => item.paidAt);
   const grossRevenueCents = paidOrders.reduce((total, item) => total + item.amountCents, 0);
-  const currency = orders[0]?.currency ?? 'BRL';
+  const currency = data[0]?.currency ?? 'BRL';
 
   return (
     <ProducerLayout>
@@ -23,14 +42,10 @@ const ProducerOrdersPage = () => {
       </header>
 
       <div className="mb-8 grid gap-4 sm:grid-cols-3">
-        <StatCard label="Pedidos recebidos" value={String(orders.length)} icon={ShoppingBag} />
+        <StatCard label="Pedidos recebidos" value={String(data.length)} icon={ShoppingBag} />
         <StatCard label="Pagamentos confirmados" value={String(paidOrders.length)} icon={CalendarDays} />
         <StatCard label="Receita bruta paga" value={formatPrice(grossRevenueCents, currency)} icon={CircleDollarSign} />
       </div>
-
-      {isError && (
-        <p className="mb-4 rounded-xl border border-destructive/30 bg-destructive/10 p-4 text-sm text-red-300">Não foi possível carregar os pedidos.</p>
-      )}
 
       <section>
         <div className="mb-4">
@@ -38,7 +53,7 @@ const ProducerOrdersPage = () => {
           <h2 className="mt-1 font-display text-xl font-semibold text-white">Pedidos registrados</h2>
         </div>
         <DataTable
-          rows={orders}
+          rows={data}
           rowKey={(item) => item.id}
           emptyLabel="Nenhum pedido de produto recebido."
           columns={[
