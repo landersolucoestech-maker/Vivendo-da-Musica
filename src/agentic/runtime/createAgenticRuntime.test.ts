@@ -11,6 +11,23 @@ describe('createAgenticRuntime', () => {
     expect(runtime.deploymentProviders.list()).toEqual([]);
   });
 
+  it('registers only capabilities backed by explicitly supplied trusted transports', () => {
+    const runtime = createAgenticRuntime({
+      github: { read: vi.fn(), search: vi.fn(), write: vi.fn() },
+      supabase: { inspect: vi.fn() },
+      posthog: { inspect: vi.fn(), verify: vi.fn() },
+    });
+
+    expect(runtime.adapters.listCapabilities()).toEqual([
+      'database.inspect',
+      'observability.inspect',
+      'observability.verify',
+      'repo.read',
+      'repo.search',
+      'repo.write',
+    ]);
+  });
+
   it('registers Hostinger and governed release adapters only with explicit trusted configuration', () => {
     const runtime = createAgenticRuntime({
       hostinger: {
