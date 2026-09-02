@@ -41,6 +41,7 @@ declare
   existing_order public.beat_orders%rowtype;
   requested_items uuid[];
   existing_items uuid[];
+  distinct_count integer;
 begin
   if target_buyer_id is null then
     raise exception 'Demo buyer is required' using errcode = '22023';
@@ -58,10 +59,10 @@ begin
   end if;
 
   select array_agg(value order by value), count(distinct value)
-  into requested_items, strict _distinct_count
+  into requested_items, distinct_count
   from unnest(target_license_ids) as ids(value);
 
-  if cardinality(target_license_ids) <> _distinct_count then
+  if cardinality(target_license_ids) <> distinct_count then
     raise exception 'Duplicate licenses are not allowed' using errcode = '22023';
   end if;
 
