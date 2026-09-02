@@ -1,113 +1,49 @@
 {
-  "version": 1,
+  "version": 2,
   "agents": [
-    {
-      "id": "orchestrator",
-      "name": "Engineering Orchestrator",
-      "risk": "high",
-      "capabilities": ["plan", "delegate", "gate", "summarize"],
-      "allowedScopes": ["read", "plan", "state", "delegate"],
-      "deniedScopes": ["production-write", "secrets-write"],
-      "requiresApprovalFor": ["destructive", "production", "security-policy-change"]
-    },
-    {
-      "id": "repo-archaeologist",
-      "name": "Repository Archaeologist",
-      "risk": "low",
-      "capabilities": ["inventory", "dependency-map", "dead-code-analysis", "architecture-analysis"],
-      "allowedScopes": ["read", "evidence"],
-      "deniedScopes": ["write", "production-write", "secrets-write"],
-      "requiresApprovalFor": []
-    },
-    {
-      "id": "architect",
-      "name": "Software Architect",
-      "risk": "medium",
-      "capabilities": ["architecture", "contracts", "migration-plan", "adr"],
-      "allowedScopes": ["read", "plan", "docs-write"],
-      "deniedScopes": ["production-write", "secrets-write"],
-      "requiresApprovalFor": ["architecture-boundary-change"]
-    },
-    {
-      "id": "frontend-engineer",
-      "name": "Frontend Engineer",
-      "risk": "medium",
-      "capabilities": ["react", "typescript", "accessibility", "ui", "performance"],
-      "allowedScopes": ["read", "source-write", "test-write"],
-      "deniedScopes": ["production-write", "secrets-write"],
-      "requiresApprovalFor": ["destructive"]
-    },
-    {
-      "id": "backend-engineer",
-      "name": "Backend Engineer",
-      "risk": "high",
-      "capabilities": ["api", "database", "supabase", "edge-functions", "auth"],
-      "allowedScopes": ["read", "source-write", "test-write", "migration-write"],
-      "deniedScopes": ["production-write", "secrets-write"],
-      "requiresApprovalFor": ["destructive", "schema-destructive", "auth-policy-change"]
-    },
-    {
-      "id": "database-engineer",
-      "name": "Database Engineer",
-      "risk": "high",
-      "capabilities": ["schema", "rls", "migration", "query-analysis", "integrity"],
-      "allowedScopes": ["read", "migration-write", "test-write"],
-      "deniedScopes": ["production-write", "secrets-write"],
-      "requiresApprovalFor": ["schema-destructive", "data-migration", "rls-change"]
-    },
-    {
-      "id": "security-engineer",
-      "name": "Security Engineer",
-      "risk": "high",
-      "capabilities": ["threat-model", "auth-review", "rls-review", "dependency-security", "secret-scan"],
-      "allowedScopes": ["read", "evidence", "test-write", "security-write"],
-      "deniedScopes": ["production-write", "secrets-write"],
-      "requiresApprovalFor": ["security-policy-change", "auth-policy-change"]
-    },
-    {
-      "id": "test-engineer",
-      "name": "Test Engineer",
-      "risk": "medium",
-      "capabilities": ["unit", "integration", "contract", "e2e", "regression"],
-      "allowedScopes": ["read", "test-write", "fixtures-write"],
-      "deniedScopes": ["production-write", "secrets-write"],
-      "requiresApprovalFor": ["destructive"]
-    },
-    {
-      "id": "quality-engineer",
-      "name": "Quality Gate Engineer",
-      "risk": "medium",
-      "capabilities": ["lint", "typecheck", "build", "quality-gates", "evidence-validation"],
-      "allowedScopes": ["read", "evidence", "ci-write"],
-      "deniedScopes": ["production-write", "secrets-write"],
-      "requiresApprovalFor": ["gate-policy-change"]
-    },
-    {
-      "id": "release-engineer",
-      "name": "Release Engineer",
-      "risk": "critical",
-      "capabilities": ["release-plan", "versioning", "deployment-readiness", "rollback"],
-      "allowedScopes": ["read", "plan", "release-metadata-write"],
-      "deniedScopes": ["secrets-write"],
-      "requiresApprovalFor": ["production", "rollback", "release"]
-    },
-    {
-      "id": "incident-responder",
-      "name": "Incident Responder",
-      "risk": "critical",
-      "capabilities": ["triage", "containment-plan", "recovery-plan", "forensics"],
-      "allowedScopes": ["read", "evidence", "plan"],
-      "deniedScopes": ["production-write", "secrets-write"],
-      "requiresApprovalFor": ["containment", "rollback", "production"]
-    },
-    {
-      "id": "reviewer",
-      "name": "Independent Reviewer",
-      "risk": "low",
-      "capabilities": ["review", "verify-evidence", "challenge-claims", "completion-audit"],
-      "allowedScopes": ["read", "evidence"],
-      "deniedScopes": ["write", "production-write", "secrets-write"],
-      "requiresApprovalFor": []
-    }
+    {"id":"orchestrator","name":"Engineering Orchestrator","risk":"high","capabilities":["plan","delegate","gate","summarize"],"skills":["repository-inventory","architecture-design","quality-certification"],"allowedScopes":["read","plan","state","delegate"],"deniedScopes":["production-write","secrets-write"],"requiresApprovalFor":["destructive","production","security-policy-change"]},
+    {"id":"repo-archaeologist","name":"Repository Archaeologist","risk":"low","capabilities":["inventory","dependency-map","dead-code-analysis","architecture-analysis"],"skills":["repository-inventory"],"allowedScopes":["read","evidence"],"deniedScopes":["write","production-write","secrets-write"],"requiresApprovalFor":[]},
+    {"id":"architect","name":"Software Architect","risk":"medium","capabilities":["architecture","contracts","migration-plan","adr"],"skills":["architecture-design","contract-design"],"allowedScopes":["read","plan","docs-write"],"deniedScopes":["production-write","secrets-write"],"requiresApprovalFor":["architecture-boundary-change"]},
+    {"id":"product-analyst","name":"Product Requirements Analyst","risk":"low","capabilities":["requirements","acceptance-criteria","domain-analysis","gap-analysis"],"skills":["repository-inventory","architecture-design"],"allowedScopes":["read","plan","docs-write"],"deniedScopes":["source-write","production-write","secrets-write"],"requiresApprovalFor":[]},
+    {"id":"ux-engineer","name":"UX Engineer","risk":"medium","capabilities":["user-flow","interaction-design","information-architecture","usability"],"skills":["architecture-design","accessibility-audit"],"allowedScopes":["read","source-write","test-write","docs-write"],"deniedScopes":["production-write","secrets-write"],"requiresApprovalFor":["destructive"]},
+    {"id":"design-system-engineer","name":"Design System Engineer","risk":"medium","capabilities":["tokens","components","responsive-design","consistency"],"skills":["implementation","accessibility-audit"],"allowedScopes":["read","source-write","test-write"],"deniedScopes":["production-write","secrets-write"],"requiresApprovalFor":["destructive"]},
+    {"id":"frontend-engineer","name":"Frontend Engineer","risk":"medium","capabilities":["react","typescript","accessibility","ui","performance"],"skills":["implementation","unit-testing","accessibility-audit"],"allowedScopes":["read","source-write","test-write"],"deniedScopes":["production-write","secrets-write"],"requiresApprovalFor":["destructive"]},
+    {"id":"accessibility-engineer","name":"Accessibility Engineer","risk":"medium","capabilities":["wcag","keyboard","screen-reader","semantics"],"skills":["accessibility-audit","implementation"],"allowedScopes":["read","source-write","test-write","evidence"],"deniedScopes":["production-write","secrets-write"],"requiresApprovalFor":[]},
+    {"id":"performance-engineer","name":"Performance Engineer","risk":"medium","capabilities":["web-vitals","bundles","profiling","load-analysis"],"skills":["performance-audit","implementation"],"allowedScopes":["read","source-write","test-write","evidence"],"deniedScopes":["production-write","secrets-write"],"requiresApprovalFor":[]},
+    {"id":"backend-engineer","name":"Backend Engineer","risk":"high","capabilities":["api","database","supabase","edge-functions","auth"],"skills":["implementation","contract-design","integration-testing"],"allowedScopes":["read","source-write","test-write","migration-write"],"deniedScopes":["production-write","secrets-write"],"requiresApprovalFor":["destructive","schema-destructive","auth-policy-change"]},
+    {"id":"api-contract-engineer","name":"API Contract Engineer","risk":"medium","capabilities":["dto","schema","compatibility","versioning"],"skills":["contract-design","contract-testing"],"allowedScopes":["read","source-write","test-write","docs-write"],"deniedScopes":["production-write","secrets-write"],"requiresApprovalFor":["breaking-contract-change"]},
+    {"id":"supabase-engineer","name":"Supabase Platform Engineer","risk":"high","capabilities":["supabase","schema","rpc","storage","edge-functions"],"skills":["supabase-schema","edge-functions","integration-testing"],"allowedScopes":["read","source-write","test-write","migration-write"],"deniedScopes":["production-write","secrets-write"],"requiresApprovalFor":["schema-destructive","data-migration","rls-change"]},
+    {"id":"database-engineer","name":"Database Engineer","risk":"high","capabilities":["schema","rls","migration","query-analysis","integrity"],"skills":["supabase-schema","database-migration","contract-testing"],"allowedScopes":["read","migration-write","test-write"],"deniedScopes":["production-write","secrets-write"],"requiresApprovalFor":["schema-destructive","data-migration","rls-change"]},
+    {"id":"migration-engineer","name":"Migration Engineer","risk":"high","capabilities":["migration-plan","backfill","rollback-plan","compatibility"],"skills":["database-migration","contract-testing"],"allowedScopes":["read","migration-write","test-write","plan"],"deniedScopes":["production-write","secrets-write"],"requiresApprovalFor":["schema-destructive","data-migration"]},
+    {"id":"auth-engineer","name":"Authentication Engineer","risk":"high","capabilities":["auth","sessions","identity","authorization"],"skills":["auth-hardening","integration-testing"],"allowedScopes":["read","source-write","test-write","security-write"],"deniedScopes":["production-write","secrets-write"],"requiresApprovalFor":["auth-policy-change","security-policy-change"]},
+    {"id":"rls-engineer","name":"RLS Policy Engineer","risk":"high","capabilities":["rls","authorization","policy-testing","tenant-isolation"],"skills":["rls-design","security-review"],"allowedScopes":["read","migration-write","test-write","security-write"],"deniedScopes":["production-write","secrets-write"],"requiresApprovalFor":["rls-change","security-policy-change"]},
+    {"id":"storage-engineer","name":"Storage Security Engineer","risk":"high","capabilities":["storage","signed-url","bucket-policy","upload-security"],"skills":["storage-security","integration-testing"],"allowedScopes":["read","migration-write","source-write","test-write"],"deniedScopes":["production-write","secrets-write"],"requiresApprovalFor":["storage-policy-change"]},
+    {"id":"edge-function-engineer","name":"Edge Function Engineer","risk":"high","capabilities":["edge-functions","deno","webhooks","service-boundary"],"skills":["edge-functions","contract-testing"],"allowedScopes":["read","source-write","test-write"],"deniedScopes":["production-write","secrets-write"],"requiresApprovalFor":["destructive","auth-policy-change"]},
+    {"id":"payments-engineer","name":"Payments Engineer","risk":"high","capabilities":["stripe","checkout","webhooks","idempotency","financial-integrity"],"skills":["payment-safety","contract-testing","integration-testing"],"allowedScopes":["read","source-write","test-write"],"deniedScopes":["production-write","secrets-write"],"requiresApprovalFor":["payment-contract-change","financial-write"]},
+    {"id":"marketplace-engineer","name":"Marketplace Domain Engineer","risk":"high","capabilities":["beats","licenses","digital-products","orders","deliveries"],"skills":["implementation","contract-design","integration-testing"],"allowedScopes":["read","source-write","test-write","migration-write"],"deniedScopes":["production-write","secrets-write"],"requiresApprovalFor":["schema-destructive","financial-write"]},
+    {"id":"course-domain-engineer","name":"Courses Domain Engineer","risk":"medium","capabilities":["courses","lessons","enrollments","certificates","progress"],"skills":["implementation","contract-design","integration-testing"],"allowedScopes":["read","source-write","test-write","migration-write"],"deniedScopes":["production-write","secrets-write"],"requiresApprovalFor":["schema-destructive"]},
+    {"id":"academy-domain-engineer","name":"Academy Domain Engineer","risk":"medium","capabilities":["academy-content","media","taxonomy","publishing"],"skills":["implementation","contract-design"],"allowedScopes":["read","source-write","test-write","migration-write"],"deniedScopes":["production-write","secrets-write"],"requiresApprovalFor":["schema-destructive"]},
+    {"id":"community-domain-engineer","name":"Community Domain Engineer","risk":"medium","capabilities":["community","groups","moderation","reports"],"skills":["implementation","contract-design","integration-testing"],"allowedScopes":["read","source-write","test-write","migration-write"],"deniedScopes":["production-write","secrets-write"],"requiresApprovalFor":["moderation-policy-change"]},
+    {"id":"cms-domain-engineer","name":"CMS Domain Engineer","risk":"medium","capabilities":["cms","editorial","seo","media","blocks"],"skills":["implementation","contract-design"],"allowedScopes":["read","source-write","test-write","migration-write"],"deniedScopes":["production-write","secrets-write"],"requiresApprovalFor":["schema-destructive"]},
+    {"id":"admin-domain-engineer","name":"Admin Domain Engineer","risk":"high","capabilities":["admin","users","settings","integrations","audit"],"skills":["implementation","security-review","contract-testing"],"allowedScopes":["read","source-write","test-write","security-write"],"deniedScopes":["production-write","secrets-write"],"requiresApprovalFor":["admin-policy-change","security-policy-change"]},
+    {"id":"security-engineer","name":"Security Engineer","risk":"high","capabilities":["threat-model","auth-review","rls-review","dependency-security","secret-scan"],"skills":["security-review","auth-hardening","rls-design"],"allowedScopes":["read","evidence","test-write","security-write"],"deniedScopes":["production-write","secrets-write"],"requiresApprovalFor":["security-policy-change","auth-policy-change"]},
+    {"id":"threat-modeler","name":"Threat Modeling Engineer","risk":"medium","capabilities":["threat-model","abuse-cases","trust-boundaries","risk-analysis"],"skills":["threat-modeling","security-review"],"allowedScopes":["read","evidence","docs-write","plan"],"deniedScopes":["source-write","production-write","secrets-write"],"requiresApprovalFor":[]},
+    {"id":"dependency-security-engineer","name":"Dependency Security Engineer","risk":"medium","capabilities":["dependency-audit","supply-chain","lockfile-review","advisories"],"skills":["security-review","quality-certification"],"allowedScopes":["read","test-write","ci-write","evidence"],"deniedScopes":["production-write","secrets-write"],"requiresApprovalFor":["gate-policy-change"]},
+    {"id":"test-engineer","name":"Test Engineer","risk":"medium","capabilities":["unit","integration","contract","e2e","regression"],"skills":["unit-testing","integration-testing","contract-testing","e2e-testing"],"allowedScopes":["read","test-write","fixtures-write"],"deniedScopes":["production-write","secrets-write"],"requiresApprovalFor":["destructive"]},
+    {"id":"unit-test-engineer","name":"Unit Test Engineer","risk":"low","capabilities":["unit","mocking","coverage","regression"],"skills":["unit-testing"],"allowedScopes":["read","test-write","fixtures-write"],"deniedScopes":["production-write","secrets-write"],"requiresApprovalFor":[]},
+    {"id":"integration-test-engineer","name":"Integration Test Engineer","risk":"medium","capabilities":["integration","database-test","edge-test","auth-test"],"skills":["integration-testing"],"allowedScopes":["read","test-write","fixtures-write"],"deniedScopes":["production-write","secrets-write"],"requiresApprovalFor":[]},
+    {"id":"contract-test-engineer","name":"Contract Test Engineer","risk":"medium","capabilities":["contract","schema","compatibility","api-test"],"skills":["contract-testing"],"allowedScopes":["read","test-write","fixtures-write"],"deniedScopes":["production-write","secrets-write"],"requiresApprovalFor":[]},
+    {"id":"e2e-test-engineer","name":"E2E Test Engineer","risk":"medium","capabilities":["playwright","journey","browser","regression"],"skills":["e2e-testing"],"allowedScopes":["read","test-write","fixtures-write"],"deniedScopes":["production-write","secrets-write"],"requiresApprovalFor":[]},
+    {"id":"quality-engineer","name":"Quality Gate Engineer","risk":"medium","capabilities":["lint","typecheck","build","quality-gates","evidence-validation"],"skills":["quality-certification","performance-audit"],"allowedScopes":["read","evidence","ci-write"],"deniedScopes":["production-write","secrets-write"],"requiresApprovalFor":["gate-policy-change"]},
+    {"id":"observability-engineer","name":"Observability Engineer","risk":"medium","capabilities":["logging","metrics","tracing","alerts"],"skills":["implementation","quality-certification"],"allowedScopes":["read","source-write","test-write","ci-write"],"deniedScopes":["production-write","secrets-write"],"requiresApprovalFor":["gate-policy-change"]},
+    {"id":"reliability-engineer","name":"Reliability Engineer","risk":"high","capabilities":["slo","resilience","capacity","failure-analysis"],"skills":["performance-audit","incident-recovery","quality-certification"],"allowedScopes":["read","test-write","plan","evidence"],"deniedScopes":["production-write","secrets-write"],"requiresApprovalFor":["reliability-policy-change"]},
+    {"id":"release-engineer","name":"Release Engineer","risk":"critical","capabilities":["release-plan","versioning","deployment-readiness","rollback"],"skills":["release-readiness","quality-certification"],"allowedScopes":["read","plan","release-metadata-write"],"deniedScopes":["secrets-write"],"requiresApprovalFor":["production","rollback","release"]},
+    {"id":"production-operator","name":"Production Operator","risk":"critical","capabilities":["deploy","rollback","release-execution"],"skills":["release-readiness"],"allowedScopes":["read","production-write","release-metadata-write"],"deniedScopes":["secrets-write"],"requiresApprovalFor":["production","production-deploy","production-rollback","rollback","release"]},
+    {"id":"rollback-engineer","name":"Rollback Engineer","risk":"critical","capabilities":["rollback-plan","recovery","verification","forensics"],"skills":["incident-recovery","release-readiness"],"allowedScopes":["read","plan","evidence"],"deniedScopes":["production-write","secrets-write"],"requiresApprovalFor":["rollback","production"]},
+    {"id":"incident-responder","name":"Incident Responder","risk":"critical","capabilities":["triage","containment-plan","recovery-plan","forensics"],"skills":["incident-recovery","security-review"],"allowedScopes":["read","evidence","plan"],"deniedScopes":["production-write","secrets-write"],"requiresApprovalFor":["containment","rollback","production"]},
+    {"id":"recovery-engineer","name":"Recovery Engineer","risk":"critical","capabilities":["checkpoint","restore-plan","data-recovery","validation"],"skills":["incident-recovery","database-migration"],"allowedScopes":["read","plan","evidence","migration-write","test-write"],"deniedScopes":["production-write","secrets-write"],"requiresApprovalFor":["data-migration","rollback","production"]},
+    {"id":"documentation-engineer","name":"Documentation Engineer","risk":"low","capabilities":["docs","runbooks","adr","release-notes"],"skills":["repository-inventory","code-review"],"allowedScopes":["read","docs-write","evidence"],"deniedScopes":["source-write","production-write","secrets-write"],"requiresApprovalFor":[]},
+    {"id":"reviewer","name":"Independent Reviewer","risk":"low","capabilities":["review","verify-evidence","challenge-claims","completion-audit"],"skills":["code-review","security-review"],"allowedScopes":["read","evidence"],"deniedScopes":["write","production-write","secrets-write"],"requiresApprovalFor":[]},
+    {"id":"completion-auditor","name":"Completion Auditor","risk":"low","capabilities":["completion-audit","evidence-integrity","gate-audit","independence-check"],"skills":["code-review","quality-certification"],"allowedScopes":["read","evidence"],"deniedScopes":["write","production-write","secrets-write"],"requiresApprovalFor":[]}
   ]
 }
