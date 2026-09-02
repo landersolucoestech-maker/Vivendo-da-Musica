@@ -2,6 +2,7 @@ import { useState } from 'react';
 import AdminLayout from '@/app/layouts/AdminLayout';
 import PageHeader from '@/shared/components/PageHeader';
 import DataTable from '@/shared/components/DataTable';
+import LoadingState from '@/shared/components/LoadingState';
 import { Button } from '@/shared/components/ui/button';
 import {
   Dialog,
@@ -28,14 +29,16 @@ interface ModerationRequest {
 }
 
 const AdminCommunityPage = () => {
-  const { data: posts } = useCommunityPosts();
-  const { data: groups } = useCommunityGroups();
-  const { data: featuredMembers } = useCommunityFeaturedMembers();
-  const { data: reports, refetch: refetchReports } = useCommunityReports();
+  const postsQuery = useCommunityPosts();
+  const groupsQuery = useCommunityGroups();
+  const featuredMembersQuery = useCommunityFeaturedMembers();
+  const reportsQuery = useCommunityReports();
   const { toast } = useToast();
   const [busyId, setBusyId] = useState<string | null>(null);
   const [moderationRequest, setModerationRequest] = useState<ModerationRequest | null>(null);
   const [reason, setReason] = useState('');
+  const isLoading = postsQuery.isLoading || groupsQuery.isLoading || featuredMembersQuery.isLoading || reportsQuery.isLoading;
+  const hasError = postsQuery.isError || groupsQuery.isError || featuredMembersQuery.isError || reportsQuery.isError;
 
   const openModeration = (reportId: string, action: ModerationRequest['action']) => {
     setReason('');
@@ -66,7 +69,7 @@ const AdminCommunityPage = () => {
         moderationRequest.action,
         reason.trim(),
       );
-      await refetchReports();
+      await reportsQuery.refetch();
       toast({
         title: 'Moderação concluída',
         description: 'A decisão foi registrada na auditoria.',
@@ -87,87 +90,97 @@ const AdminCommunityPage = () => {
   return (
     <AdminLayout>
       <PageHeader title="Comunidade" subtitle="Posts, grupos, denúncias e ranking de membros." />
-      <div className="space-y-8">
-        <section>
-          <h2 className="mb-3 text-sm font-semibold text-muted-foreground">Posts recentes</h2>
-          <DataTable
-            rows={posts ?? []}
-            rowKey={(post) => post.id}
-            emptyLabel="Nenhum post ainda."
-            columns={[
-              { header: 'Autor', cell: (post) => post.author },
-              { header: 'Conteúdo', cell: (post) => post.text },
-              { header: 'Curtidas', cell: (post) => post.likes },
-              { header: 'Comentários', cell: (post) => post.comments.length },
-            ]}
-          />
-        </section>
 
-        <section>
-          <h2 className="mb-3 text-sm font-semibold text-muted-foreground">Denúncias pendentes</h2>
-          <DataTable
-            rows={reports ?? []}
-            rowKey={(report) => report.id}
-            emptyLabel="Nenhuma denúncia pendente."
-            columns={[
-              { header: 'Alvo', cell: (report) => `${report.targetType} · ${report.targetId.slice(0, 8)}` },
-              { header: 'Motivo', cell: (report) => report.reason },
-              { header: 'Detalhes', cell: (report) => report.details ?? 'Não informado' },
-              {
-                header: 'Ações',
-                cell: (report) => (
-                  <div className="flex gap-2">
-                    <Button
-                      size="sm"
-                      variant="destructive"
-                      disabled={busyId === report.id || report.targetType === 'user'}
-                      onClick={() => openModeration(report.id, 'remove')}
-                    >
-                      Remover
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      disabled={busyId === report.id}
-                      onClick={() => openModeration(report.id, 'dismiss')}
-                    >
-                      Dispensar
-                    </Button>
-                  </div>
-                ),
-              },
-            ]}
-          />
-        </section>
+      {isLoading && <LoadingState rows={8} />}
+      {hasError && (
+        <p className="mb-4 text-sm text-destructive">
+          Não foi possível carregar todos os dados da comunidade. Verifique sua sessão e tente novamente.
+        </p>
+      )}
 
-        <section>
-          <h2 className="mb-3 text-sm font-semibold text-muted-foreground">Grupos</h2>
-          <DataTable
-            rows={groups ?? []}
-            rowKey={(group) => group.id}
-            emptyLabel="Nenhum grupo criado ainda."
-            columns={[
-              { header: 'Grupo', cell: (group) => group.name },
-              { header: 'Membros', cell: (group) => group.members.toLocaleString('pt-BR') },
-              { header: 'Descrição', cell: (group) => group.description },
-            ]}
-          />
-        </section>
+      {!isLoading && !hasError && (
+        <div className="space-y-8">
+          <section>
+            <h2 className="mb-3 text-sm font-semibold text-muted-foreground">Posts recentes</h2>
+            <DataTable
+              rows={postsQuery.data ?? []}
+              rowKey={(post) => post.id}
+              emptyLabel="Nenhum post ainda."
+              columns={[
+                { header: 'Autor', cell: (post) => post.author },
+                { header: 'Conteúdo', cell: (post) => post.text },
+                { header: 'Curtidas', cell: (post) => post.likes },
+                { header: 'Comentários', cell: (post) => post.comments.length },
+              ]}
+            />
+          </section>
 
-        <section>
-          <h2 className="mb-3 text-sm font-semibold text-muted-foreground">Ranking de membros</h2>
-          <DataTable
-            rows={featuredMembers ?? []}
-            rowKey={(member) => member.name}
-            emptyLabel="Sem dados de ranking ainda."
-            columns={[
-              { header: 'Membro', cell: (member) => member.name },
-              { header: 'Papel', cell: (member) => member.role },
-              { header: 'Pontos', cell: (member) => member.points },
-            ]}
-          />
-        </section>
-      </div>
+          <section>
+            <h2 className="mb-3 text-sm font-semibold text-muted-foreground">Denúncias pendentes</h2>
+            <DataTable
+              rows={reportsQuery.data ?? []}
+              rowKey={(report) => report.id}
+              emptyLabel="Nenhuma denúncia pendente."
+              columns={[
+                { header: 'Alvo', cell: (report) => `${report.targetType} · ${report.targetId.slice(0, 8)}` },
+                { header: 'Motivo', cell: (report) => report.reason },
+                { header: 'Detalhes', cell: (report) => report.details ?? 'Não informado' },
+                {
+                  header: 'Ações',
+                  cell: (report) => (
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        disabled={busyId === report.id || report.targetType === 'user'}
+                        onClick={() => openModeration(report.id, 'remove')}
+                      >
+                        Remover
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={busyId === report.id}
+                        onClick={() => openModeration(report.id, 'dismiss')}
+                      >
+                        Dispensar
+                      </Button>
+                    </div>
+                  ),
+                },
+              ]}
+            />
+          </section>
+
+          <section>
+            <h2 className="mb-3 text-sm font-semibold text-muted-foreground">Grupos</h2>
+            <DataTable
+              rows={groupsQuery.data ?? []}
+              rowKey={(group) => group.id}
+              emptyLabel="Nenhum grupo criado ainda."
+              columns={[
+                { header: 'Grupo', cell: (group) => group.name },
+                { header: 'Membros', cell: (group) => group.members.toLocaleString('pt-BR') },
+                { header: 'Descrição', cell: (group) => group.description },
+              ]}
+            />
+          </section>
+
+          <section>
+            <h2 className="mb-3 text-sm font-semibold text-muted-foreground">Ranking de membros</h2>
+            <DataTable
+              rows={featuredMembersQuery.data ?? []}
+              rowKey={(member) => member.name}
+              emptyLabel="Sem dados de ranking ainda."
+              columns={[
+                { header: 'Membro', cell: (member) => member.name },
+                { header: 'Papel', cell: (member) => member.role },
+                { header: 'Pontos', cell: (member) => member.points },
+              ]}
+            />
+          </section>
+        </div>
+      )}
 
       <Dialog open={!!moderationRequest} onOpenChange={(open) => !open && closeModeration()}>
         <DialogContent>
