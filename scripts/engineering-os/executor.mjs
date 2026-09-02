@@ -9,6 +9,7 @@ import {
 } from './runtime.mjs';
 import { selectNextStep } from './dispatcher.mjs';
 import { createEvidenceLedger } from './evidence-ledger.mjs';
+import { resolveAgentHandler } from './agent-handlers.mjs';
 
 const nowIso = () => new Date().toISOString();
 
@@ -66,12 +67,19 @@ export const createWorkflowExecutor = ({ stateStore, broker, handlers = {}, audi
       }
 
       const { step } = dispatch;
-      const handler = handlers[step.agentId];
-      if (typeof handler !== 'function') throw new Error(`No handler registered for agent: ${step.agentId}`);
+      const handler = resolveAgentHandler(handlers, step);
+      if (typeof handler !== 'function') throw new Error(`No handler registered for agent skill: ${step.agentId}/${step.skillId}`);
 
-      run = setStep(run, step.stepId, { required: step.required, status: 'running', agentId: step.agentId, startedAt: nowIso(), reason: null });
+      run = setStep(run, step.stepId, {
+        required: step.required,
+        status: 'running',
+        agentId: step.agentId,
+        skillId: step.skillId,
+        startedAt: nowIso(),
+        reason: null
+      });
       const runningFingerprint = persist(run, beforeFingerprint);
-      audit?.append({ type: 'step.started', actor: step.agentId, runId, payload: { stepId: step.stepId } });
+      audit?.append({ type: 'step.started', actor: step.agentId, runId, payload: { stepId: step.stepId, skillId: step.skillId } });
 
       const callTool = (request) => broker.execute({ ...request, runId, agentId: step.agentId });
       try {
@@ -115,7 +123,7 @@ export const createWorkflowExecutor = ({ stateStore, broker, handlers = {}, audi
           ledgerRecordIds
         });
         persist(run, runningFingerprint);
-        audit?.append({ type: 'step.completed', actor: step.agentId, runId, payload: { stepId: step.stepId, evidenceIds, ledgerRecordIds } });
+        audit?.append({ type: 'step.completed', actor: step.agentId, runId, payload: { stepId: step.stepId, skillId: step.skillId, evidenceIds, ledgerRecordIds } });
         return { type: 'completed-step', step, result: structuredClone(result ?? {}), run: structuredClone(run) };
       } catch (error) {
         const latest = stateStore.read(runId) ?? run;
@@ -123,7 +131,7 @@ export const createWorkflowExecutor = ({ stateStore, broker, handlers = {}, audi
         let failed = setStep(latest, step.stepId, { status: 'failed', failedAt: nowIso(), reason: String(error?.message ?? error) });
         failed = transitionRun(failed, 'failed', `step-failed:${step.stepId}`);
         persist(failed, latestFingerprint);
-        audit?.append({ type: 'step.failed', actor: step.agentId, runId, payload: { stepId: step.stepId, error: String(error?.message ?? error) } });
+        audit?.append({ type: 'step.failed', actor: step.agentId, runId, payload: { stepId: step.stepId, skillId: step.skillId, error: String(error?.message ?? error) } });
         throw error;
       }
     },
