@@ -39,6 +39,9 @@ export class GovernedAgentExecutor {
     if (!admission.allowed || !admission.workflow) {
       throw new Error(`Execução não admitida: ${admission.reason}`);
     }
+    if (!admission.agentVersion || !admission.skillId || !admission.skillVersion) {
+      throw new Error('Execução admitida sem binding versionado de Agent/Skill.');
+    }
 
     const workflow = admission.workflow;
     const workflowId = workflow.current().id;
@@ -65,6 +68,9 @@ export class GovernedAgentExecutor {
         manifestId: manifest.id,
         manifestSchemaVersion: manifest.schemaVersion,
         manifestIntegrityDigest: manifest.integrityDigest,
+        agentVersion: admission.agentVersion,
+        skillId: admission.skillId,
+        skillVersion: admission.skillVersion,
         capability: manifest.capability,
         resource: request.resource,
         executionNonce: request.executionNonce,
