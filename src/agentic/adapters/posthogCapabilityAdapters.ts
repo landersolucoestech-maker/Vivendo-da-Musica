@@ -21,10 +21,18 @@ const required = (value: string | undefined, field: string): string => {
   return normalized;
 };
 
+const assertResource = (actual: string, expected: string): void => {
+  if (actual !== expected) throw new Error(`Resource do adapter divergente: esperado ${expected}.`);
+};
+
 export const createPostHogCapabilityAdapters = (transport: PostHogTransport): CapabilityAdapter[] => [
   {
     capability: 'observability.inspect',
     allowedRisks: ['read'],
+    validateResource(input: unknown, resource: string) {
+      const value = input as ObservabilityInspectInput;
+      assertResource(resource, `posthog:scope:${required(value.scope, 'scope')}`);
+    },
     execute(input: unknown) {
       const value = input as ObservabilityInspectInput;
       return transport.inspect({ ...value, scope: required(value.scope, 'scope') });
@@ -33,6 +41,10 @@ export const createPostHogCapabilityAdapters = (transport: PostHogTransport): Ca
   {
     capability: 'observability.verify',
     allowedRisks: ['read'],
+    validateResource(input: unknown, resource: string) {
+      const value = input as ObservabilityVerifyInput;
+      assertResource(resource, `posthog:check:${required(value.check, 'check')}`);
+    },
     execute(input: unknown) {
       const value = input as ObservabilityVerifyInput;
       return transport.verify({ ...value, check: required(value.check, 'check') });
