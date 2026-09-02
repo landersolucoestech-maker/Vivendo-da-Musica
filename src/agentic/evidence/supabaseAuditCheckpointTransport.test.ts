@@ -30,18 +30,20 @@ const context: Readonly<AuditCheckpointContext> = Object.freeze({
   risk: 'privileged',
 });
 
+const digest = 'a'.repeat(64);
 const createClient = (result: unknown) => ({
   rpc: vi.fn().mockResolvedValue(result),
 });
 
 describe('SupabaseAuditCheckpointTransport', () => {
-  it('persiste pelo RPC privilegiado e retorna receipt validado', async () => {
+  it('persiste pelo RPC privilegiado e exige digest SHA-256 do banco', async () => {
     const client = createClient({
       data: {
         persistenceId: '11111111-1111-4111-8111-111111111111',
         headHash: checkpoint.headHash,
         recordCount: checkpoint.recordCount,
         persistedAt: '2026-09-02T07:00:00.000Z',
+        checkpointDigest: digest,
       },
       error: null,
     });
@@ -59,6 +61,7 @@ describe('SupabaseAuditCheckpointTransport', () => {
       headHash: checkpoint.headHash,
       recordCount: 1,
       persistedAt: '2026-09-02T07:00:00.000Z',
+      checkpointDigest: digest,
     });
     expect(Object.isFrozen(receipt)).toBe(true);
   });
@@ -75,13 +78,14 @@ describe('SupabaseAuditCheckpointTransport', () => {
     );
   });
 
-  it('rejeita receipt malformado', async () => {
+  it('rejeita receipt sem digest criptográfico válido', async () => {
     const client = createClient({
       data: {
-        persistenceId: 'not-a-uuid',
+        persistenceId: '11111111-1111-4111-8111-111111111111',
         headHash: checkpoint.headHash,
         recordCount: checkpoint.recordCount,
-        persistedAt: 'not-a-date',
+        persistedAt: '2026-09-02T07:00:00.000Z',
+        checkpointDigest: 'not-sha256',
       },
       error: null,
     });
