@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import { EvidenceStore } from '@/agentic/evidence/evidenceStore';
 import { createDefaultAgentRegistry } from '@/agentic/registry/defaultAgentRegistry';
 import { ApprovalReceiptStore } from '@/agentic/runtime/approvalReceiptStore';
 import { CapabilityAdapterRegistry } from '@/agentic/runtime/capabilityAdapterRegistry';
@@ -19,8 +20,9 @@ describe('agentic runtime governance', () => {
     });
     const approvals = new ApprovalReceiptStore();
     const leases = new LeaseManager();
+    const evidence = new EvidenceStore();
     leases.acquire('production', 'release-agent', 60_000);
-    const gateway = new ToolExecutionGateway(adapters, new IdempotencyStore(), approvals, leases);
+    const gateway = new ToolExecutionGateway(adapters, new IdempotencyStore(), approvals, leases, evidence);
 
     await expect(gateway.execute({
       correlationId: 'c1', workflowId: 'w1', agentId: 'release-agent', capability: 'deploy.production',
@@ -36,15 +38,24 @@ describe('agentic runtime governance', () => {
       correlationId: 'c1', workflowId: 'w1', agentId: 'release-agent', capability: 'deploy.production',
       risk: 'privileged', idempotencyKey: 'k2', leaseResource: 'production', approvalReceiptId: 'a1', input: {},
     })).resolves.toBe('ok');
+    expect(evidence.byCorrelationId('c1').map((record) => record.kind)).toEqual(['tool_call', 'tool_result']);
+    expect(evidence.verifyIntegrity()).toBe(true);
   });
 
-  it('returns a completed idempotent result without executing twice', async () => {
+  it('returns a completed idempotent result without executing twice and journals the cache hit', async () => {
     let calls = 0;
     const adapters = new CapabilityAdapterRegistry();
     adapters.register({
       capability: 'repo.read', allowedRisks: ['read'], async execute() { calls += 1; return { value: 1 }; },
     });
-    const gateway = new ToolExecutionGateway(adapters, new IdempotencyStore(), new ApprovalReceiptStore(), new LeaseManager());
+    const evidence = new EvidenceStore();
+    const gateway = new ToolExecutionGateway(
+      adapters,
+      new IdempotencyStore(),
+      new ApprovalReceiptStore(),
+      new LeaseManager(),
+      evidence,
+    );
     const request = {
       correlationId: 'c2', workflowId: 'w2', agentId: 'engineering-orchestrator', capability: 'repo.read',
       risk: 'read' as const, idempotencyKey: 'same', input: {},
@@ -52,6 +63,11 @@ describe('agentic runtime governance', () => {
     await gateway.execute(request);
     await gateway.execute(request);
     expect(calls).toBe(1);
+    expect(evidence.byCorrelationId('c2').map((record) => record.kind)).toEqual([
+      'tool_call',
+      'tool_result',
+      'tool_result',
+    ]);
   });
 
   it('blocks delegation cycles and missing capabilities', () => {
