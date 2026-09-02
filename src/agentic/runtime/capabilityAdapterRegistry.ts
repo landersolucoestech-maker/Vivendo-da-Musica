@@ -11,11 +11,21 @@ export interface CapabilityExecutionContext {
   resource: string;
 }
 
+export interface CapabilityAdapterEvidence {
+  kind: 'deployment_health';
+  payload: Record<string, unknown>;
+}
+
 export interface CapabilityAdapter<Input = unknown, Output = unknown> {
   capability: string;
   allowedRisks: readonly AgentRisk[];
   validateResource?(input: Input, resource: string): void;
   execute(input: Input, context: CapabilityExecutionContext): Promise<Output>;
+  evidence?(
+    input: Input,
+    output: Output,
+    context: CapabilityExecutionContext,
+  ): readonly CapabilityAdapterEvidence[];
 }
 
 export class CapabilityAdapterRegistry {
