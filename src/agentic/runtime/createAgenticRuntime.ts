@@ -1,4 +1,7 @@
 import { createDeploymentCapabilityAdapters } from '@/agentic/adapters/deploymentCapabilityAdapters';
+import { createPostHogCapabilityAdapters, type PostHogTransport } from '@/agentic/adapters/posthogCapabilityAdapters';
+import { createRepositoryCapabilityAdapters, type RepositoryTransport } from '@/agentic/adapters/repositoryCapabilityAdapters';
+import { createSupabaseCapabilityAdapters, type SupabaseTransport } from '@/agentic/adapters/supabaseCapabilityAdapters';
 import { EvidenceStore } from '@/agentic/evidence/evidenceStore';
 import { createDefaultPolicyEngine } from '@/agentic/policy/defaultPolicySet';
 import { createDefaultAgentRegistry } from '@/agentic/registry/defaultAgentRegistry';
@@ -18,11 +21,21 @@ import { ToolExecutionGateway } from '@/agentic/runtime/toolExecutionGateway';
 import { WorkflowStore } from '@/agentic/workflow/workflowStore';
 
 export interface AgenticRuntimeOptions {
+  github?: RepositoryTransport;
+  supabase?: SupabaseTransport;
+  posthog?: PostHogTransport;
   hostinger?: {
     config: HostingerDeploymentConfig;
     transport: HostingerDeploymentTransport;
   };
 }
+
+const registerAdapters = (
+  registry: CapabilityAdapterRegistry,
+  capabilityAdapters: ReturnType<typeof createRepositoryCapabilityAdapters>,
+): void => {
+  for (const adapter of capabilityAdapters) registry.register(adapter);
+};
 
 export const createAgenticRuntime = (options: AgenticRuntimeOptions = {}) => {
   const registry = createDefaultAgentRegistry();
@@ -35,14 +48,16 @@ export const createAgenticRuntime = (options: AgenticRuntimeOptions = {}) => {
   const leases = new LeaseManager();
   const workflows = new WorkflowStore();
 
+  if (options.github) registerAdapters(adapters, createRepositoryCapabilityAdapters(options.github));
+  if (options.supabase) registerAdapters(adapters, createSupabaseCapabilityAdapters(options.supabase));
+  if (options.posthog) registerAdapters(adapters, createPostHogCapabilityAdapters(options.posthog));
+
   if (options.hostinger) {
     deploymentProviders.register(new HostingerDeploymentProvider(
       options.hostinger.config,
       options.hostinger.transport,
     ));
-    for (const adapter of createDeploymentCapabilityAdapters(deploymentProviders, 'hostinger')) {
-      adapters.register(adapter);
-    }
+    registerAdapters(adapters, createDeploymentCapabilityAdapters(deploymentProviders, 'hostinger'));
   }
 
   return Object.freeze({
