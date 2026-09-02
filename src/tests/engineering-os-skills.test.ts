@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { createToolBroker } from '../../scripts/engineering-os/tool-broker.mjs';
 import { runSkill } from '../../scripts/engineering-os/skill-runner.mjs';
 
-const evidence = (kind: 'artifact' | 'diff') => ({
+const evidence = (kind: 'artifact' | 'diff' | 'review' | 'test') => ({
   kind,
   source: `skill-test:${kind}`,
   result: 'verified',
@@ -22,7 +22,7 @@ describe('Engineering OS skill runner', () => {
       input: { root: '.' },
       handler: async ({ callTool }) => {
         await callTool({ toolId: 'repository.read', operation: 'inventory', input: { root: '.' } });
-        return { output: { inventoried: true }, evidence: [evidence('artifact'), evidence('diff')] };
+        return { output: { inventoried: true }, evidence: [evidence('artifact')] };
       }
     });
 
@@ -52,7 +52,7 @@ describe('Engineering OS skill runner', () => {
           resource: 'src/App.tsx',
           idempotencyKey: 'forbidden-write'
         });
-        return { evidence: [evidence('artifact'), evidence('diff')] };
+        return { evidence: [evidence('artifact')] };
       }
     })).rejects.toThrow(/Tool not allowed by skill/);
   });
@@ -72,10 +72,10 @@ describe('Engineering OS skill runner', () => {
     const broker = createToolBroker({ adapters: { 'repository.read': async () => ({}) } });
     await expect(runSkill({
       runId: 'skill-run-4',
-      agentId: 'repo-archaeologist',
-      skillId: 'repository-inventory',
+      agentId: 'architect',
+      skillId: 'architecture-design',
       broker,
       handler: async () => ({ output: { claimedComplete: true }, evidence: [evidence('artifact')] })
-    })).rejects.toThrow(/missing required evidence kind/);
+    })).rejects.toThrow(/missing required evidence kind: architecture-design\/review/i);
   });
 });
