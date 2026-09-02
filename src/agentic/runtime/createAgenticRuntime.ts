@@ -11,6 +11,7 @@ import type { AuditCheckpointTransport } from '@/agentic/evidence/auditCheckpoin
 import { EvidenceStore } from '@/agentic/evidence/evidenceStore';
 import { createDefaultPolicyEngine } from '@/agentic/policy/defaultPolicySet';
 import { createDefaultAgentRegistry } from '@/agentic/registry/defaultAgentRegistry';
+import { createDefaultSkillRegistry } from '@/agentic/registry/defaultSkillRegistry';
 import { AgentExecutionKernel } from '@/agentic/runtime/agentExecutionKernel';
 import { ApprovalReceiptStore } from '@/agentic/runtime/approvalReceiptStore';
 import { CapabilityAdapterRegistry } from '@/agentic/runtime/capabilityAdapterRegistry';
@@ -52,6 +53,7 @@ const registerAdapters = (
 
 export const createAgenticRuntime = (options: AgenticRuntimeOptions = {}) => {
   const registry = createDefaultAgentRegistry();
+  const skills = createDefaultSkillRegistry();
   const policies = createDefaultPolicyEngine();
   const evidence = new EvidenceStore();
   const auditCheckpoints = new AuditCheckpointGate(evidence, options.auditCheckpointTransport);
@@ -80,10 +82,11 @@ export const createAgenticRuntime = (options: AgenticRuntimeOptions = {}) => {
   }
 
   registry.seal();
+  skills.seal();
   adapters.seal();
   deploymentProviders.seal();
 
-  const kernel = new AgentExecutionKernel(registry, policies, evidence);
+  const kernel = new AgentExecutionKernel(registry, policies, evidence, skills);
   const gateway = new ToolExecutionGateway(adapters, idempotency, approvals, leases, evidence, quotas);
   const executor = new GovernedAgentExecutor(
     kernel,
@@ -103,6 +106,7 @@ export const createAgenticRuntime = (options: AgenticRuntimeOptions = {}) => {
 
   return Object.freeze({
     registry,
+    skills,
     policies,
     evidence,
     auditCheckpoints,
