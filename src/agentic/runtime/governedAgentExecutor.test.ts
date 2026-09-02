@@ -137,14 +137,24 @@ describe('GovernedAgentExecutor', () => {
     expect(deploy).not.toHaveBeenCalled();
   });
 
-  it('requires signed manifest, integrity binding, approval receipt and lease before Hostinger production deploy', async () => {
+  it('requires signed manifest, integrity, approval, lease and healthy Hostinger production deploy', async () => {
     const deploy = vi.fn().mockResolvedValue({
       deploymentId: 'dep-1', environment: 'production', artifactRef: 'ghcr.io/example/app:sha',
+      url: 'https://app.example.test',
+    });
+    const verifyHealth = vi.fn().mockResolvedValue({
+      healthy: true,
+      deploymentId: 'dep-1',
+      environment: 'production',
+      artifactRef: 'ghcr.io/example/app:sha',
+      checkedAt: '2026-09-02T06:00:00.000Z',
+      statusCode: 200,
+      url: 'https://app.example.test',
     });
     const runtime = createAgenticRuntime({
       manifestSignatureVerifier: { verify: vi.fn().mockReturnValue(true) },
       manifestIntegrityVerifier: { verify: vi.fn().mockReturnValue(true) },
-      hostinger: { config: { mode: 'vps-docker', targetId: 'vm-1' }, transport: { deploy } },
+      hostinger: { config: { mode: 'vps-docker', targetId: 'vm-1' }, transport: { deploy, verifyHealth } },
     });
 
     const correlationId = 'corr-release';
@@ -152,7 +162,8 @@ describe('GovernedAgentExecutor', () => {
     runtime.manifests.issue({
       id: 'manifest-release-1', correlationId, workflowId, agentId: 'release-agent',
       capability: 'deploy.production', risk: 'privileged', allowedResources: ['hostinger:target:vm-1'],
-      maxExecutions: 1, requiredEvidenceKinds: ['tool_call', 'tool_result', 'verification'],
+      maxExecutions: 1,
+      requiredEvidenceKinds: ['tool_call', 'deployment_health', 'tool_result', 'verification'],
       environment: 'production', artifactRef: 'ghcr.io/example/app:sha',
       integrityDigest: 'sha256:test-release-manifest', signature: 'signed-by-control-plane',
       issuedAt: '2026-09-02T05:00:00.000Z', expiresAt: '2099-09-02T05:30:00.000Z',
@@ -172,6 +183,49 @@ describe('GovernedAgentExecutor', () => {
     });
 
     expect(deploy).toHaveBeenCalledOnce();
+    expect(verifyHealth).toHaveBeenCalledOnce();
     expect(execution.workflow.state).toBe('verifying');
+    expect(runtime.evidence.byCorrelationId(correlationId).some((record) =>
+      record.kind === 'deployment_health' && record.payload.healthy === true,
+    )).toBe(true);
+  });
+
+  it('fails closed when Hostinger production health verification is unavailable', async () => {
+    const deploy = vi.fn().mockResolvedValue({
+      deploymentId: 'dep-unverified', environment: 'production', artifactRef: 'ghcr.io/example/app:sha',
+    });
+    const runtime = createAgenticRuntime({
+      manifestSignatureVerifier: { verify: vi.fn().mockReturnValue(true) },
+      manifestIntegrityVerifier: { verify: vi.fn().mockReturnValue(true) },
+      hostinger: { config: { mode: 'vps-docker', targetId: 'vm-1' }, transport: { deploy } },
+    });
+    const correlationId = 'corr-health-missing';
+    const workflowId = `${correlationId}:release-agent`;
+    runtime.manifests.issue({
+      id: 'manifest-health-missing', correlationId, workflowId, agentId: 'release-agent',
+      capability: 'deploy.production', risk: 'privileged', allowedResources: ['hostinger:target:vm-1'],
+      maxExecutions: 1,
+      requiredEvidenceKinds: ['tool_call', 'deployment_health', 'tool_result', 'verification'],
+      environment: 'production', artifactRef: 'ghcr.io/example/app:sha',
+      integrityDigest: 'sha256:health-missing', signature: 'signed',
+      issuedAt: '2026-09-02T05:00:00.000Z', expiresAt: '2099-09-02T05:30:00.000Z',
+    });
+    runtime.approvals.issue({
+      id: 'approval-health-missing', correlationId, workflowId, agentId: 'release-agent',
+      capability: 'deploy.production', approverId: 'human-owner',
+      approvedAt: '2026-09-02T05:00:00.000Z', expiresAt: '2099-09-02T05:30:00.000Z',
+    });
+    runtime.leases.acquire('hostinger:health-missing', 'release-agent', 60_000);
+
+    await expect(runtime.executor.execute({
+      agentId: 'release-agent', capability: 'deploy.production', risk: 'privileged', approvedByHuman: true,
+      correlationId, idempotencyKey: 'idem-health-missing', executionNonce: 'nonce-health-missing',
+      manifestId: 'manifest-health-missing', resource: 'hostinger:target:vm-1',
+      artifactRef: 'ghcr.io/example/app:sha', approvalReceiptId: 'approval-health-missing',
+      leaseResource: 'hostinger:health-missing', input: { artifactRef: 'ghcr.io/example/app:sha' },
+    })).rejects.toThrow('Health check obrigatório');
+
+    expect(runtime.evidence.byCorrelationId(correlationId).some((record) => record.kind === 'tool_result')).toBe(false);
+    expect(runtime.workflows.get(workflowId)?.state).toBe('failed');
   });
 });
