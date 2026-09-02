@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { agentRiskSchema } from '@/agentic/contracts/agentContract';
+import { evidenceKindSchema } from '@/agentic/contracts/evidenceContract';
 
 const capabilityPrefixSchema = z
   .string()
@@ -14,7 +15,7 @@ export const skillContractSchema = z.object({
   enabled: z.boolean().default(true),
   capabilityPrefixes: z.array(capabilityPrefixSchema).min(1),
   allowedRisks: z.array(agentRiskSchema).min(1),
-  requiredEvidence: z.array(z.string().min(1)).default([]),
+  requiredEvidence: z.array(evidenceKindSchema).default([]),
 });
 
 export type SkillContract = z.infer<typeof skillContractSchema>;
