@@ -20,6 +20,7 @@ export const databaseAgent: AgentContract = {
     'evidence.collect',
     'database.migrate.production',
   ],
+  skillIds: ['repository-engineering', 'database-engineering', 'quality-assurance', 'evidence-governance'],
   deniedCapabilities: ['database.migrate.production'],
   humanApprovalFor: ['privileged', 'destructive'],
   maxSteps: 30,
