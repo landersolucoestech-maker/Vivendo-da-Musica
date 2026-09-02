@@ -22,13 +22,13 @@
     "test:layouts": "node scripts/verify-fixed-header-layouts.mjs",
     "test:ui-contracts": "node scripts/verify-popup-modals-and-contracts.mjs",
     "test:dev-supabase": "node scripts/verify-dev-supabase-target.mjs",
+    "test:deployment-provider": "node scripts/verify-deployment-provider-policy.mjs",
     "test:performance": "node scripts/quality-gate.mjs",
-    "quality": "npm run audit:high && npm run typecheck && npm run lint && npm run test:agentic && npm run test:unit && npm run test:contracts && npm run test:security && npm run test:layouts && npm run test:ui-contracts && npm run test:dev-supabase && npm run audit:crud && npm run build && npm run test:performance"
+    "quality": "npm run audit:high && npm run typecheck && npm run lint && npm run test:deployment-provider && npm run test:agentic && npm run test:unit && npm run test:contracts && npm run test:security && npm run test:layouts && npm run test:ui-contracts && npm run test:dev-supabase && npm run audit:crud && npm run build && npm run test:performance"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.0",
     "@radix-ui/react-accordion": "^1.2.0",
-    "@radix-ui/react-alert-dialog": "^1.1.1",
     "@radix-ui/react-avatar": "^1.1.0",
     "@radix-ui/react-checkbox": "^1.1.1",
     "@radix-ui/react-dialog": "^1.1.2",
