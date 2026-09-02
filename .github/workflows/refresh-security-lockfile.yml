@@ -1,0 +1,48 @@
+name: Refresh Security Lockfile
+
+on:
+  push:
+    branches:
+      - dev
+    paths:
+      - '.github/workflows/refresh-security-lockfile.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  refresh:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Refresh vulnerable transitive dependencies
+        run: npm update browserslist nanoid --package-lock-only --ignore-scripts
+
+      - name: Verify clean install
+        run: npm ci --ignore-scripts
+
+      - name: Run high severity audit gate
+        run: npm run audit:high
+
+      - name: Capture npm audit report
+        if: always()
+        run: npm audit --json > npm-audit.json || true
+
+      - name: Upload refreshed lockfile
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: refreshed-security-lockfile
+          path: |
+            package-lock.json
+            npm-audit.json
+          if-no-files-found: error
+          retention-days: 1
