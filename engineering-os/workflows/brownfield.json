@@ -1,0 +1,23 @@
+{
+  "id": "brownfield",
+  "version": 1,
+  "risk": "high",
+  "steps": [
+    {"id":"inventory","agent":"repo-archaeologist","required":true,"gates":["inventory-evidence"]},
+    {"id":"architecture","agent":"architect","required":true,"gates":["architecture-evidence"]},
+    {"id":"implementation","agent":"orchestrator","required":true,"gates":["implementation-evidence"]},
+    {"id":"security","agent":"security-engineer","required":true,"gates":["security-evidence"]},
+    {"id":"tests","agent":"test-engineer","required":true,"gates":["test-evidence"]},
+    {"id":"quality","agent":"quality-engineer","required":true,"gates":["quality-evidence"]},
+    {"id":"review","agent":"reviewer","required":true,"gates":["independent-review"]}
+  ],
+  "requiredGates": [
+    "inventory-evidence",
+    "architecture-evidence",
+    "implementation-evidence",
+    "security-evidence",
+    "test-evidence",
+    "quality-evidence",
+    "independent-review"
+  ]
+}
