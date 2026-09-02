@@ -2,14 +2,24 @@ import { agentContractSchema, type AgentContract } from '@/agentic/contracts/age
 
 export class AgentRegistry {
   private readonly agents = new Map<string, AgentContract>();
+  private sealed = false;
 
   register(input: AgentContract): AgentContract {
+    if (this.sealed) throw new Error('AgentRegistry selado; novos agentes não podem ser registrados.');
     const agent = agentContractSchema.parse(input);
     if (this.agents.has(agent.id)) {
       throw new Error(`Agente já registrado: ${agent.id}`);
     }
     this.agents.set(agent.id, agent);
     return agent;
+  }
+
+  seal(): void {
+    this.sealed = true;
+  }
+
+  isSealed(): boolean {
+    return this.sealed;
   }
 
   get(agentId: string): AgentContract {
