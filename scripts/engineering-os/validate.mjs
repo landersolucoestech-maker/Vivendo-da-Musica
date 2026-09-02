@@ -8,9 +8,11 @@ const root = path.resolve(__dirname, '../..');
 const readJson = (relativePath) => JSON.parse(fs.readFileSync(path.join(root, relativePath), 'utf8'));
 
 const errors = [];
+const validRisks = new Set(['low', 'medium', 'high', 'critical']);
 const ids = new Set();
 for (const agent of registry.agents) {
   if (!agent.id || !agent.name || !agent.risk) errors.push(`agent-invalid:${agent.id ?? 'unknown'}`);
+  if (!validRisks.has(agent.risk)) errors.push(`agent-risk-invalid:${agent.id}:${agent.risk}`);
   if (ids.has(agent.id)) errors.push(`agent-duplicate:${agent.id}`);
   ids.add(agent.id);
   for (const scope of agent.allowedScopes ?? []) {
@@ -24,7 +26,6 @@ if (!runtimePolicy.completion?.forbidClaimOnlyEvidence) errors.push('policy-clai
 
 const tools = readJson('engineering-os/registry/tools.json');
 const toolIds = new Set();
-const validRisks = new Set(['low', 'medium', 'high', 'critical']);
 const validApprovals = new Set(['never', 'policy', 'required']);
 for (const tool of tools.tools ?? []) {
   if (!tool.id || !tool.scope || !tool.capability) errors.push(`tool-invalid:${tool.id ?? 'unknown'}`);
@@ -37,6 +38,25 @@ for (const tool of tools.tools ?? []) {
     errors.push(`tool-production-not-critical-approved:${tool.id}`);
   }
   if (tool.lock && tool.sideEffect === 'none') errors.push(`tool-unnecessary-lock:${tool.id}`);
+}
+
+const skills = readJson('engineering-os/registry/skills.json');
+const skillIds = new Set();
+for (const skill of skills.skills ?? []) {
+  if (!skill.id || !validRisks.has(skill.maxRisk)) errors.push(`skill-invalid:${skill.id ?? 'unknown'}`);
+  if (skillIds.has(skill.id)) errors.push(`skill-duplicate:${skill.id}`);
+  skillIds.add(skill.id);
+  for (const toolId of skill.allowedTools ?? []) {
+    if (!toolIds.has(toolId)) errors.push(`skill-tool-unknown:${skill.id}:${toolId}`);
+  }
+  for (const kind of skill.requiredEvidenceKinds ?? []) {
+    if (!runtimePolicy.evidence.allowedKinds.includes(kind)) errors.push(`skill-evidence-kind-unknown:${skill.id}:${kind}`);
+  }
+}
+for (const agent of registry.agents) {
+  for (const skillId of agent.skills ?? []) {
+    if (!skillIds.has(skillId)) errors.push(`agent-skill-unknown:${agent.id}:${skillId}`);
+  }
 }
 
 const requiredContracts = [
@@ -77,4 +97,4 @@ if (errors.length) {
   process.exit(1);
 }
 
-console.log(`Engineering OS valid: ${registry.agents.length} agents, ${toolIds.size} governed tools, ${requiredContracts.length} required contracts, default-deny policy enabled.`);
+console.log(`Engineering OS valid: ${registry.agents.length} agents, ${skillIds.size} skills, ${toolIds.size} governed tools, ${requiredContracts.length} required contracts, default-deny policy enabled.`);
