@@ -14,6 +14,7 @@ export const createAgentHandlerRegistry = ({ broker, strategies = {} } = {}) => 
 
     const handler = async ({ run, step }) => {
       if (step.agentId !== agentId) throw new Error(`Handler agent mismatch: ${agentId}/${step.agentId}`);
+      if (step.skillId !== skillId) throw new Error(`Handler skill mismatch: ${agentId}/${skillId}/${step.skillId}`);
       const result = await runSkill({
         runId: run.id,
         agentId,
