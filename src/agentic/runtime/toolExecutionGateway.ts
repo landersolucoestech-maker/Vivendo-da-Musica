@@ -1,4 +1,5 @@
 import type { AgentRisk } from '@/agentic/contracts/agentContract';
+import { EvidenceStore } from '@/agentic/evidence/evidenceStore';
 import { ApprovalReceiptStore } from '@/agentic/runtime/approvalReceiptStore';
 import { CapabilityAdapterRegistry, type CapabilityExecutionContext } from '@/agentic/runtime/capabilityAdapterRegistry';
 import { CircuitBreaker } from '@/agentic/runtime/circuitBreaker';
@@ -21,11 +22,21 @@ export class ToolExecutionGateway {
     private readonly idempotency: IdempotencyStore,
     private readonly approvals: ApprovalReceiptStore,
     private readonly leases: LeaseManager,
+    private readonly evidence: EvidenceStore,
   ) {}
 
   async execute<Input, Output>(request: ToolExecutionRequest<Input>): Promise<Output> {
     const existing = this.idempotency.get(request.idempotencyKey);
-    if (existing?.state === 'completed') return existing.result as Output;
+    if (existing?.state === 'completed') {
+      this.appendEvidence(request, 'tool_result', {
+        capability: request.capability,
+        risk: request.risk,
+        idempotencyKey: request.idempotencyKey,
+        cached: true,
+        success: true,
+      });
+      return existing.result as Output;
+    }
     if (existing) throw new Error(`Idempotency key indisponível para nova execução: ${request.idempotencyKey}`);
 
     if (requiresApproval(request.risk)) {
@@ -38,9 +49,19 @@ export class ToolExecutionGateway {
       this.leases.assertHeld(request.leaseResource, request.agentId);
     }
 
-    const adapter = this.adapters.get(request.capability, request.risk) as { execute(input: Input, context: CapabilityExecutionContext): Promise<Output> };
-    this.idempotency.start(request.idempotencyKey);
+    const adapter = this.adapters.get(request.capability, request.risk) as {
+      execute(input: Input, context: CapabilityExecutionContext): Promise<Output>;
+    };
 
+    this.appendEvidence(request, 'tool_call', {
+      capability: request.capability,
+      risk: request.risk,
+      idempotencyKey: request.idempotencyKey,
+      leaseResource: request.leaseResource ?? null,
+      approvalReceiptId: request.approvalReceiptId ?? null,
+    });
+
+    this.idempotency.start(request.idempotencyKey);
     const breaker = this.breakers.get(request.capability) ?? new CircuitBreaker();
     this.breakers.set(request.capability, breaker);
     const executor = new ResilientExecutor(breaker);
@@ -54,11 +75,41 @@ export class ToolExecutionGateway {
         },
       );
       this.idempotency.complete(request.idempotencyKey, result);
+      this.appendEvidence(request, 'tool_result', {
+        capability: request.capability,
+        risk: request.risk,
+        idempotencyKey: request.idempotencyKey,
+        cached: false,
+        success: true,
+      });
       return result;
     } catch (error) {
-      this.idempotency.fail(request.idempotencyKey, error instanceof Error ? error.message : 'Falha desconhecida.');
+      const message = error instanceof Error ? error.message : 'Falha desconhecida.';
+      this.idempotency.fail(request.idempotencyKey, message);
+      this.appendEvidence(request, 'error', {
+        capability: request.capability,
+        risk: request.risk,
+        idempotencyKey: request.idempotencyKey,
+        message,
+      });
       throw error;
     }
+  }
+
+  private appendEvidence(
+    request: ToolExecutionRequest<unknown>,
+    kind: 'tool_call' | 'tool_result' | 'error',
+    payload: Record<string, unknown>,
+  ): void {
+    this.evidence.append({
+      id: `${request.correlationId}:${kind}:${this.evidence.all().length}`,
+      correlationId: request.correlationId,
+      workflowId: request.workflowId,
+      agentId: request.agentId,
+      kind,
+      occurredAt: new Date().toISOString(),
+      payload,
+    });
   }
 }
 
