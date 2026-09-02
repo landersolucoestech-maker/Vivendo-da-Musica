@@ -94,7 +94,20 @@ const AffiliatePortalPage = () => {
     return <AffiliateLayout><div className="vdm-surface flex min-h-72 items-center justify-center"><div className="size-9 animate-spin rounded-full border-2 border-white/10 border-t-primary" /></div></AffiliateLayout>;
   }
 
-  if (query.error || !query.data?.profile) {
+  if (query.isError) {
+    return (
+      <AffiliateLayout>
+        <SectionHeader
+          eyebrow="Portal do afiliado"
+          title="Falha ao carregar os dados"
+          description={query.error instanceof Error ? query.error.message : 'Não foi possível consultar o portal do afiliado.'}
+        />
+        <EmptyState title="Portal temporariamente indisponível" description="Tente carregar os dados novamente em instantes." />
+      </AffiliateLayout>
+    );
+  }
+
+  if (!query.data?.profile) {
     return <AffiliateLayout><SectionHeader eyebrow="Portal do afiliado" title="Dados indisponíveis" description="Não foi possível localizar um perfil de afiliado para esta identidade." /><EmptyState title="Perfil de afiliado não encontrado" /></AffiliateLayout>;
   }
 
