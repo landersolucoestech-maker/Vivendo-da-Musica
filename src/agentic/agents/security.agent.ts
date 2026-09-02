@@ -18,6 +18,7 @@ export const securityAgent: AgentContract = {
     'tests.verify',
     'evidence.collect',
   ],
+  skillIds: ['repository-engineering', 'security-engineering', 'quality-assurance', 'evidence-governance'],
   deniedCapabilities: ['repo.write'],
   humanApprovalFor: ['privileged', 'destructive'],
   maxSteps: 20,
