@@ -17,7 +17,7 @@ jobs:
       VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable_ci_placeholder
     steps:
       - uses: actions/checkout@v5
-      - uses: actions/setup-node@v5
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
@@ -37,7 +37,7 @@ jobs:
       VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable_ci_placeholder
     steps:
       - uses: actions/checkout@v5
-      - uses: actions/setup-node@v5
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
