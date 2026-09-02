@@ -12,6 +12,8 @@ export const evidenceKindSchema = z.enum([
   'error',
 ]);
 
+export type EvidenceKind = z.infer<typeof evidenceKindSchema>;
+
 export const evidenceRecordSchema = z.object({
   id: z.string().min(1),
   correlationId: z.string().min(1),
