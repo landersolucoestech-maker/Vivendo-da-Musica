@@ -12,7 +12,12 @@ import { Button } from '@/shared/components/ui/button';
 import CourseManagementDialog, { type CourseDialogMode } from '@/modules/courses/components/CourseManagementDialog';
 import { courseManagementApi, type ManagedCourse } from '@/modules/courses/services/courseManagement.api';
 
-const STATUS_FILTERS = ['Todos', 'published', 'draft', 'archived'];
+const STATUS_FILTERS = [
+  { value: 'Todos', label: 'Todos' },
+  { value: 'published', label: 'Publicados' },
+  { value: 'draft', label: 'Rascunhos' },
+  { value: 'archived', label: 'Arquivados' },
+];
 
 const formatPrice = (value: number) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value / 100);
@@ -29,6 +34,7 @@ const AdminCoursesPage = ({ initialMode, initialCourseId }: AdminCoursesPageProp
   const [dialogOpen, setDialogOpen] = useState(false);
   const [dialogMode, setDialogMode] = useState<CourseDialogMode>('create');
   const [selectedCourse, setSelectedCourse] = useState<ManagedCourse | null>(null);
+  const [initialDialogError, setInitialDialogError] = useState<string | null>(null);
   const initialDialogHandled = useRef(false);
 
   const coursesQuery = useQuery({
@@ -50,6 +56,7 @@ const AdminCoursesPage = ({ initialMode, initialCourseId }: AdminCoursesPageProp
   );
 
   const openDialog = (mode: CourseDialogMode, course?: ManagedCourse) => {
+    setInitialDialogError(null);
     setDialogMode(mode);
     setSelectedCourse(course ?? null);
     setDialogOpen(true);
@@ -59,7 +66,19 @@ const AdminCoursesPage = ({ initialMode, initialCourseId }: AdminCoursesPageProp
     if (initialDialogHandled.current || !initialMode) return;
     if (initialMode !== 'create' && coursesQuery.isLoading) return;
 
+    if (initialMode === 'create') {
+      openDialog('create');
+      initialDialogHandled.current = true;
+      return;
+    }
+
     const course = initialCourseId ? rows.find((item) => item.id === initialCourseId) : undefined;
+    if (!course) {
+      setInitialDialogError('Não foi possível abrir o curso solicitado. Ele pode ter sido removido ou o link é inválido.');
+      initialDialogHandled.current = true;
+      return;
+    }
+
     openDialog(initialMode, course);
     initialDialogHandled.current = true;
   }, [coursesQuery.isLoading, initialCourseId, initialMode, rows]);
@@ -76,6 +95,12 @@ const AdminCoursesPage = ({ initialMode, initialCourseId }: AdminCoursesPageProp
           </Button>
         }
       />
+
+      {initialDialogError && (
+        <p className="mb-6 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+          {initialDialogError}
+        </p>
+      )}
 
       <div className="mb-6 grid gap-4 sm:grid-cols-3">
         <StatCard label="Total de cursos" value={String(rows.length)} />
