@@ -12,6 +12,7 @@ export const agentContractSchema = z.object({
   objective: z.string().min(1),
   enabled: z.boolean().default(true),
   capabilities: z.array(agentCapabilitySchema).min(1),
+  skillIds: z.array(z.string().min(1).regex(/^[a-z0-9]+(?:[._-][a-z0-9]+)*$/)).default([]),
   deniedCapabilities: z.array(agentCapabilitySchema).default([]),
   humanApprovalFor: z.array(agentRiskSchema).default(['privileged', 'destructive']),
   maxSteps: z.number().int().positive().max(100).default(12),
