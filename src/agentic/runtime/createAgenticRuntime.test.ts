@@ -85,12 +85,14 @@ describe('createAgenticRuntime', () => {
     const workflowId = 'skill-evidence-workflow';
     const correlationId = 'skill-evidence-correlation';
     const manifestId = 'skill-evidence-manifest';
+    const executor = runtime.registry.get('engineering-orchestrator');
+    const skill = runtime.skills.get('repository-engineering');
 
     runtime.manifests.issue({
       id: manifestId,
       correlationId,
       workflowId,
-      agentId: 'engineering-orchestrator',
+      agentId: executor.id,
       capability: 'repo.read',
       risk: 'read',
       allowedResources: ['repo:test'],
@@ -110,10 +112,25 @@ describe('createAgenticRuntime', () => {
     });
 
     runtime.evidence.append({
+      id: `${correlationId}:admission`,
+      correlationId,
+      workflowId,
+      agentId: executor.id,
+      kind: 'admission',
+      occurredAt: '2026-09-02T00:00:30.000Z',
+      payload: {
+        manifestId,
+        agentVersion: executor.version,
+        skillId: skill.id,
+        skillVersion: skill.version,
+      },
+    });
+
+    runtime.evidence.append({
       id: `${correlationId}:tool-call`,
       correlationId,
       workflowId,
-      agentId: 'engineering-orchestrator',
+      agentId: executor.id,
       kind: 'tool_call',
       occurredAt: '2026-09-02T00:01:00.000Z',
       payload: { manifestId },
