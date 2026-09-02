@@ -23,15 +23,14 @@ const issueReadManifest = (
 describe('GovernedAgentExecutor', () => {
   it('executes a declared read through manifest, kernel, policy and gateway and leaves workflow verifying', async () => {
     const read = vi.fn().mockResolvedValue({ content: 'ok' });
-    const runtime = createAgenticRuntime({
-      github: { read, search: vi.fn(), write: vi.fn() },
-    });
+    const runtime = createAgenticRuntime({ github: { read, search: vi.fn(), write: vi.fn() } });
     issueReadManifest(runtime, 'corr-read');
 
     const execution = await runtime.executor.execute({
       agentId: 'engineering-orchestrator', capability: 'repo.read', risk: 'read', approvedByHuman: false,
-      correlationId: 'corr-read', idempotencyKey: 'idem-read', manifestId: 'manifest-corr-read',
-      resource: 'repo:path:README.md', input: { path: 'README.md', ref: 'dev' },
+      correlationId: 'corr-read', idempotencyKey: 'idem-read', executionNonce: 'nonce-read',
+      manifestId: 'manifest-corr-read', resource: 'repo:path:README.md',
+      input: { path: 'README.md', ref: 'dev' },
     });
 
     expect(read).toHaveBeenCalledOnce();
@@ -39,6 +38,7 @@ describe('GovernedAgentExecutor', () => {
     expect(execution.workflow.state).toBe('verifying');
     expect(execution.workflow.verified).toBe(false);
     expect(runtime.manifests.executionsUsed('manifest-corr-read')).toBe(1);
+    expect(runtime.manifests.hasConsumedNonce('nonce-read')).toBe(true);
     expect(runtime.evidence.verifyIntegrity()).toBe(true);
   });
 
@@ -49,8 +49,8 @@ describe('GovernedAgentExecutor', () => {
 
     await expect(runtime.executor.execute({
       agentId: 'engineering-orchestrator', capability: 'repo.read', risk: 'read', approvedByHuman: false,
-      correlationId: 'corr-scope', idempotencyKey: 'idem-scope', manifestId: 'manifest-corr-scope',
-      resource: 'repo:path:.env', input: { path: '.env' },
+      correlationId: 'corr-scope', idempotencyKey: 'idem-scope', executionNonce: 'nonce-scope',
+      manifestId: 'manifest-corr-scope', resource: 'repo:path:.env', input: { path: '.env' },
     })).rejects.toThrow('fora do escopo');
     expect(read).not.toHaveBeenCalled();
   });
@@ -62,8 +62,8 @@ describe('GovernedAgentExecutor', () => {
     issueReadManifest(runtime, 'corr-verified');
     const execution = await runtime.executor.execute({
       agentId: 'engineering-orchestrator', capability: 'repo.read', risk: 'read', approvedByHuman: false,
-      correlationId: 'corr-verified', idempotencyKey: 'idem-verified', manifestId: 'manifest-corr-verified',
-      resource: 'repo:path:README.md', input: { path: 'README.md' },
+      correlationId: 'corr-verified', idempotencyKey: 'idem-verified', executionNonce: 'nonce-verified',
+      manifestId: 'manifest-corr-verified', resource: 'repo:path:README.md', input: { path: 'README.md' },
     });
 
     const completed = runtime.verification.verify({
@@ -87,8 +87,8 @@ describe('GovernedAgentExecutor', () => {
     issueReadManifest(runtime, 'corr-self-review', 'reviewer-agent');
     const execution = await runtime.executor.execute({
       agentId: 'reviewer-agent', capability: 'repo.read', risk: 'read', approvedByHuman: false,
-      correlationId: 'corr-self-review', idempotencyKey: 'idem-self-review', manifestId: 'manifest-corr-self-review',
-      resource: 'repo:path:README.md', input: { path: 'README.md' },
+      correlationId: 'corr-self-review', idempotencyKey: 'idem-self-review', executionNonce: 'nonce-self-review',
+      manifestId: 'manifest-corr-self-review', resource: 'repo:path:README.md', input: { path: 'README.md' },
     });
 
     expect(() => runtime.verification.verify({
@@ -104,8 +104,8 @@ describe('GovernedAgentExecutor', () => {
     issueReadManifest(runtime, 'corr-rejected');
     const execution = await runtime.executor.execute({
       agentId: 'engineering-orchestrator', capability: 'repo.read', risk: 'read', approvedByHuman: false,
-      correlationId: 'corr-rejected', idempotencyKey: 'idem-rejected', manifestId: 'manifest-corr-rejected',
-      resource: 'repo:path:README.md', input: { path: 'README.md' },
+      correlationId: 'corr-rejected', idempotencyKey: 'idem-rejected', executionNonce: 'nonce-rejected',
+      manifestId: 'manifest-corr-rejected', resource: 'repo:path:README.md', input: { path: 'README.md' },
     });
 
     const failed = runtime.verification.verify({
@@ -129,8 +129,8 @@ describe('GovernedAgentExecutor', () => {
 
     await expect(runtime.executor.execute({
       agentId: 'backend-agent', capability: 'deploy.production', risk: 'privileged', approvedByHuman: true,
-      correlationId: 'corr-denied', idempotencyKey: 'idem-denied', manifestId: 'not-reached',
-      resource: 'hostinger:target:vm-1', artifactRef: 'ghcr.io/example/app:sha',
+      correlationId: 'corr-denied', idempotencyKey: 'idem-denied', executionNonce: 'nonce-denied',
+      manifestId: 'not-reached', resource: 'hostinger:target:vm-1', artifactRef: 'ghcr.io/example/app:sha',
       input: { artifactRef: 'ghcr.io/example/app:sha' },
     })).rejects.toThrow('Capability explicitamente negada');
 
@@ -163,7 +163,7 @@ describe('GovernedAgentExecutor', () => {
 
     const execution = await runtime.executor.execute({
       agentId: 'release-agent', capability: 'deploy.production', risk: 'privileged', approvedByHuman: true,
-      correlationId, idempotencyKey: 'idem-release', manifestId: 'manifest-release-1',
+      correlationId, idempotencyKey: 'idem-release', executionNonce: 'nonce-release', manifestId: 'manifest-release-1',
       resource: 'hostinger:target:vm-1', artifactRef: 'ghcr.io/example/app:sha',
       approvalReceiptId: 'approval-release-1', leaseResource: 'hostinger:production',
       input: { artifactRef: 'ghcr.io/example/app:sha' },
