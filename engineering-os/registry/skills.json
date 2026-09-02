@@ -1,0 +1,28 @@
+{
+  "version": 1,
+  "skills": [
+    {"id":"repository-inventory","maxRisk":"low","allowedTools":["repository.read"],"requiredEvidenceKinds":["artifact","diff"]},
+    {"id":"architecture-design","maxRisk":"medium","allowedTools":["repository.read"],"requiredEvidenceKinds":["artifact","review"]},
+    {"id":"contract-design","maxRisk":"medium","allowedTools":["repository.read","repository.write-source","repository.write-test"],"requiredEvidenceKinds":["artifact","test"]},
+    {"id":"implementation","maxRisk":"high","allowedTools":["repository.read","repository.write-source","repository.write-test"],"requiredEvidenceKinds":["diff","test"]},
+    {"id":"code-review","maxRisk":"low","allowedTools":["repository.read"],"requiredEvidenceKinds":["review"]},
+    {"id":"threat-modeling","maxRisk":"medium","allowedTools":["repository.read"],"requiredEvidenceKinds":["artifact","review"]},
+    {"id":"security-review","maxRisk":"high","allowedTools":["repository.read","repository.write-test","security.write-policy"],"requiredEvidenceKinds":["test","review"]},
+    {"id":"supabase-schema","maxRisk":"high","allowedTools":["repository.read","database.write-migration","repository.write-test"],"requiredEvidenceKinds":["diff","test"]},
+    {"id":"rls-design","maxRisk":"high","allowedTools":["repository.read","database.write-migration","repository.write-test"],"requiredEvidenceKinds":["test","review"]},
+    {"id":"database-migration","maxRisk":"high","allowedTools":["repository.read","database.write-migration","repository.write-test"],"requiredEvidenceKinds":["artifact","test"]},
+    {"id":"edge-functions","maxRisk":"high","allowedTools":["repository.read","repository.write-source","repository.write-test"],"requiredEvidenceKinds":["diff","test"]},
+    {"id":"auth-hardening","maxRisk":"high","allowedTools":["repository.read","repository.write-source","repository.write-test","security.write-policy"],"requiredEvidenceKinds":["test","review"]},
+    {"id":"storage-security","maxRisk":"high","allowedTools":["repository.read","database.write-migration","repository.write-test"],"requiredEvidenceKinds":["test","review"]},
+    {"id":"payment-safety","maxRisk":"high","allowedTools":["repository.read","repository.write-source","repository.write-test"],"requiredEvidenceKinds":["test","review"]},
+    {"id":"unit-testing","maxRisk":"medium","allowedTools":["repository.read","repository.write-test","quality.execute"],"requiredEvidenceKinds":["test"]},
+    {"id":"integration-testing","maxRisk":"medium","allowedTools":["repository.read","repository.write-test","quality.execute"],"requiredEvidenceKinds":["test"]},
+    {"id":"contract-testing","maxRisk":"medium","allowedTools":["repository.read","repository.write-test","quality.execute"],"requiredEvidenceKinds":["test","artifact"]},
+    {"id":"e2e-testing","maxRisk":"medium","allowedTools":["repository.read","repository.write-test","quality.execute"],"requiredEvidenceKinds":["test"]},
+    {"id":"performance-audit","maxRisk":"medium","allowedTools":["repository.read","repository.write-test","quality.execute"],"requiredEvidenceKinds":["test","artifact"]},
+    {"id":"accessibility-audit","maxRisk":"medium","allowedTools":["repository.read","repository.write-test","quality.execute"],"requiredEvidenceKinds":["test","review"]},
+    {"id":"quality-certification","maxRisk":"high","allowedTools":["repository.read","quality.execute","repository.write-ci"],"requiredEvidenceKinds":["workflow","test"]},
+    {"id":"release-readiness","maxRisk":"critical","allowedTools":["repository.read","quality.execute","release.write-metadata"],"requiredEvidenceKinds":["workflow","review"]},
+    {"id":"incident-recovery","maxRisk":"critical","allowedTools":["repository.read","quality.execute"],"requiredEvidenceKinds":["artifact","review","test"]}
+  ]
+}
