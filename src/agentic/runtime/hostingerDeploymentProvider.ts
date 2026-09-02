@@ -18,12 +18,15 @@ export interface HostingerDeploymentTransport {
 
 export class HostingerDeploymentProvider implements DeploymentProviderAdapter {
   readonly id = 'hostinger';
+  readonly resourceId: string;
 
   constructor(
     private readonly config: HostingerDeploymentConfig,
     private readonly transport: HostingerDeploymentTransport,
   ) {
-    if (!config.targetId.trim()) throw new Error('Hostinger targetId obrigatório.');
+    const targetId = config.targetId.trim();
+    if (!targetId) throw new Error('Hostinger targetId obrigatório.');
+    this.resourceId = `hostinger:target:${targetId}`;
   }
 
   deploy(request: DeploymentRequest): Promise<DeploymentResult> {
