@@ -14,7 +14,7 @@ const skills: SkillContract[] = [
     enabled: true,
     capabilityPrefixes: ['repo.'],
     allowedRisks: allRisks,
-    requiredEvidence: ['diff', 'tests'],
+    requiredEvidence: ['tool_result'],
   },
   {
     id: 'architecture-and-contracts',
@@ -24,7 +24,7 @@ const skills: SkillContract[] = [
     enabled: true,
     capabilityPrefixes: ['architecture.', 'contracts.'],
     allowedRisks: nonDestructiveRisks,
-    requiredEvidence: ['architecture-decision'],
+    requiredEvidence: ['tool_result'],
   },
   {
     id: 'requirements-and-planning',
@@ -34,7 +34,7 @@ const skills: SkillContract[] = [
     enabled: true,
     capabilityPrefixes: ['requirements.', 'product.', 'implementation.', 'acceptance.', 'risk.'],
     allowedRisks: nonDestructiveRisks,
-    requiredEvidence: ['acceptance-criteria'],
+    requiredEvidence: ['tool_result'],
   },
   {
     id: 'frontend-engineering',
@@ -44,7 +44,7 @@ const skills: SkillContract[] = [
     enabled: true,
     capabilityPrefixes: ['frontend.', 'ui.', 'ux.', 'accessibility.'],
     allowedRisks: nonDestructiveRisks,
-    requiredEvidence: ['tests'],
+    requiredEvidence: ['tool_result'],
   },
   {
     id: 'backend-api-engineering',
@@ -54,7 +54,7 @@ const skills: SkillContract[] = [
     enabled: true,
     capabilityPrefixes: ['backend.', 'api.'],
     allowedRisks: allRisks,
-    requiredEvidence: ['contract-tests'],
+    requiredEvidence: ['tool_result'],
   },
   {
     id: 'database-engineering',
@@ -64,7 +64,7 @@ const skills: SkillContract[] = [
     enabled: true,
     capabilityPrefixes: ['database.'],
     allowedRisks: allRisks,
-    requiredEvidence: ['migration-validation', 'rls-validation'],
+    requiredEvidence: ['tool_result'],
   },
   {
     id: 'security-engineering',
@@ -74,7 +74,7 @@ const skills: SkillContract[] = [
     enabled: true,
     capabilityPrefixes: ['security.'],
     allowedRisks: nonDestructiveRisks,
-    requiredEvidence: ['security-review'],
+    requiredEvidence: ['tool_result'],
   },
   {
     id: 'quality-assurance',
@@ -84,7 +84,7 @@ const skills: SkillContract[] = [
     enabled: true,
     capabilityPrefixes: ['tests.', 'quality.'],
     allowedRisks: nonDestructiveRisks,
-    requiredEvidence: ['test-results'],
+    requiredEvidence: ['tool_result'],
   },
   {
     id: 'performance-engineering',
@@ -94,7 +94,7 @@ const skills: SkillContract[] = [
     enabled: true,
     capabilityPrefixes: ['performance.'],
     allowedRisks: nonDestructiveRisks,
-    requiredEvidence: ['performance-results'],
+    requiredEvidence: ['tool_result'],
   },
   {
     id: 'observability-engineering',
@@ -104,7 +104,7 @@ const skills: SkillContract[] = [
     enabled: true,
     capabilityPrefixes: ['observability.', 'telemetry.'],
     allowedRisks: nonDestructiveRisks,
-    requiredEvidence: ['observability-results'],
+    requiredEvidence: ['tool_result'],
   },
   {
     id: 'evidence-governance',
@@ -114,7 +114,7 @@ const skills: SkillContract[] = [
     enabled: true,
     capabilityPrefixes: ['evidence.'],
     allowedRisks: nonDestructiveRisks,
-    requiredEvidence: [],
+    requiredEvidence: ['tool_result'],
   },
   {
     id: 'release-and-deployment',
@@ -124,7 +124,7 @@ const skills: SkillContract[] = [
     enabled: true,
     capabilityPrefixes: ['release.', 'deploy.', 'rollback.'],
     allowedRisks: allRisks,
-    requiredEvidence: ['release-gates', 'rollback-plan'],
+    requiredEvidence: ['tool_result', 'deployment_health'],
   },
   {
     id: 'review-and-verification',
@@ -134,7 +134,7 @@ const skills: SkillContract[] = [
     enabled: true,
     capabilityPrefixes: ['review.', 'verification.'],
     allowedRisks: nonDestructiveRisks,
-    requiredEvidence: ['review-result'],
+    requiredEvidence: ['tool_result'],
   },
 ];
 
