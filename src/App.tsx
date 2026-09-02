@@ -73,6 +73,8 @@ const ContentArticleDetailPage = lazy(() => import('@/modules/content-portal/pag
 const CommunityLandingPage = lazy(() => import('@/modules/community/pages/CommunityLandingPage'));
 const LegalDocumentPage = lazy(() => import('@/modules/legal/pages/LegalDocumentPage'));
 const PublicOpportunitiesPage = lazy(() => import('@/modules/opportunities/pages/PublicOpportunitiesPage'));
+const PublicServicesPage = lazy(() => import('@/modules/services/pages/PublicServicesPage'));
+const ServiceDetailPage = lazy(() => import('@/modules/services/pages/ServiceDetailPage'));
 
 const MyCoursesPage = lazy(() => import('@/modules/dashboard/pages/MyCoursesPage'));
 const OrdersPage = lazy(() => import('@/modules/dashboard/pages/OrdersPage'));
@@ -85,18 +87,25 @@ const DownloadsPage = lazy(() => import('@/modules/marketplace/pages/DownloadsPa
 const LibraryPage = lazy(() => import('@/modules/library/pages/LibraryPage'));
 const CommunityPage = lazy(() => import('@/modules/community/pages/CommunityPage'));
 const OpportunitiesPage = lazy(() => import('@/modules/opportunities/pages/OpportunitiesPage'));
+const StudentServicesPage = lazy(() => import('@/modules/services/pages/StudentServicesPage'));
+const StudentServiceRequestsPage = lazy(() => import('@/modules/services/pages/StudentServiceRequestsPage'));
 const InstructorDashboard = lazy(() => import('@/modules/instructor/pages/InstructorDashboard'));
 const InstructorCoursesPage = lazy(() => import('@/modules/instructor/pages/InstructorCoursesPage'));
 const InstructorAudiencePage = lazy(() => import('@/modules/instructor/pages/InstructorAudiencePage'));
 const InstructorReportsPage = lazy(() => import('@/modules/instructor/pages/InstructorReportsPage'));
+const InstructorFinancePage = lazy(() => import('@/modules/instructor/pages/InstructorFinancePage'));
+const ProducerServicesPage = lazy(() => import('@/modules/services/pages/ProducerServicesPage'));
+const ProducerServiceRequestsPage = lazy(() => import('@/modules/services/pages/ProducerServiceRequestsPage'));
 const CompanyDashboardPage = lazy(() => import('@/modules/company/pages/CompanyDashboardPage'));
 const CompanyOpportunitiesPage = lazy(() => import('@/modules/company/pages/CompanyOpportunitiesPage'));
 const CompanyCandidatesPage = lazy(() => import('@/modules/company/pages/CompanyCandidatesPage'));
 const CompanyMessagesPage = lazy(() => import('@/modules/company/pages/CompanyMessagesPage'));
 const CompanyProfilePage = lazy(() => import('@/modules/company/pages/CompanyProfilePage'));
+const CompanyCreditsPage = lazy(() => import('@/modules/company/pages/CompanyCreditsPage'));
 
 const queryClient = new QueryClient();
-const Router = import.meta.env.VITE_ROUTER_MODE === 'hash' ? HashRouter : BrowserRouter;
+const isGitHubPages = typeof window !== 'undefined' && window.location.hostname.endsWith('github.io');
+const Router = isGitHubPages || import.meta.env.VITE_ROUTER_MODE === 'hash' ? HashRouter : BrowserRouter;
 
 const LessonRoute = () => {
   const { lessonId } = useParams();
@@ -144,6 +153,8 @@ const App = () => (
                 <Route path={ROUTES.marketplaceBeats} element={<BeatMarketplacePage />} />
                 <Route path="/marketplace/beats/:beatSlug" element={<BeatDetailPage />} />
                 <Route path="/marketplace/:productSlug" element={<ProductDetailPage />} />
+                <Route path={ROUTES.servicesPublic} element={<PublicServicesPage />} />
+                <Route path="/servicos/:serviceSlug" element={<ServiceDetailPage />} />
                 <Route path={ROUTES.cart} element={<CartPage />} />
                 <Route path={ROUTES.checkout} element={<CheckoutPage />} />
                 <Route path={ROUTES.validateCertificate} element={<ValidateCertificatePage />} />
@@ -165,6 +176,8 @@ const App = () => (
                 <Route path={ROUTES.library} element={studentRoute(<LibraryPage />)} />
                 <Route path={ROUTES.community} element={studentRoute(<CommunityPage />)} />
                 <Route path={ROUTES.opportunities} element={studentRoute(<OpportunitiesPage />)} />
+                <Route path={ROUTES.studentServices} element={studentRoute(<StudentServicesPage />)} />
+                <Route path={ROUTES.studentServiceRequests} element={studentRoute(<StudentServiceRequestsPage />)} />
                 <Route path={ROUTES.orders} element={studentRoute(<OrdersPage />)} />
                 <Route path={ROUTES.favorites} element={studentRoute(<FavoritesPage />)} />
                 <Route path={ROUTES.editProfile} element={studentRoute(<EditProfile />)} />
@@ -176,11 +189,14 @@ const App = () => (
                 <Route path={ROUTES.instructorCourses} element={instructorRoute(<InstructorCoursesPage />)} />
                 <Route path={ROUTES.instructorAudience} element={instructorRoute(<InstructorAudiencePage />)} />
                 <Route path={ROUTES.instructorReports} element={instructorRoute(<InstructorReportsPage />)} />
+                <Route path={ROUTES.instructorFinance} element={instructorRoute(<InstructorFinancePage />)} />
 
                 <Route path={ROUTES.producer} element={producerRoute(<ProducerDashboardPage />)} />
                 <Route path={ROUTES.producerBeats} element={producerRoute(<ProducerBeatsDashboardPage />)} />
                 <Route path={ROUTES.producerProducts} element={producerRoute(<ProducerProductsPage />)} />
                 <Route path={ROUTES.producerOrders} element={producerRoute(<ProducerOrdersPage />)} />
+                <Route path={ROUTES.producerServices} element={producerRoute(<ProducerServicesPage />)} />
+                <Route path={ROUTES.producerServiceRequests} element={producerRoute(<ProducerServiceRequestsPage />)} />
 
                 <Route path={ROUTES.affiliate} element={affiliateRoute(<AffiliatePortalPage />)} />
                 <Route path={ROUTES.affiliateLinks} element={affiliateRoute(<AffiliatePortalPage />)} />
@@ -195,6 +211,7 @@ const App = () => (
                 <Route path={ROUTES.companyCandidates} element={companyRoute(<CompanyCandidatesPage />)} />
                 <Route path={ROUTES.companyMessages} element={companyRoute(<CompanyMessagesPage />)} />
                 <Route path={ROUTES.companyProfile} element={companyRoute(<CompanyProfilePage />)} />
+                <Route path={ROUTES.companyCredits} element={companyRoute(<CompanyCreditsPage />)} />
 
                 <Route path={ROUTES.admin} element={adminRoute(<AdminDashboard />)} />
                 <Route path={ROUTES.adminUsers} element={adminRoute(<AdminUsersPage />)} />
