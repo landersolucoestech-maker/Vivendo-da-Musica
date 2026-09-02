@@ -6,6 +6,7 @@ describe('createAgenticRuntime', () => {
   it('composes the complete governed runtime with the full specialist team', () => {
     const runtime = createAgenticRuntime();
     expect(runtime.registry.list()).toHaveLength(12);
+    expect(runtime.skills.list()).toHaveLength(13);
     expect(runtime.evidence.verifyIntegrity()).toBe(true);
     expect(runtime.adapters.listCapabilities()).toEqual([]);
     expect(runtime.deploymentProviders.list()).toEqual([]);
@@ -48,6 +49,7 @@ describe('createAgenticRuntime', () => {
   it('seals all mutable registries after trusted composition', () => {
     const runtime = createAgenticRuntime();
     expect(runtime.registry.isSealed()).toBe(true);
+    expect(runtime.skills.isSealed()).toBe(true);
     expect(runtime.adapters.isSealed()).toBe(true);
     expect(runtime.deploymentProviders.isSealed()).toBe(true);
     expect(() => runtime.adapters.register({
@@ -73,5 +75,53 @@ describe('createAgenticRuntime', () => {
   it('keeps adapters fail-closed until a trusted capability implementation is explicitly registered', () => {
     const runtime = createAgenticRuntime();
     expect(() => runtime.adapters.get('repo.write', 'write')).toThrow('Nenhum adapter registrado');
+  });
+
+  it('blocks workflow completion when the governing Skill evidence is missing', async () => {
+    const runtime = createAgenticRuntime();
+    const workflowId = 'skill-evidence-workflow';
+    const correlationId = 'skill-evidence-correlation';
+    const manifestId = 'skill-evidence-manifest';
+
+    runtime.manifests.issue({
+      id: manifestId,
+      correlationId,
+      workflowId,
+      agentId: 'engineering-orchestrator',
+      capability: 'repo.read',
+      risk: 'read',
+      allowedResources: ['repo:test'],
+      maxExecutions: 1,
+      requiredEvidenceKinds: [],
+      issuedAt: '2026-09-02T00:00:00.000Z',
+      expiresAt: '2026-09-03T00:00:00.000Z',
+    });
+
+    runtime.workflows.save({
+      id: workflowId,
+      state: 'verifying',
+      stepsExecuted: 1,
+      maxSteps: 10,
+      verified: false,
+      failureReason: null,
+    });
+
+    runtime.evidence.append({
+      id: `${correlationId}:tool-call`,
+      correlationId,
+      workflowId,
+      agentId: 'engineering-orchestrator',
+      kind: 'tool_call',
+      occurredAt: '2026-09-02T00:01:00.000Z',
+      payload: { manifestId },
+    });
+
+    await expect(runtime.verification.verify({
+      workflowId,
+      reviewerAgentId: 'reviewer-agent',
+      passed: true,
+    })).rejects.toThrow('Evidências obrigatórias ausentes para conclusão (repository-engineering): tool_result');
+
+    expect(runtime.workflows.get(workflowId)?.state).toBe('verifying');
   });
 });
