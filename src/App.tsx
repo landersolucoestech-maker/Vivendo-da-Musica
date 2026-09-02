@@ -1,6 +1,6 @@
 import { lazy, Suspense } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { BrowserRouter, HashRouter, Navigate, Route, Routes, useParams } from 'react-router-dom';
+import { BrowserRouter, Navigate, Route, Routes, useParams } from 'react-router-dom';
 
 import { EnrollmentGuard } from '@/app/guards/EnrollmentGuard';
 import { ProtectedRoute } from '@/app/guards/ProtectedRoute';
@@ -104,8 +104,9 @@ const CompanyProfilePage = lazy(() => import('@/modules/company/pages/CompanyPro
 const CompanyCreditsPage = lazy(() => import('@/modules/company/pages/CompanyCreditsPage'));
 
 const queryClient = new QueryClient();
-const isGitHubPages = typeof window !== 'undefined' && window.location.hostname.endsWith('github.io');
-const Router = isGitHubPages || import.meta.env.VITE_ROUTER_MODE === 'hash' ? HashRouter : BrowserRouter;
+const routerBasename = import.meta.env.BASE_URL === '/'
+  ? undefined
+  : import.meta.env.BASE_URL.replace(/\/+$/, '');
 
 const LessonRoute = () => {
   const { lessonId } = useParams();
@@ -120,7 +121,7 @@ const affiliateRoute = (element: JSX.Element) => <ProtectedRoute><RoleGuard allo
 const companyRoute = (element: JSX.Element) => <ProtectedRoute><RoleGuard allow={['company', 'admin', 'super_admin']}>{element}</RoleGuard></ProtectedRoute>;
 
 const App = () => (
-  <Router>
+  <BrowserRouter basename={routerBasename}>
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <CartProvider>
@@ -242,7 +243,7 @@ const App = () => (
         </CartProvider>
       </AuthProvider>
     </QueryClientProvider>
-  </Router>
+  </BrowserRouter>
 );
 
 export default App;
