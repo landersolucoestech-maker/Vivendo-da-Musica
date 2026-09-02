@@ -1,15 +1,15 @@
 {
   "id": "recovery",
-  "version": 1,
+  "version": 2,
   "risk": "critical",
   "steps": [
-    {"id":"assess","agent":"recovery-engineer","scope":"read","required":true,"gates":["assessment-evidence"]},
-    {"id":"restore-plan","agent":"recovery-engineer","scope":"plan","required":true,"gates":["restore-plan-evidence"]},
-    {"id":"data-validation","agent":"database-engineer","scope":"test-write","required":true,"gates":["data-validation-evidence"]},
-    {"id":"security-validation","agent":"security-engineer","scope":"evidence","required":true,"gates":["security-validation-evidence"]},
-    {"id":"service-validation","agent":"reliability-engineer","scope":"evidence","required":true,"gates":["service-validation-evidence"]},
-    {"id":"quality","agent":"quality-engineer","scope":"evidence","required":true,"gates":["quality-evidence"]},
-    {"id":"review","agent":"completion-auditor","scope":"evidence","required":true,"gates":["independent-review"]}
+    {"id":"assess","agent":"recovery-engineer","skill":"incident-recovery","scope":"read","required":true,"gates":["assessment-evidence"]},
+    {"id":"restore-plan","agent":"recovery-engineer","skill":"incident-recovery","scope":"plan","required":true,"gates":["restore-plan-evidence"]},
+    {"id":"data-validation","agent":"database-engineer","skill":"contract-testing","scope":"test-write","required":true,"gates":["data-validation-evidence"]},
+    {"id":"security-validation","agent":"security-engineer","skill":"security-review","scope":"evidence","required":true,"gates":["security-validation-evidence"]},
+    {"id":"service-validation","agent":"reliability-engineer","skill":"incident-recovery","scope":"evidence","required":true,"gates":["service-validation-evidence"]},
+    {"id":"quality","agent":"quality-engineer","skill":"quality-certification","scope":"evidence","required":true,"gates":["quality-evidence"]},
+    {"id":"review","agent":"completion-auditor","skill":"code-review","scope":"evidence","required":true,"gates":["independent-review"]}
   ],
   "requiredGates": ["assessment-evidence","restore-plan-evidence","data-validation-evidence","security-validation-evidence","service-validation-evidence","quality-evidence","independent-review"]
 }
