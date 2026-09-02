@@ -19,6 +19,7 @@ export const performanceAgent: AgentContract = {
     'evidence.collect',
     'deploy.production',
   ],
+  skillIds: ['repository-engineering', 'performance-engineering', 'quality-assurance', 'evidence-governance'],
   deniedCapabilities: ['deploy.production'],
   humanApprovalFor: ['privileged', 'destructive'],
   maxSteps: 26,
