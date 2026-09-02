@@ -17,6 +17,15 @@ Construir uma camada agentic de engenharia governada por um runtime determiníst
 9. Mudanças de produção continuam subordinadas aos Quality Gates e gates de release existentes.
 10. Falhas de resolução, autorização, política ou evidência encerram a execução de forma segura.
 
+## Decisão de infraestrutura de hospedagem
+
+- O provedor oficial de hospedagem do Vivendo da Música é **Hostinger**.
+- O runtime de deploy deve usar `DeploymentProviderRegistry` e provider `hostinger`.
+- O provider Hostinger suporta modos explícitos `vps-docker` e `web-app`; o modo real precisa ser configurado antes do primeiro deploy.
+- Nenhum agente pode falar diretamente com o provedor de hospedagem; toda operação passa por policy, approval, idempotência, lease quando aplicável e evidence.
+- O pipeline continua podendo produzir artefatos OCI no GHCR; o consumo/promoção desses artefatos pela Hostinger é responsabilidade do adapter de deploy aprovado.
+- Referências operacionais à Vercel são proibidas e verificadas por `test:deployment-provider` dentro de `npm run quality`.
+
 ## Camadas
 
 ### 1. Contracts
@@ -43,11 +52,16 @@ Registra inputs, decisões de gates, artefatos, diffs, testes, logs relevantes e
 
 Máquina de estados explícita para investigate -> plan -> approve -> execute -> verify -> close. Transições inválidas são rejeitadas.
 
-### 7. Agents
+### 7. Deployment Provider Registry
 
-Primeiro núcleo planejado:
+Abstração única para hospedagem. Nenhum provider é usado implicitamente. O provider oficial é `hostinger`, com transporte explícito e fail-closed enquanto target/mode/credenciais não estiverem configurados.
+
+### 8. Agents
+
+Núcleo registrado:
 
 - Engineering Orchestrator — coordena e decompõe trabalho.
+- Product/Requirements Agent — requisitos, critérios de aceite e conflitos.
 - Architecture Agent — contratos, boundaries e dependências.
 - Frontend Agent — React, UX, acessibilidade e design system.
 - Backend/API Agent — serviços, Edge Functions e contratos.
@@ -57,33 +71,41 @@ Primeiro núcleo planejado:
 - Performance Agent — budgets, bundle, consultas e carga.
 - Observability Agent — logs, métricas, tracing e SLOs.
 - Release Agent — staging, promoção, rollback e evidências de release.
-- Product/Requirements Agent — requisitos, critérios de aceite e conflitos.
 - Reviewer Agent — revisão independente antes do fechamento.
 
 ## Estado atual
 
-Implementado na primeira fundação:
+Implementado:
 
-- `src/agentic/contracts/agentContract.ts`
-- `src/agentic/registry/agentRegistry.ts`
-- `src/agentic/registry/defaultAgentRegistry.ts`
-- `src/agentic/runtime/deterministicAgentRuntime.ts`
-- `src/agentic/runtime/deterministicAgentRuntime.test.ts`
-- `src/agentic/agents/engineeringOrchestrator.agent.ts`
+- contratos e registry de agentes;
+- runtime determinístico;
+- policy engine deny-by-default;
+- evidence store append-only com verificação de integridade;
+- workflow state machine e workflow store;
+- separation of duties;
+- capability adapter registry fail-closed;
+- idempotency store;
+- approval receipts vinculados a workflow/agente/capability;
+- leases/locks;
+- retries, timeout e circuit breaker;
+- delegation protocol;
+- tool execution gateway;
+- composition root único;
+- 12 agentes especializados;
+- `test:agentic` como quality gate explícito;
+- `test:deployment-provider` como gate de política de hospedagem;
+- `DeploymentProviderRegistry` e `HostingerDeploymentProvider`.
 
 ## Próxima sequência de implementação
 
-1. Evidence contracts e append-only execution journal.
-2. Policy engine com precedência deny > approval > allow.
-3. Workflow state machine e invariantes de transição.
-4. Capability adapters para GitHub, Supabase, CI e observabilidade.
-5. Architecture, Security, Database, Frontend, Backend e QA agents.
-6. Reviewer independente e separation of duties.
-7. Budget de steps, timeout, retries e circuit breaker.
-8. Idempotência e replay seguro de workflows.
-9. Persistência auditável das execuções.
-10. Integração dos gates agentic ao CI existente.
+1. Definir o modo Hostinger efetivamente contratado (`vps-docker` ou `web-app`) e o target correspondente.
+2. Implementar transporte Hostinger real somente no backend/CI, nunca no bundle do frontend.
+3. Registrar adapters reais de GitHub e Supabase no Tool Execution Gateway.
+4. Persistir evidence/workflows fora da memória para execuções duráveis.
+5. Ligar gates de release a evidências produzidas pelo CI.
+6. Executar staging na Hostinger antes de qualquer promoção para produção.
+7. Exercitar rollback real e registrar RPO/RTO operacional.
 
 ## Critério de pronto da camada agentic
 
-A camada só será considerada pronta quando permissões forem deny-by-default, workflows forem determinísticos, operações sensíveis exigirem autorização apropriada, evidências forem obrigatórias, agentes especialistas estiverem registrados/versionados, testes cobrirem caminhos de sucesso e negação, e nenhum agente puder burlar policy, gate, registry ou approval por prompt.
+A camada só será considerada pronta quando permissões forem deny-by-default, workflows forem determinísticos, operações sensíveis exigirem autorização apropriada, evidências forem obrigatórias, agentes especialistas estiverem registrados/versionados, testes cobrirem caminhos de sucesso e negação, deploy Hostinger estiver governado pelo runtime e nenhum agente puder burlar policy, gate, registry ou approval por prompt.
