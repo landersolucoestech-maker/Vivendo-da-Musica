@@ -2,6 +2,7 @@ import { createDeploymentCapabilityAdapters } from '@/agentic/adapters/deploymen
 import { createPostHogCapabilityAdapters, type PostHogTransport } from '@/agentic/adapters/posthogCapabilityAdapters';
 import { createRepositoryCapabilityAdapters, type RepositoryTransport } from '@/agentic/adapters/repositoryCapabilityAdapters';
 import { createSupabaseCapabilityAdapters, type SupabaseTransport } from '@/agentic/adapters/supabaseCapabilityAdapters';
+import type { ExecutionManifestSignatureVerifier } from '@/agentic/contracts/executionManifest';
 import { EvidenceStore } from '@/agentic/evidence/evidenceStore';
 import { createDefaultPolicyEngine } from '@/agentic/policy/defaultPolicySet';
 import { createDefaultAgentRegistry } from '@/agentic/registry/defaultAgentRegistry';
@@ -10,6 +11,7 @@ import { ApprovalReceiptStore } from '@/agentic/runtime/approvalReceiptStore';
 import { CapabilityAdapterRegistry } from '@/agentic/runtime/capabilityAdapterRegistry';
 import { DelegationProtocol } from '@/agentic/runtime/delegationProtocol';
 import { DeploymentProviderRegistry } from '@/agentic/runtime/deploymentProviderRegistry';
+import { ExecutionManifestStore } from '@/agentic/runtime/executionManifestStore';
 import { GovernedAgentExecutor } from '@/agentic/runtime/governedAgentExecutor';
 import {
   HostingerDeploymentProvider,
@@ -26,6 +28,7 @@ export interface AgenticRuntimeOptions {
   github?: RepositoryTransport;
   supabase?: SupabaseTransport;
   posthog?: PostHogTransport;
+  manifestSignatureVerifier?: ExecutionManifestSignatureVerifier;
   hostinger?: {
     config: HostingerDeploymentConfig;
     transport: HostingerDeploymentTransport;
@@ -49,6 +52,7 @@ export const createAgenticRuntime = (options: AgenticRuntimeOptions = {}) => {
   const approvals = new ApprovalReceiptStore();
   const leases = new LeaseManager();
   const workflows = new WorkflowStore();
+  const manifests = new ExecutionManifestStore(options.manifestSignatureVerifier);
 
   if (options.github) registerAdapters(adapters, createRepositoryCapabilityAdapters(options.github));
   if (options.supabase) registerAdapters(adapters, createSupabaseCapabilityAdapters(options.supabase));
@@ -68,8 +72,8 @@ export const createAgenticRuntime = (options: AgenticRuntimeOptions = {}) => {
 
   const kernel = new AgentExecutionKernel(registry, policies, evidence);
   const gateway = new ToolExecutionGateway(adapters, idempotency, approvals, leases, evidence);
-  const executor = new GovernedAgentExecutor(kernel, gateway, workflows, evidence);
-  const verification = new WorkflowVerificationService(registry, workflows, evidence);
+  const executor = new GovernedAgentExecutor(kernel, gateway, workflows, evidence, manifests);
+  const verification = new WorkflowVerificationService(registry, workflows, evidence, manifests);
 
   return Object.freeze({
     registry,
@@ -81,6 +85,7 @@ export const createAgenticRuntime = (options: AgenticRuntimeOptions = {}) => {
     approvals,
     leases,
     workflows,
+    manifests,
     kernel,
     delegation: new DelegationProtocol(registry),
     executor,
