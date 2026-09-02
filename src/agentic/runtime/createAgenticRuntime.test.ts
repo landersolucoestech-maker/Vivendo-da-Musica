@@ -45,6 +45,18 @@ describe('createAgenticRuntime', () => {
     ]);
   });
 
+  it('seals all mutable registries after trusted composition', () => {
+    const runtime = createAgenticRuntime();
+    expect(runtime.registry.isSealed()).toBe(true);
+    expect(runtime.adapters.isSealed()).toBe(true);
+    expect(runtime.deploymentProviders.isSealed()).toBe(true);
+    expect(() => runtime.adapters.register({
+      capability: 'repo.read',
+      allowedRisks: ['read'],
+      async execute() { return null; },
+    })).toThrow('selado');
+  });
+
   it('allows declared reads and requires human approval for privileged risk by default', () => {
     const runtime = createAgenticRuntime();
     expect(runtime.policies.evaluate({
