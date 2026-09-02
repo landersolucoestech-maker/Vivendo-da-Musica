@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vivendodamusica.local/engineering-os/run-state.schema.json",
+  "title": "Engineering OS Run State",
+  "type": "object",
+  "required": ["version", "id", "workflowId", "risk", "status", "createdAt", "updatedAt", "approvals", "steps", "gates", "evidence", "events"],
+  "properties": {
+    "version": {"const": 1},
+    "id": {"type": "string", "minLength": 1},
+    "workflowId": {"type": "string", "minLength": 1},
+    "risk": {"enum": ["low", "medium", "high", "critical"]},
+    "status": {"enum": ["created", "planned", "running", "blocked", "awaiting-approval", "review", "completed", "failed", "cancelled"]},
+    "createdAt": {"type": "string", "format": "date-time"},
+    "updatedAt": {"type": "string", "format": "date-time"},
+    "metadata": {"type": "object"},
+    "approvals": {"type": "array"},
+    "steps": {"type": "object"},
+    "gates": {"type": "object"},
+    "evidence": {"type": "array"},
+    "events": {"type": "array"}
+  },
+  "additionalProperties": false
+}
