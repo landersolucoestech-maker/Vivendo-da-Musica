@@ -8,3 +8,11 @@ export const useModules = () => {
     queryFn: () => academyService.listCourseModules(),
   });
 };
+
+export const useCourseModules = (courseId?: string) => {
+  return useQuery<CourseModule[]>({
+    queryKey: ['course-modules', courseId],
+    queryFn: () => academyService.listCourseModules(courseId),
+    enabled: Boolean(courseId),
+  });
+};
