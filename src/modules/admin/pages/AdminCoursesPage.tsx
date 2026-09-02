@@ -5,6 +5,7 @@ import AdminLayout from '@/app/layouts/AdminLayout';
 import PageHeader from '@/shared/components/PageHeader';
 import StatCard from '@/shared/components/StatCard';
 import DataTable from '@/shared/components/DataTable';
+import LoadingState from '@/shared/components/LoadingState';
 import SearchInput from '@/shared/components/SearchInput';
 import FilterBar from '@/shared/components/FilterBar';
 import StatusBadge from '@/shared/components/StatusBadge';
@@ -102,63 +103,68 @@ const AdminCoursesPage = ({ initialMode, initialCourseId }: AdminCoursesPageProp
         </p>
       )}
 
-      <div className="mb-6 grid gap-4 sm:grid-cols-3">
-        <StatCard label="Total de cursos" value={String(rows.length)} />
-        <StatCard label="Publicados" value={String(rows.filter((course) => course.status === 'published').length)} />
-        <StatCard
-          label="Aulas cadastradas"
-          value={String(rows.reduce((total, course) => total + course.course_modules.reduce((moduleTotal, module) => moduleTotal + module.lessons.length, 0), 0))}
-        />
-      </div>
-
-      <div className="mb-6 flex flex-col gap-4 sm:flex-row">
-        <SearchInput value={search} onChange={setSearch} placeholder="Buscar cursos..." className="flex-1" />
-        <FilterBar options={STATUS_FILTERS} value={status} onChange={setStatus} />
-      </div>
-
+      {coursesQuery.isLoading && <LoadingState rows={6} />}
       {coursesQuery.isError && (
         <p className="mb-4 text-sm text-destructive">
           Não foi possível carregar os cursos do Supabase DEV.
         </p>
       )}
 
-      <DataTable
-        rows={filtered}
-        rowKey={(course) => course.id}
-        emptyLabel={coursesQuery.isLoading ? 'Carregando cursos...' : 'Nenhum curso encontrado.'}
-        columns={[
-          { header: 'Título', cell: (course) => course.title },
-          { header: 'Slug', cell: (course) => course.slug },
-          { header: 'Valor original', cell: (course) => formatPrice(course.original_price_cents) },
-          { header: 'Desconto', cell: (course) => formatPrice(course.discount_cents) },
-          { header: 'Valor final', cell: (course) => formatPrice(course.price_cents) },
-          { header: 'Módulos', cell: (course) => String(course.course_modules.length) },
-          {
-            header: 'Status',
-            cell: (course) => (
-              <StatusBadge
-                status={course.status}
-                label={course.status === 'published' ? 'Publicado' : course.status === 'draft' ? 'Rascunho' : 'Arquivado'}
-              />
-            ),
-          },
-          {
-            header: 'Ações',
-            cell: (course) => (
-              <div className="flex flex-wrap gap-2">
-                <Button size="sm" variant="outline" onClick={() => openDialog('view', course)}>
-                  <Eye className="mr-2 h-4 w-4" />
-                  Visualizar
-                </Button>
-                <Button size="sm" variant="outline" onClick={() => openDialog('edit', course)}>
-                  <Pencil className="mr-2 h-4 w-4" />
-                  Editar
-                </Button>
-              </div>
-            ),
-          },
-        ]}
-      />
+      {coursesQuery.data && !coursesQuery.isLoading && !coursesQuery.isError && (
+        <>
+          <div className="mb-6 grid gap-4 sm:grid-cols-3">
+            <StatCard label="Total de cursos" value={String(rows.length)} />
+            <StatCard label="Publicados" value={String(rows.filter((course) => course.status === 'published').length)} />
+            <StatCard
+              label="Aulas cadastradas"
+              value={String(rows.reduce((total, course) => total + course.course_modules.reduce((moduleTotal, module) => moduleTotal + module.lessons.length, 0), 0))}
+            />
+          </div>
+
+          <div className="mb-6 flex flex-col gap-4 sm:flex-row">
+            <SearchInput value={search} onChange={setSearch} placeholder="Buscar cursos..." className="flex-1" />
+            <FilterBar options={STATUS_FILTERS} value={status} onChange={setStatus} />
+          </div>
+
+          <DataTable
+            rows={filtered}
+            rowKey={(course) => course.id}
+            emptyLabel="Nenhum curso encontrado."
+            columns={[
+              { header: 'Título', cell: (course) => course.title },
+              { header: 'Slug', cell: (course) => course.slug },
+              { header: 'Valor original', cell: (course) => formatPrice(course.original_price_cents) },
+              { header: 'Desconto', cell: (course) => formatPrice(course.discount_cents) },
+              { header: 'Valor final', cell: (course) => formatPrice(course.price_cents) },
+              { header: 'Módulos', cell: (course) => String(course.course_modules.length) },
+              {
+                header: 'Status',
+                cell: (course) => (
+                  <StatusBadge
+                    status={course.status}
+                    label={course.status === 'published' ? 'Publicado' : course.status === 'draft' ? 'Rascunho' : 'Arquivado'}
+                  />
+                ),
+              },
+              {
+                header: 'Ações',
+                cell: (course) => (
+                  <div className="flex flex-wrap gap-2">
+                    <Button size="sm" variant="outline" onClick={() => openDialog('view', course)}>
+                      <Eye className="mr-2 h-4 w-4" />
+                      Visualizar
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={() => openDialog('edit', course)}>
+                      <Pencil className="mr-2 h-4 w-4" />
+                      Editar
+                    </Button>
+                  </div>
+                ),
+              },
+            ]}
+          />
+        </>
+      )}
 
       <CourseManagementDialog
         open={dialogOpen}
