@@ -1,4 +1,5 @@
 import { manifestHasRequiredEvidence } from '@/agentic/contracts/executionManifest';
+import { AuditCheckpointGate } from '@/agentic/evidence/auditCheckpointGate';
 import { EvidenceStore } from '@/agentic/evidence/evidenceStore';
 import { AgentRegistry } from '@/agentic/registry/agentRegistry';
 import { ExecutionManifestStore } from '@/agentic/runtime/executionManifestStore';
@@ -19,9 +20,10 @@ export class WorkflowVerificationService {
     private readonly workflows: WorkflowStore,
     private readonly evidence: EvidenceStore,
     private readonly manifests: ExecutionManifestStore,
+    private readonly auditCheckpoints: AuditCheckpointGate,
   ) {}
 
-  verify(request: WorkflowVerificationRequest): Readonly<WorkflowSnapshot> {
+  async verify(request: WorkflowVerificationRequest): Promise<Readonly<WorkflowSnapshot>> {
     const persisted = this.workflows.get(request.workflowId);
     if (!persisted) throw new Error(`Workflow não encontrado: ${request.workflowId}`);
     if (persisted.state !== 'verifying') throw new Error(`Workflow não está em verifying: ${request.workflowId}`);
@@ -80,7 +82,22 @@ export class WorkflowVerificationService {
 
     if (!request.passed) {
       this.workflows.save(verification);
-      this.appendTransition(executionEvidence.correlationId, reviewer.id, request.workflowId, 'verifying', 'failed', verification.stepsExecuted);
+      this.appendTransition(
+        executionEvidence.correlationId,
+        reviewer.id,
+        request.workflowId,
+        'verifying',
+        'failed',
+        verification.stepsExecuted,
+      );
+      await this.auditCheckpoints.persistIfRequired({
+        phase: 'verification_failed',
+        correlationId: executionEvidence.correlationId,
+        workflowId: request.workflowId,
+        agentId: reviewer.id,
+        capability: manifest.capability,
+        risk: manifest.risk,
+      });
       return verification;
     }
 
@@ -88,9 +105,25 @@ export class WorkflowVerificationService {
       throw new Error(`Execution Manifest sem todas as evidências obrigatórias: ${manifest.id}`);
     }
 
+    await this.auditCheckpoints.persistIfRequired({
+      phase: 'pre_completion',
+      correlationId: executionEvidence.correlationId,
+      workflowId: request.workflowId,
+      agentId: reviewer.id,
+      capability: manifest.capability,
+      risk: manifest.risk,
+    });
+
     const completed = workflow.transition('completed');
     this.workflows.save(completed);
-    this.appendTransition(executionEvidence.correlationId, reviewer.id, request.workflowId, 'verifying', 'completed', completed.stepsExecuted);
+    this.appendTransition(
+      executionEvidence.correlationId,
+      reviewer.id,
+      request.workflowId,
+      'verifying',
+      'completed',
+      completed.stepsExecuted,
+    );
     return completed;
   }
 
