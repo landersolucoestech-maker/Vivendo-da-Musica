@@ -3,7 +3,7 @@ import { EvidenceStore } from '@/agentic/evidence/evidenceStore';
 import { ApprovalReceiptStore } from '@/agentic/runtime/approvalReceiptStore';
 import { CapabilityAdapterRegistry, type CapabilityExecutionContext } from '@/agentic/runtime/capabilityAdapterRegistry';
 import { CircuitBreaker } from '@/agentic/runtime/circuitBreaker';
-import { IdempotencyStore } from '@/agentic/runtime/idempotencyStore';
+import { IdempotencyStore, type IdempotencyBinding } from '@/agentic/runtime/idempotencyStore';
 import { LeaseManager } from '@/agentic/runtime/leaseManager';
 import { ResilientExecutor, type RetryPolicy } from '@/agentic/runtime/resilientExecutor';
 
@@ -13,6 +13,15 @@ export interface ToolExecutionRequest<Input = unknown> extends CapabilityExecuti
   leaseResource?: string;
   retry?: Partial<RetryPolicy>;
 }
+
+const idempotencyBinding = (request: ToolExecutionRequest<unknown>): IdempotencyBinding => ({
+  manifestId: request.manifestId,
+  workflowId: request.workflowId,
+  agentId: request.agentId,
+  capability: request.capability,
+  risk: request.risk,
+  resource: request.resource,
+});
 
 export class ToolExecutionGateway {
   private readonly breakers = new Map<string, CircuitBreaker>();
@@ -32,7 +41,8 @@ export class ToolExecutionGateway {
     };
     adapter.validateResource?.(request.input, request.resource);
 
-    const existing = this.idempotency.get(request.idempotencyKey);
+    const binding = idempotencyBinding(request);
+    const existing = this.idempotency.assertBinding(request.idempotencyKey, binding);
     if (existing?.state === 'completed') {
       this.appendEvidence(request, 'tool_result', {
         capability: request.capability,
@@ -67,7 +77,7 @@ export class ToolExecutionGateway {
       approvalReceiptId: request.approvalReceiptId ?? null,
     });
 
-    this.idempotency.start(request.idempotencyKey);
+    this.idempotency.start(request.idempotencyKey, binding);
     const breaker = this.breakers.get(request.capability) ?? new CircuitBreaker();
     this.breakers.set(request.capability, breaker);
     const executor = new ResilientExecutor(breaker);
