@@ -1,4 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
+import { beatService } from '@/modules/marketplace/services/beat.service';
 import type {
   ProducerDashboardData,
   SellerOrderItem,
@@ -256,7 +257,11 @@ export const producerService = {
   },
 
   async getDashboard(): Promise<ProducerDashboardData> {
-    const [products, orders] = await Promise.all([this.listProducts(), this.listOrders()]);
+    const [products, orders, beatDashboard] = await Promise.all([
+      this.listProducts(),
+      this.listOrders(),
+      beatService.getProducerDashboard(),
+    ]);
     const paidOrders = orders.filter((order) => order.paidAt);
     const productRevenueCents = paidOrders.reduce((sum, order) => sum + order.amountCents, 0);
     const productRanking = new Map<string, { title: string; sales: number; revenueCents: number }>();
@@ -268,25 +273,31 @@ export const producerService = {
       productRanking.set(order.productTitle, current);
     }
 
+    const beatRevenueCents = beatDashboard.totals.totalRevenueCents;
+    const beatSales = beatDashboard.totals.totalSales;
+    const productSales = paidOrders.length;
+    const grossRevenueCents = beatRevenueCents + productRevenueCents;
+    const totalSales = beatSales + productSales;
+
     return {
       financial: {
-        availableBalanceCents: productRevenueCents,
-        eligibleBalanceCents: productRevenueCents,
-        currency: 'BRL',
-        commissionBps: 0,
-        payoutMinimumCents: 0,
-        payoutDelayDays: 0,
+        availableBalanceCents: beatDashboard.financial.availableBalanceCents,
+        eligibleBalanceCents: beatDashboard.financial.eligibleBalanceCents,
+        currency: beatDashboard.financial.currency,
+        commissionBps: beatDashboard.financial.commissionBps,
+        payoutMinimumCents: beatDashboard.financial.payoutMinimumCents,
+        payoutDelayDays: beatDashboard.financial.payoutDelayDays,
       },
       totals: {
-        grossRevenueCents: productRevenueCents,
-        beatRevenueCents: 0,
+        grossRevenueCents,
+        beatRevenueCents,
         productRevenueCents,
-        totalSales: paidOrders.length,
-        beatSales: 0,
-        productSales: paidOrders.length,
-        publishedBeats: 0,
+        totalSales,
+        beatSales,
+        productSales,
+        publishedBeats: beatDashboard.beats.filter((beat) => beat.status === 'published').length,
         publishedProducts: products.filter((product) => product.status === 'published').length,
-        averageTicketCents: paidOrders.length ? Math.round(productRevenueCents / paidOrders.length) : 0,
+        averageTicketCents: totalSales ? Math.round(grossRevenueCents / totalSales) : 0,
       },
       topProducts: [...productRanking.values()].sort((a, b) => b.revenueCents - a.revenueCents).slice(0, 5),
       recentOrders: orders.slice(0, 5),
