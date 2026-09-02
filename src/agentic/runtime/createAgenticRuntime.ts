@@ -2,7 +2,10 @@ import { createDeploymentCapabilityAdapters } from '@/agentic/adapters/deploymen
 import { createPostHogCapabilityAdapters, type PostHogTransport } from '@/agentic/adapters/posthogCapabilityAdapters';
 import { createRepositoryCapabilityAdapters, type RepositoryTransport } from '@/agentic/adapters/repositoryCapabilityAdapters';
 import { createSupabaseCapabilityAdapters, type SupabaseTransport } from '@/agentic/adapters/supabaseCapabilityAdapters';
-import type { ExecutionManifestSignatureVerifier } from '@/agentic/contracts/executionManifest';
+import type {
+  ExecutionManifestIntegrityVerifier,
+  ExecutionManifestSignatureVerifier,
+} from '@/agentic/contracts/executionManifest';
 import { EvidenceStore } from '@/agentic/evidence/evidenceStore';
 import { createDefaultPolicyEngine } from '@/agentic/policy/defaultPolicySet';
 import { createDefaultAgentRegistry } from '@/agentic/registry/defaultAgentRegistry';
@@ -29,6 +32,7 @@ export interface AgenticRuntimeOptions {
   supabase?: SupabaseTransport;
   posthog?: PostHogTransport;
   manifestSignatureVerifier?: ExecutionManifestSignatureVerifier;
+  manifestIntegrityVerifier?: ExecutionManifestIntegrityVerifier;
   hostinger?: {
     config: HostingerDeploymentConfig;
     transport: HostingerDeploymentTransport;
@@ -52,7 +56,10 @@ export const createAgenticRuntime = (options: AgenticRuntimeOptions = {}) => {
   const approvals = new ApprovalReceiptStore();
   const leases = new LeaseManager();
   const workflows = new WorkflowStore();
-  const manifests = new ExecutionManifestStore(options.manifestSignatureVerifier);
+  const manifests = new ExecutionManifestStore(
+    options.manifestSignatureVerifier,
+    options.manifestIntegrityVerifier,
+  );
 
   if (options.github) registerAdapters(adapters, createRepositoryCapabilityAdapters(options.github));
   if (options.supabase) registerAdapters(adapters, createSupabaseCapabilityAdapters(options.supabase));
