@@ -25,6 +25,7 @@ export const createToolBroker = ({
   approvals = null,
   locks = createLockManager(),
   idempotency = createIdempotencyStore(),
+  budgetStore = null,
   maxRisk = 'critical',
   maxCalls = 100,
   maxTotalDurationMs = 1800000
@@ -33,10 +34,22 @@ export const createToolBroker = ({
   let calls = 0;
   let totalDurationMs = 0;
 
-  const budgetCheck = (tool) => {
+  const checkRisk = (tool) => {
+    if ((riskRank[tool.risk] ?? Infinity) > (riskRank[maxRisk] ?? 0)) throw new Error(`Tool risk exceeds broker ceiling: ${tool.id}`);
+  };
+
+  const reserveBudget = (runId) => {
+    if (budgetStore) return budgetStore.reserve({ runId, maxCalls, maxTotalDurationMs });
     if (calls >= maxCalls) throw new Error('Tool call budget exhausted');
     if (totalDurationMs >= maxTotalDurationMs) throw new Error('Tool duration budget exhausted');
-    if ((riskRank[tool.risk] ?? Infinity) > (riskRank[maxRisk] ?? 0)) throw new Error(`Tool risk exceeds broker ceiling: ${tool.id}`);
+    calls += 1;
+    return { runId, calls, totalDurationMs, maxCalls, maxTotalDurationMs };
+  };
+
+  const recordDuration = (runId, durationMs) => {
+    if (budgetStore) return budgetStore.recordDuration({ runId, durationMs });
+    totalDurationMs += durationMs;
+    return { runId, calls, totalDurationMs, maxCalls, maxTotalDurationMs };
   };
 
   return {
@@ -44,12 +57,13 @@ export const createToolBroker = ({
     approvals: approvalLedger,
     locks,
     idempotency,
+    budgetStore,
 
     async execute({ runId, agentId, toolId, operation = toolId, input = {}, resource = null, idempotencyKey = null }) {
       if (!runId || !agentId || !toolId || !operation) throw new Error('Tool call missing required fields');
       const tool = getTool(toolId);
       const agent = getAgent(agentId);
-      budgetCheck(tool);
+      checkRisk(tool);
 
       const decision = decideOperation({
         agentId,
@@ -75,7 +89,9 @@ export const createToolBroker = ({
         if (reservation.pending) throw new Error(`Idempotent operation already in progress: ${idempotencyKey}`);
       }
 
-      calls += 1;
+      const budget = reserveBudget(runId);
+      audit.append({ type: 'tool.budget-reserved', actor: agentId, runId, payload: { toolId, calls: budget.calls, maxCalls: budget.maxCalls } });
+
       let lock = null;
       const startedAt = Date.now();
       const callFingerprint = fingerprint(request);
@@ -123,12 +139,18 @@ export const createToolBroker = ({
         audit.append({ type: 'tool.failed', actor: agentId, runId, payload: { toolId, operation, callFingerprint, outcome: error?.code === 'TOOL_TIMEOUT' ? 'unknown' : 'failed', error: String(error?.message ?? error) } });
         throw error;
       } finally {
-        totalDurationMs += Date.now() - startedAt;
+        const durationMs = Date.now() - startedAt;
+        const updatedBudget = recordDuration(runId, durationMs);
+        audit.append({ type: 'tool.budget-recorded', actor: agentId, runId, payload: { toolId, durationMs, totalDurationMs: updatedBudget.totalDurationMs } });
         if (lock) locks.release({ resource, token: lock.token });
       }
     },
 
-    getBudget() {
+    getBudget(runId = null) {
+      if (budgetStore) {
+        if (!runId) throw new Error('Run id required for persistent budget inspection');
+        return budgetStore.inspect(runId);
+      }
       return { calls, maxCalls, totalDurationMs, maxTotalDurationMs, maxRisk };
     }
   };
