@@ -154,7 +154,6 @@ export const instructorService = {
 
   async uploadLessonFile(courseId: string, lessonId: string, file: File, kind: 'sample' | 'project'): Promise<void> {
     const bucket = kind === 'sample' ? 'lesson-samples' : 'lesson-projects';
-    const column = kind === 'sample' ? 'samples_file_path' : 'project_file_path';
     const safeName = file.name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9._-]/g, '-');
     const path = `${courseId}/${lessonId}/${crypto.randomUUID()}-${safeName}`;
     const { error: uploadError } = await supabase.storage.from(bucket).upload(path, file, { upsert: false });
@@ -163,9 +162,15 @@ export const instructorService = {
     const { data: existing, error: readError } = await supabase.from('lesson_files').select('id').eq('lesson_id', lessonId).maybeSingle();
     let metadataError = readError;
     if (!metadataError) {
+      const updatePayload = kind === 'sample'
+        ? { samples_file_path: path }
+        : { project_file_path: path };
+      const insertPayload = kind === 'sample'
+        ? { lesson_id: lessonId, samples_file_path: path }
+        : { lesson_id: lessonId, project_file_path: path };
       const result = existing
-        ? await supabase.from('lesson_files').update({ [column]: path }).eq('id', existing.id)
-        : await supabase.from('lesson_files').insert({ lesson_id: lessonId, [column]: path });
+        ? await supabase.from('lesson_files').update(updatePayload).eq('id', existing.id)
+        : await supabase.from('lesson_files').insert(insertPayload);
       metadataError = result.error;
     }
     if (metadataError) {
