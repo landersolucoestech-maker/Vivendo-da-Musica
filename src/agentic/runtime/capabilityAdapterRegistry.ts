@@ -17,12 +17,22 @@ export interface CapabilityAdapter<Input = unknown, Output = unknown> {
 
 export class CapabilityAdapterRegistry {
   private readonly adapters = new Map<string, CapabilityAdapter>();
+  private sealed = false;
 
   register(adapter: CapabilityAdapter): void {
+    if (this.sealed) throw new Error('CapabilityAdapterRegistry selado; novos adapters não podem ser registrados.');
     if (!adapter.capability.trim()) throw new Error('Adapter precisa declarar uma capability.');
     if (adapter.allowedRisks.length === 0) throw new Error(`Adapter sem riscos permitidos: ${adapter.capability}`);
     if (this.adapters.has(adapter.capability)) throw new Error(`Adapter já registrado: ${adapter.capability}`);
     this.adapters.set(adapter.capability, adapter);
+  }
+
+  seal(): void {
+    this.sealed = true;
+  }
+
+  isSealed(): boolean {
+    return this.sealed;
   }
 
   get(capability: string, risk: AgentRisk): CapabilityAdapter {
