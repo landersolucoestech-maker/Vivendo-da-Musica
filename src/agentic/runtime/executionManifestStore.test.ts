@@ -17,31 +17,60 @@ const readManifest = {
   expiresAt: '2099-09-02T05:30:00.000Z',
 } satisfies ExecutionManifestInput;
 
+const readContext = {
+  correlationId: 'corr-read',
+  workflowId: 'corr-read:engineering-orchestrator',
+  agentId: 'engineering-orchestrator',
+  capability: 'repo.read',
+  risk: 'read' as const,
+  resource: 'repo:path:src/App.tsx',
+  executionNonce: 'nonce-read-1',
+  idempotencyKey: 'idem-read-1',
+};
+
 describe('ExecutionManifestStore', () => {
   it('enforces resource scope and execution budget', () => {
     const store = new ExecutionManifestStore();
     store.issue(readManifest);
 
-    expect(() => store.assertAndConsume('manifest-read', {
-      correlationId: 'corr-read', workflowId: 'corr-read:engineering-orchestrator',
-      agentId: 'engineering-orchestrator', capability: 'repo.read', risk: 'read',
-      resource: 'repo:path:src/App.tsx',
-    })).not.toThrow();
+    expect(() => store.assertAndConsume('manifest-read', readContext)).not.toThrow();
     expect(store.executionsUsed('manifest-read')).toBe(1);
 
     expect(() => store.assertAndConsume('manifest-read', {
-      correlationId: 'corr-read', workflowId: 'corr-read:engineering-orchestrator',
-      agentId: 'engineering-orchestrator', capability: 'repo.read', risk: 'read',
-      resource: 'repo:path:src/App.tsx',
+      ...readContext,
+      executionNonce: 'nonce-read-2',
+      idempotencyKey: 'idem-read-2',
     })).toThrow('Budget');
+  });
+
+  it('allows an exact idempotent nonce replay without consuming budget twice', () => {
+    const store = new ExecutionManifestStore();
+    store.issue(readManifest);
+    store.assertAndConsume('manifest-read', readContext);
+    expect(() => store.assertAndConsume('manifest-read', readContext)).not.toThrow();
+    expect(store.executionsUsed('manifest-read')).toBe(1);
+    expect(store.hasConsumedNonce('nonce-read-1')).toBe(true);
+  });
+
+  it('rejects nonce reuse when the operation binding changes', () => {
+    const store = new ExecutionManifestStore();
+    store.issue(readManifest);
+    store.assertAndConsume('manifest-read', readContext);
+    expect(() => store.assertAndConsume('manifest-read', {
+      ...readContext,
+      resource: 'repo:path:src/Other.tsx',
+      idempotencyKey: 'idem-read-tampered',
+    })).toThrow('Replay de execution nonce');
+    expect(store.executionsUsed('manifest-read')).toBe(1);
   });
 
   it('denies a resource outside an explicit scope before consuming budget', () => {
     const store = new ExecutionManifestStore();
     store.issue(readManifest);
     expect(() => store.assertAndConsume('manifest-read', {
-      correlationId: 'corr-read', workflowId: 'corr-read:engineering-orchestrator',
-      agentId: 'engineering-orchestrator', capability: 'repo.read', risk: 'read',
+      ...readContext,
+      executionNonce: 'nonce-scope',
+      idempotencyKey: 'idem-scope',
       resource: 'repo:path:.env',
     })).toThrow('fora do escopo');
     expect(store.executionsUsed('manifest-read')).toBe(0);
@@ -62,7 +91,7 @@ describe('ExecutionManifestStore', () => {
     expect(() => store.assertAndConsume('manifest-prod', {
       correlationId: 'corr-prod', workflowId: 'corr-prod:release-agent', agentId: 'release-agent',
       capability: 'deploy.production', risk: 'privileged', resource: 'hostinger:target:vm-1',
-      artifactRef: 'ghcr.io/example/app:sha',
+      artifactRef: 'ghcr.io/example/app:sha', executionNonce: 'nonce-prod', idempotencyKey: 'idem-prod',
     })).toThrow('Assinatura');
     expect(store.executionsUsed('manifest-prod')).toBe(0);
   });
