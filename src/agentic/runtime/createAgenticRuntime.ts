@@ -57,6 +57,6 @@ export const createAgenticRuntime = (options: AgenticRuntimeOptions = {}) => {
     workflows,
     kernel: new AgentExecutionKernel(registry, policies, evidence),
     delegation: new DelegationProtocol(registry),
-    gateway: new ToolExecutionGateway(adapters, idempotency, approvals, leases),
+    gateway: new ToolExecutionGateway(adapters, idempotency, approvals, leases, evidence),
   });
 };
