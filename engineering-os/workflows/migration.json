@@ -1,16 +1,16 @@
 {
   "id": "migration",
-  "version": 1,
+  "version": 2,
   "risk": "high",
   "steps": [
-    {"id":"inventory","agent":"repo-archaeologist","scope":"read","required":true,"gates":["inventory-evidence"]},
-    {"id":"migration-plan","agent":"migration-engineer","scope":"plan","required":true,"gates":["migration-plan-evidence"]},
-    {"id":"contract-baseline","agent":"contract-test-engineer","scope":"test-write","required":true,"gates":["contract-baseline-evidence"]},
-    {"id":"migration-change","agent":"migration-engineer","scope":"migration-write","operation":"data-migration","required":true,"gates":["migration-evidence"]},
-    {"id":"data-integrity","agent":"database-engineer","scope":"test-write","required":true,"gates":["integrity-evidence"]},
-    {"id":"security","agent":"rls-engineer","scope":"test-write","required":true,"gates":["security-evidence"]},
-    {"id":"quality","agent":"quality-engineer","scope":"evidence","required":true,"gates":["quality-evidence"]},
-    {"id":"review","agent":"reviewer","scope":"evidence","required":true,"gates":["independent-review"]}
+    {"id":"inventory","agent":"repo-archaeologist","skill":"repository-inventory","scope":"read","required":true,"gates":["inventory-evidence"]},
+    {"id":"migration-plan","agent":"migration-engineer","skill":"database-migration","scope":"plan","required":true,"gates":["migration-plan-evidence"]},
+    {"id":"contract-baseline","agent":"contract-test-engineer","skill":"contract-testing","scope":"test-write","required":true,"gates":["contract-baseline-evidence"]},
+    {"id":"migration-change","agent":"migration-engineer","skill":"database-migration","scope":"migration-write","operation":"data-migration","required":true,"gates":["migration-evidence"]},
+    {"id":"data-integrity","agent":"database-engineer","skill":"contract-testing","scope":"test-write","required":true,"gates":["integrity-evidence"]},
+    {"id":"security","agent":"rls-engineer","skill":"rls-design","scope":"test-write","required":true,"gates":["security-evidence"]},
+    {"id":"quality","agent":"quality-engineer","skill":"quality-certification","scope":"evidence","required":true,"gates":["quality-evidence"]},
+    {"id":"review","agent":"reviewer","skill":"code-review","scope":"evidence","required":true,"gates":["independent-review"]}
   ],
   "requiredGates": ["inventory-evidence","migration-plan-evidence","contract-baseline-evidence","migration-evidence","integrity-evidence","security-evidence","quality-evidence","independent-review"]
 }
