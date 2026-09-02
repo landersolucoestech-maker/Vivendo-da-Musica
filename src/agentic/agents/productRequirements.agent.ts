@@ -17,6 +17,7 @@ export const productRequirementsAgent: AgentContract = {
     'risk.identify',
     'evidence.collect',
   ],
+  skillIds: ['repository-engineering', 'requirements-and-planning', 'evidence-governance'],
   deniedCapabilities: ['repo.write'],
   humanApprovalFor: ['privileged', 'destructive'],
   maxSteps: 18,
