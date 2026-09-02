@@ -11,14 +11,15 @@ const contract: AgentContract = {
   objective: 'Coordenar trabalho técnico somente dentro de capacidades autorizadas.',
   enabled: true,
   capabilities: ['repo.read', 'repo.write', 'repo.delete'],
+  skillIds: ['repository-engineering'],
   deniedCapabilities: ['repo.delete'],
   humanApprovalFor: ['privileged', 'destructive'],
   maxSteps: 12,
 };
 
-const buildRuntime = () => {
+const buildRuntime = (agent: AgentContract = contract) => {
   const registry = new AgentRegistry();
-  registry.register(contract);
+  registry.register(agent);
   return new DeterministicAgentRuntime(registry);
 };
 
@@ -56,7 +57,7 @@ describe('DeterministicAgentRuntime', () => {
     expect(decision.allowed).toBe(false);
   });
 
-  it('admits an authorized low-risk execution', () => {
+  it('admits an authorized low-risk execution with an explicitly assigned skill', () => {
     const decision = buildRuntime().admit({
       agentId: contract.id,
       capability: 'repo.read',
@@ -65,5 +66,27 @@ describe('DeterministicAgentRuntime', () => {
       correlationId: 'test-4',
     });
     expect(decision.allowed).toBe(true);
+  });
+
+  it('denies a capability when its resolved skill is not explicitly assigned to the agent', () => {
+    const backendAgent: AgentContract = {
+      ...contract,
+      id: 'backend-skill-probe',
+      capabilities: ['backend.inspect'],
+      skillIds: ['repository-engineering'],
+      deniedCapabilities: [],
+    };
+
+    const decision = buildRuntime(backendAgent).admit({
+      agentId: backendAgent.id,
+      capability: 'backend.inspect',
+      risk: 'read',
+      approvedByHuman: false,
+      correlationId: 'test-5',
+    });
+
+    expect(decision.allowed).toBe(false);
+    expect(decision.reason).toContain('Skill não atribuída');
+    expect(decision.reason).toContain('backend-api-engineering');
   });
 });
