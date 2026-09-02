@@ -11,6 +11,9 @@ export interface ExecutionAdmission {
   reason: string;
   policy: PolicyDecision | null;
   workflow: WorkflowEngine | null;
+  agentVersion: string | null;
+  skillId: string | null;
+  skillVersion: string | null;
 }
 
 export class AgentExecutionKernel {
@@ -39,6 +42,9 @@ export class AgentExecutionKernel {
         risk: request.risk,
         allowed: admission.allowed,
         reason: admission.reason,
+        agentVersion: admission.agent?.version ?? null,
+        skillId: admission.skillId,
+        skillVersion: admission.skillVersion,
       },
     });
 
@@ -48,6 +54,9 @@ export class AgentExecutionKernel {
         reason: admission.reason,
         policy: null,
         workflow: null,
+        agentVersion: admission.agent?.version ?? null,
+        skillId: admission.skillId,
+        skillVersion: admission.skillVersion,
       };
     }
 
@@ -71,6 +80,9 @@ export class AgentExecutionKernel {
         requiresApproval: policy.requiresApproval,
         matchedRuleIds: policy.matchedRuleIds,
         reasons: policy.reasons,
+        agentVersion: admission.agent.version,
+        skillId: admission.skillId,
+        skillVersion: admission.skillVersion,
       },
     });
 
@@ -80,6 +92,9 @@ export class AgentExecutionKernel {
         reason: policy.reasons.join(' '),
         policy,
         workflow: null,
+        agentVersion: admission.agent.version,
+        skillId: admission.skillId,
+        skillVersion: admission.skillVersion,
       };
     }
 
@@ -87,9 +102,12 @@ export class AgentExecutionKernel {
     const workflow = new WorkflowEngine(workflowId, admission.agent.maxSteps);
     return {
       allowed: true,
-      reason: 'Execução admitida pelo contrato do agente, Skill registrada e pelas policies.',
+      reason: 'Execução admitida pelo contrato do agente, Skill versionada e pelas policies.',
       policy,
       workflow,
+      agentVersion: admission.agent.version,
+      skillId: admission.skillId,
+      skillVersion: admission.skillVersion,
     };
   }
 }
