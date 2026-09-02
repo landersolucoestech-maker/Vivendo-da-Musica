@@ -15,6 +15,18 @@ import { Label } from '@/shared/components/ui/label';
 import { Textarea } from '@/shared/components/ui/textarea';
 import { useToast } from '@/shared/hooks/use-toast';
 
+const isSafeHttpsUrl = (value: string) => {
+  const normalized = value.trim();
+  if (!normalized) return true;
+
+  try {
+    const parsed = new URL(normalized);
+    return parsed.protocol === 'https:' && Boolean(parsed.hostname) && !parsed.username && !parsed.password;
+  } catch {
+    return false;
+  }
+};
+
 const CompanyProfilePage = () => {
   const { data, isLoading, isError, error, refetch } = useCompanyProfile();
   const queryClient = useQueryClient();
@@ -42,6 +54,14 @@ const CompanyProfilePage = () => {
   const save = async () => {
     if (form.displayName.trim().length < 2) {
       toast({ title: 'Informe o nome da empresa', variant: 'destructive' });
+      return;
+    }
+    if (!isSafeHttpsUrl(form.websiteUrl)) {
+      toast({ title: 'Website inválido', description: 'Use uma URL HTTPS válida, sem usuário ou senha embutidos.', variant: 'destructive' });
+      return;
+    }
+    if (!isSafeHttpsUrl(form.logoUrl)) {
+      toast({ title: 'URL do logotipo inválida', description: 'Use uma URL HTTPS válida, sem usuário ou senha embutidos.', variant: 'destructive' });
       return;
     }
     setBusy(true);
