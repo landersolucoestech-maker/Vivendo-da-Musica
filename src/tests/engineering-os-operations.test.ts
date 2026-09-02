@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { createAgentHandlerRegistry } from '../../scripts/engineering-os/agent-handlers.mjs';
+import { createAgentHandlerRegistry, resolveAgentHandler } from '../../scripts/engineering-os/agent-handlers.mjs';
 import { createExecutionAdapters } from '../../scripts/engineering-os/execution-adapters.mjs';
 import { createLeaseStore } from '../../scripts/engineering-os/lease-store.mjs';
 import { createRecoveryManager } from '../../scripts/engineering-os/recovery-manager.mjs';
@@ -54,6 +54,18 @@ describe('Engineering OS operational runtime', () => {
     expect(() => leases.acquire({ resource: 'run:abc', owner: 'worker-b' })).toThrow(/already held/);
     expect(leases.release({ resource: 'run:abc', owner: 'worker-a', token: first.token })).toBe(true);
     expect(leases.acquire({ resource: 'run:abc', owner: 'worker-b' }).owner).toBe('worker-b');
+  });
+
+  it('registers independent handlers for multiple skills on the same agent', () => {
+    const broker = createToolBroker();
+    const registry = createAgentHandlerRegistry({ broker });
+    const codeReview = registry.register({ agentId: 'reviewer', skillId: 'code-review', strategy: async () => ({ evidence: [{ kind: 'review' }] }) });
+    const securityReview = registry.register({ agentId: 'reviewer', skillId: 'security-review', strategy: async () => ({ evidence: [{ kind: 'test' }, { kind: 'review' }] }) });
+    const handlers = registry.toObject();
+
+    expect(codeReview).not.toBe(securityReview);
+    expect(resolveAgentHandler(handlers, { agentId: 'reviewer', skillId: 'code-review' })).toBe(codeReview);
+    expect(resolveAgentHandler(handlers, { agentId: 'reviewer', skillId: 'security-review' })).toBe(securityReview);
   });
 
   it('does not let an agent strategy bypass its skill tool allowlist', async () => {
