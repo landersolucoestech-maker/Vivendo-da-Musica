@@ -1,0 +1,15 @@
+{
+  "id": "release",
+  "version": 1,
+  "risk": "critical",
+  "steps": [
+    {"id":"readiness","agent":"release-engineer","scope":"plan","required":true,"gates":["release-readiness-evidence"]},
+    {"id":"security","agent":"security-engineer","scope":"evidence","required":true,"gates":["security-evidence"]},
+    {"id":"quality","agent":"quality-engineer","scope":"evidence","required":true,"gates":["quality-evidence"]},
+    {"id":"rollback-plan","agent":"rollback-engineer","scope":"plan","required":true,"gates":["rollback-evidence"]},
+    {"id":"release-metadata","agent":"release-engineer","scope":"release-metadata-write","operation":"release","required":true,"gates":["release-metadata-evidence"]},
+    {"id":"independent-review","agent":"completion-auditor","scope":"evidence","required":true,"gates":["independent-review"]},
+    {"id":"production-deploy","agent":"production-operator","scope":"production-write","operation":"production-deploy","required":true,"gates":["deployment-evidence"]}
+  ],
+  "requiredGates": ["release-readiness-evidence","security-evidence","quality-evidence","rollback-evidence","release-metadata-evidence","independent-review","deployment-evidence"]
+}
