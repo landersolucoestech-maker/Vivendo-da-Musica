@@ -73,6 +73,33 @@ describe('agentic runtime governance', () => {
     ]);
   });
 
+  it('rejects a completed idempotency key when execution context changes', async () => {
+    let calls = 0;
+    const adapters = new CapabilityAdapterRegistry();
+    adapters.register({
+      capability: 'repo.read', allowedRisks: ['read'], async execute() { calls += 1; return { value: calls }; },
+    });
+    const gateway = new ToolExecutionGateway(
+      adapters,
+      new IdempotencyStore(),
+      new ApprovalReceiptStore(),
+      new LeaseManager(),
+      new EvidenceStore(),
+    );
+
+    await gateway.execute({
+      correlationId: 'c-bound', workflowId: 'w-bound', agentId: 'engineering-orchestrator', capability: 'repo.read',
+      risk: 'read', idempotencyKey: 'bound-key', manifestId: 'manifest-a', resource: 'repo:path:README.md', input: {},
+    });
+
+    await expect(gateway.execute({
+      correlationId: 'c-bound-2', workflowId: 'w-bound', agentId: 'engineering-orchestrator', capability: 'repo.read',
+      risk: 'read', idempotencyKey: 'bound-key', manifestId: 'manifest-a', resource: 'repo:path:package.json', input: {},
+    })).rejects.toThrow('contexto divergente');
+
+    expect(calls).toBe(1);
+  });
+
   it('blocks delegation cycles and missing capabilities', () => {
     const protocol = new DelegationProtocol(createDefaultAgentRegistry());
     expect(() => protocol.admit({
