@@ -1,15 +1,19 @@
 import { env } from '@/app/config/env';
 import { supabase } from '@/integrations/supabase/client';
+import type { AccountCapability } from '@/modules/auth/types/role';
+import { ACCOUNT_CAPABILITIES } from '@/modules/auth/types/role';
 import { isDevAuthBypassEnabled } from '@/shared/utils/devAuthBypass';
 import { getEffectiveUserId } from '@/shared/utils/devIdentity';
 
-export type AccountCapability = 'student' | 'instructor' | 'producer' | 'affiliate' | 'company' | 'admin' | 'super_admin';
+export type { AccountCapability } from '@/modules/auth/types/role';
 
 export interface AccountCapabilityRecord {
   capability: AccountCapability;
-  status: 'requested' | 'active' | 'rejected' | 'revoked';
+  status: 'pending' | 'active' | 'suspended' | 'rejected';
   isDefault: boolean;
 }
+
+const accountCapabilitySet = new Set<string>(ACCOUNT_CAPABILITIES);
 
 const headers = async () => {
   const { data, error } = await supabase.auth.getSession();
@@ -27,10 +31,16 @@ const request = async <T>(path: string, init?: RequestInit): Promise<T> => {
     ...init,
     headers: { ...(await headers()), ...(init?.headers ?? {}) },
   });
+
   if (!response.ok) {
-    const payload = await response.json().catch(() => null) as { message?: string; error?: string; details?: string } | null;
-    throw new Error(payload?.message ?? payload?.error ?? payload?.details ?? 'Não foi possível atualizar os ambientes da conta.');
+    const payload = await response.json().catch(() => null);
+    console.error('Account capability request failed.', {
+      status: response.status,
+      payload,
+    });
+    throw new Error('Não foi possível atualizar os ambientes da conta.');
   }
+
   if (response.status === 204) return undefined as T;
   return response.json() as Promise<T>;
 };
@@ -44,13 +54,25 @@ const currentUserId = async () => {
 export const accountCapabilitiesService = {
   async list(): Promise<AccountCapabilityRecord[]> {
     const userId = await currentUserId();
-    const rows = await request<Array<{ capability: AccountCapability; status: AccountCapabilityRecord['status']; is_default: boolean }>>(
+    const rows = await request<Array<{
+      capability: string;
+      status: AccountCapabilityRecord['status'];
+      is_default: boolean;
+    }>>(
       `account_capabilities?select=capability,status,is_default&user_id=eq.${encodeURIComponent(userId)}&order=created_at.asc`,
     );
-    return rows.map((row) => ({ capability: row.capability, status: row.status, isDefault: row.is_default }));
+
+    return rows
+      .filter((row): row is typeof row & { capability: AccountCapability } =>
+        accountCapabilitySet.has(row.capability))
+      .map((row) => ({
+        capability: row.capability,
+        status: row.status,
+        isDefault: row.is_default,
+      }));
   },
 
-  async requestCapability(capability: 'instructor' | 'producer' | 'affiliate'): Promise<void> {
+  async requestCapability(capability: Exclude<AccountCapability, 'student'>): Promise<void> {
     const userId = await currentUserId();
     const rpc = isDevAuthBypassEnabled ? 'request_demo_account_capability' : 'request_account_capability';
     const body = isDevAuthBypassEnabled
