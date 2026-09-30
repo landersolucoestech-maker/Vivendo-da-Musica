@@ -12,12 +12,7 @@ declare
   v_report public.community_reports%rowtype;
   v_moderator uuid := auth.uid();
 begin
-  if v_moderator is null or not exists (
-    select 1
-    from public.user_profiles
-    where user_id = v_moderator
-      and role::text in ('instructor','admin','super_admin')
-  ) then
+  if v_moderator is null or not app_private.is_staff() then
     raise exception 'Only staff can moderate community reports' using errcode = '42501';
   end if;
 
