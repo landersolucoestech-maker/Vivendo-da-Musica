@@ -16,7 +16,7 @@ select is(
 
 select ok(
   pg_get_functiondef('app_private.protect_opportunity_application_client_update()'::regprocedure)
-    like '%A empresa não pode alterar dados enviados pelo candidato.%',
+    like '%The company cannot modify candidate-authored data.%',
   'application trigger explicitly protects candidate-authored fields from company edits'
 );
 
