@@ -36,33 +36,33 @@ begin
   where id = target_company_id;
 
   if company.id is null then
-    raise exception 'Empresa não encontrada.';
+    raise exception 'Company not found.';
   end if;
 
   if (select auth.uid()) is null then
     if not company.is_demo then
-      raise exception 'Autenticação obrigatória.';
+      raise exception 'Authentication is required.';
     end if;
   elsif not public.is_company_member(target_company_id) and not public.is_platform_staff() then
-    raise exception 'Usuário sem permissão para publicar por esta empresa.';
+    raise exception 'User is not allowed to publish for this company.';
   end if;
 
   if length(trim(coalesce(target_title, ''))) < 3
     or length(trim(coalesce(target_description, ''))) < 20
     or length(trim(coalesce(target_location, ''))) < 2
     or length(trim(coalesce(target_engagement_type, ''))) < 2 then
-    raise exception 'Dados obrigatórios da oportunidade são inválidos.';
+    raise exception 'Required opportunity data is invalid.';
   end if;
 
   if target_salary_min_cents is not null and target_salary_min_cents < 0 then
-    raise exception 'Valor mínimo inválido.';
+    raise exception 'Minimum amount is invalid.';
   end if;
   if target_salary_max_cents is not null and target_salary_max_cents < 0 then
-    raise exception 'Valor máximo inválido.';
+    raise exception 'Maximum amount is invalid.';
   end if;
   if target_salary_min_cents is not null and target_salary_max_cents is not null
     and target_salary_max_cents < target_salary_min_cents then
-    raise exception 'Faixa de valores inválida.';
+    raise exception 'Amount range is invalid.';
   end if;
 
   update public.company_credit_lots
@@ -82,7 +82,7 @@ begin
   limit 1;
 
   if lot.id is null then
-    raise exception 'A empresa não possui créditos disponíveis para publicar a vaga.';
+    raise exception 'The company has no available credits to publish the opportunity.';
   end if;
 
   post_validity_days := coalesce(
@@ -165,7 +165,7 @@ begin
     'consume',
     -1,
     balance,
-    'Publicação de oportunidade',
+    'Opportunity publication',
     actor_id,
     jsonb_build_object('validityDays', post_validity_days)
   )
@@ -203,7 +203,7 @@ begin
   for update;
 
   if opportunity.id is null or opportunity.company_id is null then
-    raise exception 'Oportunidade empresarial não encontrada.';
+    raise exception 'Company opportunity not found.';
   end if;
 
   perform pg_catalog.pg_advisory_xact_lock(
@@ -216,10 +216,10 @@ begin
 
   if (select auth.uid()) is null then
     if not company.is_demo then
-      raise exception 'Autenticação obrigatória.';
+      raise exception 'Authentication is required.';
     end if;
   elsif not public.is_company_member(company.id) and not public.is_platform_staff() then
-    raise exception 'Usuário sem permissão para renovar esta oportunidade.';
+    raise exception 'User is not allowed to renew this opportunity.';
   end if;
 
   update public.company_credit_lots
@@ -239,7 +239,7 @@ begin
   limit 1;
 
   if lot.id is null then
-    raise exception 'A empresa não possui créditos disponíveis para renovar a vaga.';
+    raise exception 'The company has no available credits to renew the opportunity.';
   end if;
 
   post_validity_days := coalesce(
@@ -277,7 +277,7 @@ begin
     'consume',
     -1,
     balance,
-    'Renovação de oportunidade',
+    'Opportunity renewal',
     actor_id,
     jsonb_build_object('validityDays', post_validity_days)
   )

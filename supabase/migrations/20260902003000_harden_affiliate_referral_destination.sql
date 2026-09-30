@@ -20,7 +20,7 @@ declare
   resolved_url text;
 begin
   if normalized_slug !~ '^[a-z0-9][a-z0-9-]{2,79}$' then
-    raise exception 'Link de afiliado inválido.' using errcode = '22023';
+    raise exception 'Invalid affiliate link.' using errcode = '22023';
   end if;
 
   update public.affiliate_links
@@ -31,14 +31,14 @@ begin
   returning affiliate_links.destination_url into resolved_url;
 
   if resolved_url is null then
-    raise exception 'Link de afiliado não encontrado.' using errcode = 'P0002';
+    raise exception 'Affiliate link not found.' using errcode = 'P0002';
   end if;
 
   if not (
     resolved_url ~ '^/[A-Za-z0-9/_?=&%#.-]*$'
     and resolved_url !~ '^//'
   ) then
-    raise exception 'Destino do link de afiliado não autorizado.' using errcode = '22023';
+    raise exception 'Affiliate link destination is not allowed.' using errcode = '22023';
   end if;
 
   return query select resolved_url;

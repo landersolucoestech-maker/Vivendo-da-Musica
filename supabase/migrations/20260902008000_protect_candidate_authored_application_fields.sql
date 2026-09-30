@@ -13,7 +13,7 @@ begin
       or new.opportunity_id is distinct from old.opportunity_id
       or new.applicant_id is distinct from old.applicant_id
       or new.created_at is distinct from old.created_at then
-      raise exception 'Identidade da candidatura não pode ser alterada.';
+      raise exception 'Application identity cannot be changed.';
     end if;
   end if;
 
@@ -29,7 +29,7 @@ begin
       and not coalesce(caller_is_company, false)
       and not caller_is_staff then
       if old.status not in ('submitted', 'reviewing') or new.status <> 'withdrawn' then
-        raise exception 'O candidato somente pode retirar uma candidatura ativa.';
+        raise exception 'The candidate can only withdraw an active application.';
       end if;
 
       if new.cover_letter is distinct from old.cover_letter
@@ -38,13 +38,13 @@ begin
         or new.reviewed_at is distinct from old.reviewed_at
         or new.decided_at is distinct from old.decided_at
         or new.applicant_name_snapshot is distinct from old.applicant_name_snapshot then
-        raise exception 'A retirada não pode alterar dados de recrutamento.';
+        raise exception 'Withdrawal cannot modify recruitment data.';
       end if;
     elsif coalesce(caller_is_company, false) and not caller_is_staff then
       if new.cover_letter is distinct from old.cover_letter
         or new.portfolio_url is distinct from old.portfolio_url
         or new.applicant_name_snapshot is distinct from old.applicant_name_snapshot then
-        raise exception 'A empresa não pode alterar dados enviados pelo candidato.';
+        raise exception 'The company cannot modify candidate-authored data.';
       end if;
     end if;
   end if;
