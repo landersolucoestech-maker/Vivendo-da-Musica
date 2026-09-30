@@ -43,6 +43,9 @@ begin
 
     if rewrite_qual is not null then
       rewrite_qual := replace(rewrite_qual, 'app_private.current_role()', '__PRIVATE_CURRENT_ROLE__()');
+      rewrite_qual := replace(rewrite_qual, 'app_private."current_role"()', '__PRIVATE_CURRENT_ROLE__()');
+      rewrite_qual := replace(rewrite_qual, '"app_private".current_role()', '__PRIVATE_CURRENT_ROLE__()');
+      rewrite_qual := replace(rewrite_qual, '"app_private"."current_role"()', '__PRIVATE_CURRENT_ROLE__()');
       rewrite_qual := replace(rewrite_qual, 'app_private.is_course_staff(', '__PRIVATE_IS_COURSE_STAFF__(');
       rewrite_qual := replace(rewrite_qual, 'app_private.is_beat_owner(', '__PRIVATE_IS_BEAT_OWNER__(');
       rewrite_qual := replace(rewrite_qual, 'app_private.is_enrolled(', '__PRIVATE_IS_ENROLLED__(');
@@ -65,6 +68,9 @@ begin
 
     if rewrite_check is not null then
       rewrite_check := replace(rewrite_check, 'app_private.current_role()', '__PRIVATE_CURRENT_ROLE__()');
+      rewrite_check := replace(rewrite_check, 'app_private."current_role"()', '__PRIVATE_CURRENT_ROLE__()');
+      rewrite_check := replace(rewrite_check, '"app_private".current_role()', '__PRIVATE_CURRENT_ROLE__()');
+      rewrite_check := replace(rewrite_check, '"app_private"."current_role"()', '__PRIVATE_CURRENT_ROLE__()');
       rewrite_check := replace(rewrite_check, 'app_private.is_course_staff(', '__PRIVATE_IS_COURSE_STAFF__(');
       rewrite_check := replace(rewrite_check, 'app_private.is_beat_owner(', '__PRIVATE_IS_BEAT_OWNER__(');
       rewrite_check := replace(rewrite_check, 'app_private.is_enrolled(', '__PRIVATE_IS_ENROLLED__(');
