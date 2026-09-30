@@ -3,9 +3,12 @@ import type { Session, User } from '@supabase/supabase-js';
 import { useQuery } from '@tanstack/react-query';
 import { useLocation } from 'react-router-dom';
 
-import { env } from '@/app/config/env';
 import { supabase } from '@/integrations/supabase/client';
-import type { UserRole } from '@/modules/auth/types/role';
+import {
+  ACCOUNT_CAPABILITIES,
+  type AccountCapability,
+  type UserRole,
+} from '@/modules/auth/types/role';
 import { getDevIdentityId, resolveDevRoleFromPath } from '@/shared/utils/devIdentity';
 import { isDevAuthBypassEnabled } from '@/shared/utils/devAuthBypass';
 
@@ -15,25 +18,22 @@ interface AuthProfile {
   role: UserRole;
 }
 
-interface CapabilityRow {
-  capability: UserRole;
-  status: 'pending' | 'active' | 'suspended' | 'rejected';
-  is_default: boolean;
-}
-
 interface AuthContextValue {
   session: Session | null;
   user: User | null;
   profile: AuthProfile | null;
   role: UserRole | null;
-  capabilities: UserRole[];
-  hasCapability: (capability: UserRole) => boolean;
+  capabilities: AccountCapability[];
+  hasCapability: (capability: AccountCapability) => boolean;
+  isPlatformStaff: boolean;
+  hasCompanyAccess: boolean;
   isLoading: boolean;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
-const uniqueCapabilities = (items: UserRole[]) => [...new Set(items)];
+const accountCapabilitySet = new Set<string>(ACCOUNT_CAPABILITIES);
+const uniqueCapabilities = (items: AccountCapability[]) => [...new Set(items)];
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const { pathname } = useLocation();
@@ -60,14 +60,20 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const userId = session?.user.id;
   const devRole = useMemo(() => resolveDevRoleFromPath(pathname), [pathname]);
-  const effectiveProfileId = userId ?? (isDevAuthBypassEnabled ? getDevIdentityId(devRole) : null);
+  const effectiveProfileId = isDevAuthBypassEnabled
+    ? getDevIdentityId(devRole)
+    : userId ?? null;
 
   const { data: profile, isLoading: isProfileLoading } = useQuery({
     queryKey: ['auth-profile', effectiveProfileId],
     queryFn: async (): Promise<AuthProfile | null> => {
       if (!effectiveProfileId) return null;
-      const { data, error } = await supabase.from('user_profiles')
-        .select('full_name, avatar_url, role').eq('user_id', effectiveProfileId).maybeSingle();
+      const { data, error } = await supabase
+        .from('user_profiles')
+        .select('full_name, avatar_url, role')
+        .eq('user_id', effectiveProfileId)
+        .maybeSingle();
+
       if (error) throw error;
       return data as AuthProfile | null;
     },
@@ -76,43 +82,90 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   });
 
   const { data: persistedCapabilities, isLoading: areCapabilitiesLoading } = useQuery({
-    queryKey: ['auth-capabilities', userId, session?.access_token],
-    queryFn: async (): Promise<UserRole[]> => {
-      if (!userId || !session?.access_token) return [];
+    queryKey: ['auth-capabilities', userId],
+    queryFn: async (): Promise<AccountCapability[]> => {
+      if (!userId) return [];
 
-      const response = await fetch(
-        `${env.supabaseUrl}/rest/v1/account_capabilities?select=capability,status,is_default&user_id=eq.${encodeURIComponent(userId)}&status=eq.active`,
-        {
-          headers: {
-            apikey: env.supabasePublishableKey,
-            Authorization: `Bearer ${session.access_token}`,
-          },
-        },
+      const { data, error } = await supabase
+        .from('account_capabilities')
+        .select('capability')
+        .eq('user_id', userId)
+        .eq('status', 'active');
+
+      if (error) throw error;
+
+      return uniqueCapabilities(
+        (data ?? [])
+          .map((row) => row.capability)
+          .filter((capability): capability is AccountCapability =>
+            accountCapabilitySet.has(capability)),
       );
-
-      if (!response.ok) {
-        throw new Error('Não foi possível carregar as capacidades da conta.');
-      }
-
-      const rows = await response.json() as CapabilityRow[];
-      return uniqueCapabilities(rows.map((row) => row.capability));
     },
-    enabled: Boolean(userId && session?.access_token),
+    enabled: Boolean(userId && !isDevAuthBypassEnabled),
     staleTime: 60_000,
   });
 
-  const capabilities = useMemo<UserRole[]>(() => {
+  const { data: persistedPlatformStaff, isLoading: isPlatformStaffLoading } = useQuery({
+    queryKey: ['auth-platform-staff', userId],
+    queryFn: async (): Promise<boolean> => {
+      if (!userId) return false;
+      const { data, error } = await supabase.rpc('is_platform_staff');
+      if (error) {
+        console.error('Platform staff authorization lookup failed.', error);
+        throw new Error('Failed to resolve platform staff authorization.');
+      }
+      return data === true;
+    },
+    enabled: Boolean(userId && !isDevAuthBypassEnabled),
+    staleTime: 60_000,
+  });
+
+  const { data: persistedCompanyAccess, isLoading: isCompanyAccessLoading } = useQuery({
+    queryKey: ['auth-company-access', userId],
+    queryFn: async (): Promise<boolean> => {
+      if (!userId) return false;
+      const { data, error } = await supabase
+        .from('company_members')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('status', 'active')
+        .limit(1);
+
+      if (error) {
+        console.error('Company membership authorization lookup failed.', error);
+        throw new Error('Failed to resolve company membership authorization.');
+      }
+
+      return (data?.length ?? 0) > 0;
+    },
+    enabled: Boolean(userId && !isDevAuthBypassEnabled),
+    staleTime: 60_000,
+  });
+
+  const capabilities = useMemo<AccountCapability[]>(() => {
     if (isDevAuthBypassEnabled) {
-      return uniqueCapabilities(devRole === 'student' ? ['student'] : ['student', devRole]);
+      if (accountCapabilitySet.has(devRole)) {
+        const capability = devRole as AccountCapability;
+        return uniqueCapabilities(capability === 'student' ? ['student'] : ['student', capability]);
+      }
+      return ['student'];
     }
 
     const active = [...(persistedCapabilities ?? [])];
-    if (profile?.role && !active.includes(profile.role)) active.push(profile.role);
     if (!active.includes('student')) active.push('student');
     return uniqueCapabilities(active);
-  }, [devRole, persistedCapabilities, profile?.role]);
+  }, [devRole, persistedCapabilities]);
+
+  const isPlatformStaff = isDevAuthBypassEnabled
+    ? devRole === 'admin'
+    : persistedPlatformStaff === true;
+
+  const hasCompanyAccess = isDevAuthBypassEnabled
+    ? devRole === 'company'
+    : persistedCompanyAccess === true;
 
   const role = profile?.role ?? (isDevAuthBypassEnabled ? devRole : null);
+
   const value = useMemo<AuthContextValue>(() => ({
     session,
     user: session?.user ?? null,
@@ -120,14 +173,24 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     role,
     capabilities,
     hasCapability: (capability) => capabilities.includes(capability),
+    isPlatformStaff,
+    hasCompanyAccess,
     isLoading:
       isSessionLoading
       || (Boolean(effectiveProfileId) && isProfileLoading)
-      || (Boolean(userId) && areCapabilitiesLoading),
+      || (Boolean(userId) && !isDevAuthBypassEnabled && (
+        areCapabilitiesLoading
+        || isPlatformStaffLoading
+        || isCompanyAccessLoading
+      )),
   }), [
     areCapabilitiesLoading,
     capabilities,
     effectiveProfileId,
+    hasCompanyAccess,
+    isCompanyAccessLoading,
+    isPlatformStaff,
+    isPlatformStaffLoading,
     isProfileLoading,
     isSessionLoading,
     profile,
@@ -141,6 +204,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
 export const useAuthContext = () => {
   const context = useContext(AuthContext);
-  if (!context) throw new Error('useAuthContext deve ser utilizado dentro de AuthProvider');
+  if (!context) throw new Error('useAuthContext must be used within AuthProvider.');
   return context;
 };
