@@ -1,4 +1,9 @@
--- Phase 2: move RLS authorization checks behind app_private helpers without exposing app_private itself.
+-- Phase 2: move RLS authorization checks behind app_private helpers.
+-- API roles require schema USAGE to resolve explicitly granted helper functions,
+-- but they receive no CREATE privilege and no implicit table access.
+
+grant usage on schema app_private to anon, authenticated, service_role;
+revoke create on schema app_private from public, anon, authenticated, service_role;
 
 grant execute on function app_private.current_role() to anon, authenticated;
 grant execute on function app_private.is_admin() to anon, authenticated;
