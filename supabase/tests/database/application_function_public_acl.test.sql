@@ -22,10 +22,9 @@ select is(
 );
 
 select ok(
-  has_function_privilege('anon', 'public.current_role()', 'EXECUTE')
-  and has_function_privilege('authenticated', 'public.current_role()', 'EXECUTE')
-  and has_function_privilege('service_role', 'public.current_role()', 'EXECUTE'),
-  'explicit current-role helper grants remain available'
+  not has_function_privilege('anon', 'public.current_role()', 'EXECUTE')
+  and not has_function_privilege('authenticated', 'public.current_role()', 'EXECUTE'),
+  'deprecated public current-role helper is not exposed to API clients'
 );
 
 select ok(
