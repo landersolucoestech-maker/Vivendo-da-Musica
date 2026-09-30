@@ -42,25 +42,47 @@ begin
     rewrite_check := p.with_check;
 
     if rewrite_qual is not null then
+      rewrite_qual := replace(rewrite_qual, 'app_private.current_role()', '__PRIVATE_CURRENT_ROLE__()');
+      rewrite_qual := replace(rewrite_qual, 'app_private.is_course_staff(', '__PRIVATE_IS_COURSE_STAFF__(');
+      rewrite_qual := replace(rewrite_qual, 'app_private.is_beat_owner(', '__PRIVATE_IS_BEAT_OWNER__(');
+      rewrite_qual := replace(rewrite_qual, 'app_private.is_enrolled(', '__PRIVATE_IS_ENROLLED__(');
+      rewrite_qual := replace(rewrite_qual, 'app_private.is_admin()', '__PRIVATE_IS_ADMIN__()');
+      rewrite_qual := replace(rewrite_qual, 'app_private.is_staff()', '__PRIVATE_IS_STAFF__()');
       rewrite_qual := replace(rewrite_qual, 'current_role()', '__PRIVATE_CURRENT_ROLE__()');
       rewrite_qual := replace(rewrite_qual, '"current_role"()', '__PRIVATE_CURRENT_ROLE__()');
-      rewrite_qual := replace(rewrite_qual, 'is_course_staff(', 'app_private.is_course_staff(');
-      rewrite_qual := replace(rewrite_qual, 'is_beat_owner(', 'app_private.is_beat_owner(');
-      rewrite_qual := replace(rewrite_qual, 'is_enrolled(', 'app_private.is_enrolled(');
-      rewrite_qual := replace(rewrite_qual, 'is_admin()', 'app_private.is_admin()');
-      rewrite_qual := replace(rewrite_qual, 'is_staff()', 'app_private.is_staff()');
+      rewrite_qual := replace(rewrite_qual, 'is_course_staff(', '__PRIVATE_IS_COURSE_STAFF__(');
+      rewrite_qual := replace(rewrite_qual, 'is_beat_owner(', '__PRIVATE_IS_BEAT_OWNER__(');
+      rewrite_qual := replace(rewrite_qual, 'is_enrolled(', '__PRIVATE_IS_ENROLLED__(');
+      rewrite_qual := replace(rewrite_qual, 'is_admin()', '__PRIVATE_IS_ADMIN__()');
+      rewrite_qual := replace(rewrite_qual, 'is_staff()', '__PRIVATE_IS_STAFF__()');
       rewrite_qual := replace(rewrite_qual, '__PRIVATE_CURRENT_ROLE__()', 'app_private.current_role()');
+      rewrite_qual := replace(rewrite_qual, '__PRIVATE_IS_COURSE_STAFF__(', 'app_private.is_course_staff(');
+      rewrite_qual := replace(rewrite_qual, '__PRIVATE_IS_BEAT_OWNER__(', 'app_private.is_beat_owner(');
+      rewrite_qual := replace(rewrite_qual, '__PRIVATE_IS_ENROLLED__(', 'app_private.is_enrolled(');
+      rewrite_qual := replace(rewrite_qual, '__PRIVATE_IS_ADMIN__()', 'app_private.is_admin()');
+      rewrite_qual := replace(rewrite_qual, '__PRIVATE_IS_STAFF__()', 'app_private.is_staff()');
     end if;
 
     if rewrite_check is not null then
+      rewrite_check := replace(rewrite_check, 'app_private.current_role()', '__PRIVATE_CURRENT_ROLE__()');
+      rewrite_check := replace(rewrite_check, 'app_private.is_course_staff(', '__PRIVATE_IS_COURSE_STAFF__(');
+      rewrite_check := replace(rewrite_check, 'app_private.is_beat_owner(', '__PRIVATE_IS_BEAT_OWNER__(');
+      rewrite_check := replace(rewrite_check, 'app_private.is_enrolled(', '__PRIVATE_IS_ENROLLED__(');
+      rewrite_check := replace(rewrite_check, 'app_private.is_admin()', '__PRIVATE_IS_ADMIN__()');
+      rewrite_check := replace(rewrite_check, 'app_private.is_staff()', '__PRIVATE_IS_STAFF__()');
       rewrite_check := replace(rewrite_check, 'current_role()', '__PRIVATE_CURRENT_ROLE__()');
       rewrite_check := replace(rewrite_check, '"current_role"()', '__PRIVATE_CURRENT_ROLE__()');
-      rewrite_check := replace(rewrite_check, 'is_course_staff(', 'app_private.is_course_staff(');
-      rewrite_check := replace(rewrite_check, 'is_beat_owner(', 'app_private.is_beat_owner(');
-      rewrite_check := replace(rewrite_check, 'is_enrolled(', 'app_private.is_enrolled(');
-      rewrite_check := replace(rewrite_check, 'is_admin()', 'app_private.is_admin()');
-      rewrite_check := replace(rewrite_check, 'is_staff()', 'app_private.is_staff()');
+      rewrite_check := replace(rewrite_check, 'is_course_staff(', '__PRIVATE_IS_COURSE_STAFF__(');
+      rewrite_check := replace(rewrite_check, 'is_beat_owner(', '__PRIVATE_IS_BEAT_OWNER__(');
+      rewrite_check := replace(rewrite_check, 'is_enrolled(', '__PRIVATE_IS_ENROLLED__(');
+      rewrite_check := replace(rewrite_check, 'is_admin()', '__PRIVATE_IS_ADMIN__()');
+      rewrite_check := replace(rewrite_check, 'is_staff()', '__PRIVATE_IS_STAFF__()');
       rewrite_check := replace(rewrite_check, '__PRIVATE_CURRENT_ROLE__()', 'app_private.current_role()');
+      rewrite_check := replace(rewrite_check, '__PRIVATE_IS_COURSE_STAFF__(', 'app_private.is_course_staff(');
+      rewrite_check := replace(rewrite_check, '__PRIVATE_IS_BEAT_OWNER__(', 'app_private.is_beat_owner(');
+      rewrite_check := replace(rewrite_check, '__PRIVATE_IS_ENROLLED__(', 'app_private.is_enrolled(');
+      rewrite_check := replace(rewrite_check, '__PRIVATE_IS_ADMIN__()', 'app_private.is_admin()');
+      rewrite_check := replace(rewrite_check, '__PRIVATE_IS_STAFF__()', 'app_private.is_staff()');
     end if;
 
     statement := format('alter policy %I on %I.%I', p.policyname, p.schemaname, p.tablename);
