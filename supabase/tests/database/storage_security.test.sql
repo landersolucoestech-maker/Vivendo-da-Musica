@@ -6,12 +6,11 @@ select is((select public from storage.buckets where id = 'academy-videos'), fals
 select is((select public from storage.buckets where id = 'academy-materials'), false, 'academy material delivery bucket is private');
 
 select ok(
-  (select public = false from storage.buckets where id = 'lesson-materials')
-  and (
-    select count(*) = 2
+  (
+    select count(*) = 3
     from storage.buckets
-    where id in ('lesson-projects', 'lesson-samples')
-      and public = true
+    where id in ('lesson-materials', 'lesson-projects', 'lesson-samples')
+      and public = false
   )
   and not exists (
     select 1
@@ -25,7 +24,7 @@ select ok(
         or coalesce(qual, '') ilike '%lesson-samples%'
       )
   ),
-  'lesson deliverables stay private while project and sample URLs remain public without object listing'
+  'lesson materials, projects and samples use private buckets without anonymous SELECT policies'
 );
 
 select is((select public from storage.buckets where id = 'lesson-videos'), false, 'lesson video delivery bucket is private');
