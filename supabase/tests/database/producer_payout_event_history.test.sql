@@ -79,6 +79,16 @@ where user_id in (
   '9fc00000-0000-4000-8000-000000000002'::uuid
 );
 
+insert into app_private.platform_staff (
+  user_id,
+  staff_role,
+  status
+) values (
+  '9fc00000-0000-4000-8000-000000000002'::uuid,
+  'admin',
+  'active'
+);
+
 insert into public.producer_financial_accounts (
   producer_id,
   currency,
