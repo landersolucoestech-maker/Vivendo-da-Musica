@@ -114,7 +114,7 @@ select ok(
     select count(*)
     from storage.buckets
     where id in ('lesson-projects', 'lesson-samples')
-      and public
+      and public = false
   ) = 2
   and not exists (
     select 1
@@ -122,13 +122,13 @@ select ok(
     where schemaname = 'storage'
       and tablename = 'objects'
       and cmd = 'SELECT'
-      and 'public' = any(roles)
+      and ('anon' = any(roles) or 'public' = any(roles))
       and (
         coalesce(qual, '') like '%lesson-projects%'
         or coalesce(qual, '') like '%lesson-samples%'
       )
   ),
-  'lesson assets use public buckets without object-listing policies'
+  'lesson project and sample assets use private buckets without anonymous SELECT policies'
 );
 
 select is(
